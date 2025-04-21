@@ -1,0 +1,75 @@
+MVP Plan
+North Star Metric- Improved early intervention rate through real-time symptom/GFR tracking. 
+🧠 Problem Statement
+Kidney patients lack accessible tools that track critical health indicators and emotional well-being, making self-advocacy and treatment navigation overwhelming. Preventable health declines happen due to fragmented support.
+
+Create an accessible, mobile-first app that allows users to log hydration, BP/GFR, and emotional states, with AI-powered support and basic visual trend tracking.
+Target users: People managing chronic conditions
+
+
+Your stake: You’ve lived this — it reflects your needs and others like you
+
+
+What makes this different: Emotional check-ins + AI advocacy support, simplified for low energy/mobility days
+
+
+
+🔢 Prioritized Features
+Priority
+Feature
+Why It Matters
+🥇 Must-Have
+Hydration input logging
+Encourages routine and hydration tracking
+🥇 Must-Have
+BP/ pain (1-10) stress (1-10) manual input logging
+Supports kidney health tracking
+🥇 Must-Have
+GFR Estimate- bstimate based on all metrics (Hydration, BP, stress (1-10), Pain (1-10), user profile info (age, gender, weight, race, kidney disease type and kidney disease stage)
+
+
+Supports kidney health tracking
+🥇 Must-Have
+Firebase database integration
+Saves health data securely and privately
+🥇 Must-Have
+Emotional check-in (emoji/tags/text)
+Supports mental wellness, gives AI context
+
+
+🥇 Must-Have
+Transplant roadmap tracker (articles, news updates, hospital and doctor references that should all be publicly open sourced, and keeps track of the steps needed)
+Supports mental wellness, gives AI context
+🥈 Should-Have
+GPT-3.5 assistant (emotional/advocacy)
+Builds connection, validates feelings, offers support
+🥈 Should-Have
+Chart.js trend visualization
+Helps users see patterns over time (hydration/BP first)
+🥉 Could-Have
+Anonymous login or session persistence
+Optional for MVP; helpful for data retention
+🚫 Later
+Sync with Apple HealthKit / Google Fit
+Optional advanced feature (Phase 3+), not free
+
+
+🧪 Limited Prototype Scope (For Early Testing)
+✅ Include:
+Hydration, BP, and emotional logging screens (mobile-friendly)
+GFR estimate based on all metrics (Hydration, BP, stress (1-10), Pain (1-10), user profile info (age, gender, weight, race, kidney disease type and kidney disease stage)
+
+
+One simple chart (hydration trend over 7 days)
+
+
+Firebase integration for saving logs
+
+
+GPT-3.5 assistant response to emotional check-ins (1–2 test cases)
+
+
+Simple UI in Replit or Lovable (low-code)
+
+
+Accessible design: high contrast, large touch targets
