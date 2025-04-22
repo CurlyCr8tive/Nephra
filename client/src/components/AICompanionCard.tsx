@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
-import { useUser } from "@/contexts/UserContext";
+import { Link, useLocation } from "wouter";
 import { getChatCompletion } from "@/lib/openai";
 import { useToast } from "@/hooks/use-toast";
 
 export function AICompanionCard() {
-  const { user } = useUser();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestion, setSuggestion] = useState({
@@ -15,17 +14,16 @@ export function AICompanionCard() {
   });
   
   const handleAcceptSuggestion = async () => {
-    if (!user) return;
-    
     setIsLoading(true);
     try {
+      // Using a default user ID (1) since we have a mock user
       const response = await getChatCompletion(
-        user.id,
+        1,
         "Yes, I would like some simple relaxation techniques to help with my stress levels."
       );
       
       // Redirect to chat view with the response
-      window.location.href = "/chat";
+      setLocation("/chat");
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({

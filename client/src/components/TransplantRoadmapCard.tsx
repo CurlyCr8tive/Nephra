@@ -1,25 +1,55 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { useUser } from "@/contexts/UserContext";
-import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 
+// Mock data for transplant roadmap
+const mockSteps = [
+  { 
+    id: 1, 
+    title: "Initial Evaluation", 
+    description: "Complete medical testing to determine transplant eligibility.",
+    orderIndex: 1
+  },
+  { 
+    id: 2, 
+    title: "Finding a Donor", 
+    description: "Identify potential living donors or join the national waiting list.",
+    orderIndex: 2
+  },
+  { 
+    id: 3, 
+    title: "Pre-transplant Testing", 
+    description: "Complete final compatibility testing and pre-surgical evaluations.",
+    orderIndex: 3
+  }
+];
+
+const mockProgress = [
+  { 
+    id: 1, 
+    userId: 1, 
+    stepId: 1, 
+    status: "completed", 
+    completedDate: new Date(2024, 2, 15) 
+  },
+  { 
+    id: 2, 
+    userId: 1, 
+    stepId: 2, 
+    status: "in_progress", 
+    completedDate: null
+  }
+];
+
 export function TransplantRoadmapCard() {
-  const { user } = useUser();
   const [expanded, setExpanded] = useState(true);
-
-  // Fetch transplant steps
-  const { data: steps, isLoading: isLoadingSteps } = useQuery({
-    queryKey: ["/api/transplant-steps"],
-    enabled: !!user,
-  });
-
-  // Fetch user's progress
-  const { data: progress, isLoading: isLoadingProgress } = useQuery({
-    queryKey: [`/api/transplant-progress/${user?.id}`],
-    enabled: !!user,
-  });
+  
+  // Using mock data since we don't have the user context yet
+  const steps = mockSteps;
+  const progress = mockProgress;
+  const isLoadingSteps = false;
+  const isLoadingProgress = false;
 
   // Combine steps with user progress
   const getStepsWithProgress = () => {

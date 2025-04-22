@@ -1,15 +1,24 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { useUser } from "@/contexts/UserContext";
-import { useHealthData } from "@/hooks/useHealthData";
 
 interface WelcomeCardProps {
   onLogClick?: () => void;
 }
 
+// Mock latest health metrics data
+const mockLatestMetrics = {
+  hydration: 1.8,
+  systolicBP: 122, 
+  diastolicBP: 81,
+  estimatedGFR: 45,
+  date: new Date()
+};
+
 export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
-  const { user } = useUser();
-  const { latestMetrics, isLoadingLatest } = user ? useHealthData({ userId: user.id }) : { latestMetrics: null, isLoadingLatest: false };
+  // Using mock data since we don't have the user context yet
+  const userName = "User";
+  const latestMetrics = mockLatestMetrics;
+  const isLoadingLatest = false;
 
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
@@ -45,7 +54,7 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
         </div>
         <div>
           <h2 className="font-display font-bold text-lg">
-            Hi, {user?.firstName || "User"}
+            Hi, {userName}
           </h2>
           <p className="text-neutral-600 text-sm">Remember to track your health today</p>
         </div>

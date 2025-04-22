@@ -1,11 +1,9 @@
-import { useUser } from "@/contexts/UserContext";
-
 interface HeaderProps {
   title?: string;
 }
 
 export function Header({ title }: HeaderProps) {
-  const { user } = useUser();
+  // We're not using user context for now
 
   return (
     <header className="bg-white shadow-sm py-4 px-4 fixed top-0 left-0 right-0 z-10">

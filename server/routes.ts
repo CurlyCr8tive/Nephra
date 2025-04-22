@@ -14,6 +14,7 @@ import {
 } from "@shared/schema";
 
 import OpenAI from "openai";
+import { validateMedicalDocument, validateHealthMetrics } from "./ai-service";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -299,38 +300,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now we'll simulate it with the provided metadata
       const result = await storage.createMedicalDocument(data);
       
-      // If we had an AI verification system, we'd call it here
-      // For now, we'll just mark it as unverified
-      if (result.documentType === "test_result") {
-        // Use OpenAI to analyze the document if it's a test result
-        try {
-          const verification = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-              {
-                role: "system",
-                content: "You are a medical document verification assistant. Verify the following test result data for accuracy and provide a brief analysis."
-              },
-              {
-                role: "user",
-                content: `Document type: ${result.documentType}, File name: ${result.fileName}, Metadata: ${JSON.stringify(result.metadata)}`
-              }
-            ],
-            max_tokens: 250,
-          });
-          
-          // Update the document with verification notes
-          const updated = await storage.updateMedicalDocument(result.id, {
-            aiVerified: true,
-            aiVerificationNotes: verification.choices[0].message.content
-          });
-          
-          res.status(201).json(updated);
-        } catch (error) {
-          console.error("AI verification error:", error);
-          res.status(201).json(result);
+      // Return early if automatic validation is not requested
+      if (!req.query.validate) {
+        return res.status(201).json(result);
+      }
+      
+      try {
+        // Get user information for context
+        const user = await storage.getUser(result.userId || 1);
+        
+        if (!user) {
+          return res.status(201).json(result);
         }
-      } else {
+        
+        // Use our specialized document validation service
+        const validationResult = await validateMedicalDocument(
+          result.documentType,
+          {
+            age: user.age || 40,
+            gender: user.gender || "unknown",
+            kidneyDiseaseType: user.kidneyDiseaseType || "CKD",
+            kidneyDiseaseStage: user.kidneyDiseaseStage || 3,
+          },
+          {
+            fileName: result.fileName,
+            description: result.fileName, // Use filename as description if none provided
+            metadata: result.metadata || {},
+          }
+        );
+        
+        // Update the document with validation results
+        const updated = await storage.updateMedicalDocument(result.id, {
+          aiVerified: true,
+          aiVerificationNotes: JSON.stringify(validationResult),
+        });
+        
+        res.status(201).json(updated);
+      } catch (error) {
+        console.error("AI validation error:", error);
         res.status(201).json(result);
       }
     } catch (error) {
@@ -346,6 +353,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error) {
       res.status(400).json({ error: error.message });
+    }
+  });
+  
+  // Endpoint to validate an existing medical document with AI
+  app.post("/api/medical-documents/:id/validate", async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const document = await storage.getMedicalDocuments(1); // Simple way to get all documents
+      
+      // Find the document by ID
+      const targetDocument = document.find((doc) => doc.id === documentId);
+      
+      if (!targetDocument) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      // Get user information for context
+      const user = await storage.getUser(targetDocument.userId || 1);
+      
+      if (!user) {
+        return res.status(400).json({ error: "User information not available" });
+      }
+      
+      // Use our specialized document validation service
+      const validationResult = await validateMedicalDocument(
+        targetDocument.documentType,
+        {
+          age: user.age || 40,
+          gender: user.gender || "unknown",
+          kidneyDiseaseType: user.kidneyDiseaseType || "CKD",
+          kidneyDiseaseStage: user.kidneyDiseaseStage || 3,
+        },
+        {
+          fileName: targetDocument.fileName,
+          description: targetDocument.fileName,
+          metadata: targetDocument.metadata || {},
+        }
+      );
+      
+      // Update the document with validation results
+      const updated = await storage.updateMedicalDocument(documentId, {
+        aiVerified: true,
+        aiVerificationNotes: JSON.stringify(validationResult),
+      });
+      
+      res.json({
+        document: updated,
+        validation: validationResult
+      });
+    } catch (error) {
+      console.error("AI validation error:", error);
+      res.status(500).json({ error: "Failed to validate document" });
     }
   });
   
