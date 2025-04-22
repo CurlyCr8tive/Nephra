@@ -27,6 +27,7 @@ export const healthMetrics = pgTable("health_metrics", {
   diastolicBP: integer("diastolic_bp"),
   painLevel: integer("pain_level"),
   stressLevel: integer("stress_level"),
+  fatigueLevel: integer("fatigue_level"), // 1-10 scale for fatigue
   estimatedGFR: doublePrecision("estimated_gfr"),
 });
 

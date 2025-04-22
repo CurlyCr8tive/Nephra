@@ -14,7 +14,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
   
   // Wrap in try/catch to handle case where UserProvider is not available
   let user = null;
-  let logHealthMetrics = async () => { console.log("No user available"); };
+  let healthDataHook: any = { logHealthMetrics: null, isLogging: false };
   let isLogging = false;
   
   try {
@@ -22,19 +22,29 @@ export default function HealthLogging(props: HealthLoggingProps) {
     user = userContext.user;
     
     if (user) {
-      const healthData = useHealthData({ userId: user.id });
-      logHealthMetrics = healthData.logHealthMetrics;
-      isLogging = healthData.isLogging;
+      healthDataHook = useHealthData({ userId: user.id });
+      isLogging = healthDataHook.isLogging;
     }
   } catch (error) {
     console.error("UserContext not available:", error);
   }
+  
+  // Create a wrapper function for the mutation to handle the TypeScript error
+  const logHealthMetrics = async (data: any) => {
+    if (healthDataHook.logHealthMetrics) {
+      return healthDataHook.logHealthMetrics(data);
+    } else {
+      console.log("No health data hook available");
+      return Promise.resolve();
+    }
+  };
   
   const [hydration, setHydration] = useState(1.2);
   const [systolicBP, setSystolicBP] = useState<number | "">("");
   const [diastolicBP, setDiastolicBP] = useState<number | "">("");
   const [painLevel, setPainLevel] = useState(4);
   const [stressLevel, setStressLevel] = useState(6);
+  const [fatigueLevel, setFatigueLevel] = useState(5);
 
   const handleSave = async () => {
     if (!user) return;
@@ -47,7 +57,8 @@ export default function HealthLogging(props: HealthLoggingProps) {
         systolicBP: systolicBP !== "" ? Number(systolicBP) : undefined,
         diastolicBP: diastolicBP !== "" ? Number(diastolicBP) : undefined,
         painLevel,
-        stressLevel
+        stressLevel,
+        fatigueLevel
       });
       
       if (onClose) onClose();
@@ -171,6 +182,23 @@ export default function HealthLogging(props: HealthLoggingProps) {
             leftLabel="Relaxed"
             centerLabel="Moderate"
             rightLabel="Very stressed"
+            color="accent"
+          />
+        </div>
+        
+        {/* Fatigue Level Input */}
+        <div className="mb-6">
+          <SliderWithLabel
+            label="Fatigue Level"
+            min={0}
+            max={10}
+            step={1}
+            value={fatigueLevel}
+            onChange={setFatigueLevel}
+            unit="/10"
+            leftLabel="Energetic"
+            centerLabel="Moderate"
+            rightLabel="Exhausted"
             color="accent"
           />
         </div>
