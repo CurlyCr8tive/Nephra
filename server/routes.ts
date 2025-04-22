@@ -13,9 +13,14 @@ import {
   insertUserTransplantProgressSchema
 } from "@shared/schema";
 
-import OpenAI from "openai";
-import { validateMedicalDocument, validateHealthMetrics } from "./ai-service";
+// AI services
+import aiRouter from "./ai-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
+
+// Import OpenAI
+import OpenAI from "openai";
+// Import validation functions from our AI services
+import { validateMedicalDocument } from "./openai-service";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -72,6 +77,8 @@ function estimateGFR(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Mount AI router with all AI service endpoints
+  app.use('/api/ai', aiRouter);
   // Health metrics endpoints
   app.post("/api/health-metrics", async (req, res) => {
     try {

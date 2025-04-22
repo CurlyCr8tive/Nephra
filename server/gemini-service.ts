@@ -1,9 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Initialize the Google Generative AI with API key
+// Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// Get the Gemini Pro model
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
 /**
@@ -17,6 +16,34 @@ export interface KidneyHealthAdvisory {
   followUpRecommendations: string[];
   emergencySigns: string[];
   requiresMedicalAttention: boolean;
+}
+
+/**
+ * Interface for laboratory results analysis
+ */
+export interface LabResultsAnalysis {
+  summary: string;
+  keyFindings: string[];
+  abnormalValues: { 
+    value: string; 
+    analysis: string; 
+    severity: "mild" | "moderate" | "severe" | "critical" | "normal" 
+  }[];
+  trendAnalysis: string;
+  recommendations: string[];
+  requiresFollowUp: boolean;
+}
+
+/**
+ * Interface for kidney education content
+ */
+export interface KidneyEducationContent {
+  topic: string;
+  contentSummary: string;
+  contentDetails: string;
+  keyPoints: string[];
+  resources: string[];
+  relatedTopics: string[];
 }
 
 /**
@@ -34,73 +61,63 @@ export async function getKidneyHealthAdvice(
     painLevel: number;
     stressLevel: number;
     estimatedGFR: number;
+    date?: Date;
   },
-  patientInfo: {
+  patientInfo?: {
     age?: number;
     gender?: string;
-    kidneyDiseaseStage?: number;
-    knownConditions?: string[];
+    stage?: number;
+    conditions?: string[];
   }
 ): Promise<KidneyHealthAdvisory> {
   try {
-    const prompt = `
-    As a kidney health expert, provide personalized health advice based on the following patient information and metrics:
+    const prompt = `You are a specialized kidney health advisor AI. Based on the following health metrics and patient information, provide tailored kidney health advice.
+    
+    Health Metrics:
+    - Hydration Level (1-10): ${metrics.hydration}
+    - Blood Pressure: ${metrics.systolicBP}/${metrics.diastolicBP}
+    - Pain Level (1-10): ${metrics.painLevel}
+    - Stress Level (1-10): ${metrics.stressLevel}
+    - Estimated GFR: ${metrics.estimatedGFR}
+    ${metrics.date ? `- Date Recorded: ${metrics.date}` : ''}
     
     Patient Information:
-    ${patientInfo.age ? `Age: ${patientInfo.age}` : 'Age: Unknown'}
-    ${patientInfo.gender ? `Gender: ${patientInfo.gender}` : 'Gender: Unknown'}
-    ${patientInfo.kidneyDiseaseStage ? `Kidney Disease Stage: ${patientInfo.kidneyDiseaseStage}` : 'Kidney Disease Stage: Unknown'}
-    ${patientInfo.knownConditions?.length ? `Known Conditions: ${patientInfo.knownConditions.join(', ')}` : 'Known Conditions: None specified'}
+    ${patientInfo?.age ? `- Age: ${patientInfo.age}` : ''}
+    ${patientInfo?.gender ? `- Gender: ${patientInfo.gender}` : ''}
+    ${patientInfo?.stage ? `- Kidney Disease Stage: ${patientInfo.stage}` : ''}
+    ${patientInfo?.conditions && patientInfo.conditions.length > 0 ? `- Existing Conditions: ${patientInfo.conditions.join(', ')}` : ''}
     
-    Recent Health Metrics:
-    Hydration Level (1-10): ${metrics.hydration}
-    Blood Pressure: ${metrics.systolicBP}/${metrics.diastolicBP} mmHg
-    Pain Level (1-10): ${metrics.painLevel}
-    Stress Level (1-10): ${metrics.stressLevel}
-    Estimated GFR: ${metrics.estimatedGFR} mL/min/1.73m²
-    
-    Provide a detailed health advisory formatted as JSON with the following fields:
-    - advice: comprehensive health advice based on the metrics
-    - dietaryRecommendations: array of dietary guidelines specific to kidney health
-    - lifestyleRecommendations: array of lifestyle adjustments to improve kidney function
-    - medicationConsiderations: array of medication-related considerations (not specific prescriptions)
-    - followUpRecommendations: array of suggested follow-up actions
-    - emergencySigns: array of warning signs that require immediate medical attention
-    - requiresMedicalAttention: boolean indicating if immediate medical attention is needed based on the provided metrics
-    
-    Focus especially on the correlation between the metrics and kidney health status. Include both immediate actions and longer-term recommendations.
-    `;
+    Provide your response in JSON format with the following structure:
+    {
+      "advice": "General advice about their kidney health based on the metrics",
+      "dietaryRecommendations": ["1-3 specific, actionable dietary recommendations"],
+      "lifestyleRecommendations": ["1-3 specific, actionable lifestyle recommendations"],
+      "medicationConsiderations": ["Any considerations related to medications"],
+      "followUpRecommendations": ["Recommendations for follow-up"],
+      "emergencySigns": ["Signs that would require immediate medical attention"],
+      "requiresMedicalAttention": true/false (Whether the current metrics suggest they should seek medical care)
+    }`;
 
-    // Generate content using Gemini
     const result = await model.generateContent(prompt);
-    const response = result.response;
-    const responseText = response.text();
+    const text = result.response.text();
     
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    // Parse JSON from response
+    // Extract JSON from the response (handles cases where model might add explanatory text)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not parse valid JSON from response");
     }
     
-    // Fallback if JSON parsing fails
-    return {
-      advice: "Unable to process health metrics into structured format. Please consult with your healthcare provider for personalized advice.",
-      dietaryRecommendations: ["Maintain good hydration", "Monitor sodium intake", "Consider consulting a renal dietitian"],
-      lifestyleRecommendations: ["Regular monitoring of blood pressure", "Stress management techniques", "Regular exercise as recommended by your doctor"],
-      medicationConsiderations: ["Follow your prescribed medication regimen", "Report any side effects to your healthcare provider"],
-      followUpRecommendations: ["Schedule regular check-ups with your nephrologist"],
-      emergencySigns: ["Severe shortness of breath", "Chest pain", "Confusion or extreme fatigue"],
-      requiresMedicalAttention: false
-    };
+    return JSON.parse(jsonMatch[0]) as KidneyHealthAdvisory;
   } catch (error) {
     console.error("Error getting kidney health advice from Gemini:", error);
     return {
-      advice: "An error occurred while processing your health data. Please try again later or consult with your healthcare provider.",
-      dietaryRecommendations: [],
-      lifestyleRecommendations: [],
-      medicationConsiderations: [],
-      followUpRecommendations: ["Contact your healthcare provider for personalized advice"],
-      emergencySigns: [],
+      advice: "Unable to generate personalized advice at this time. Please consult with your healthcare provider for guidance on your kidney health.",
+      dietaryRecommendations: ["Maintain proper hydration", "Follow your healthcare provider's dietary guidelines"],
+      lifestyleRecommendations: ["Monitor your blood pressure regularly", "Track your symptoms and share them with your healthcare team"],
+      medicationConsiderations: ["Take medications as prescribed by your healthcare provider"],
+      followUpRecommendations: ["Continue regular check-ups with your nephrologist"],
+      emergencySigns: ["Severe pain", "Difficulty breathing", "Extreme swelling", "Confusion"],
       requiresMedicalAttention: false
     };
   }
@@ -118,67 +135,59 @@ export async function analyzeLaboratoryResults(
   patientContext?: {
     age?: number;
     gender?: string;
-    kidneyDiseaseStage?: number;
+    stage?: number;
+    previousResults?: string;
   }
-): Promise<{
-  summary: string;
-  abnormalValues: Array<{parameter: string, value: string, significance: string}>;
-  trendAnalysis: string;
-  recommendations: string[];
-  suggestedFollowUp: string[];
-}> {
+): Promise<LabResultsAnalysis> {
   try {
-    const prompt = `
-    As a medical laboratory specialist focusing on kidney health, analyze the following lab results:
-    
-    ${patientContext ? `
-    Patient Context:
-    ${patientContext.age ? `Age: ${patientContext.age}` : ''}
-    ${patientContext.gender ? `Gender: ${patientContext.gender}` : ''}
-    ${patientContext.kidneyDiseaseStage ? `Kidney Disease Stage: ${patientContext.kidneyDiseaseStage}` : ''}
-    ` : ''}
+    const prompt = `You are a specialized medical AI focused on kidney health. Analyze the following laboratory results with a focus on kidney function and related markers.
     
     Lab Results:
     ${labText}
     
-    Provide a detailed analysis formatted as JSON with the following fields:
-    - summary: A concise summary of the lab results, focusing on kidney health indicators
-    - abnormalValues: An array of objects, each containing {parameter, value, significance} for values outside normal ranges
-    - trendAnalysis: Analysis of how these results might relate to kidney disease progression
-    - recommendations: Array of recommendations based on these results
-    - suggestedFollowUp: Array of suggested follow-up tests or monitoring based on these results
+    Patient Context:
+    ${patientContext?.age ? `- Age: ${patientContext.age}` : ''}
+    ${patientContext?.gender ? `- Gender: ${patientContext.gender}` : ''}
+    ${patientContext?.stage ? `- Kidney Disease Stage: ${patientContext.stage}` : ''}
+    ${patientContext?.previousResults ? `- Previous Results: ${patientContext.previousResults}` : ''}
     
-    Focus especially on kidney function markers like creatinine, BUN, GFR, electrolytes, protein levels, and any other values relevant to kidney health.
-    Flag any critical values that might require immediate attention.
-    `;
+    Focus specifically on markers relevant to kidney function such as creatinine, BUN, eGFR, electrolytes, protein levels, and any other relevant kidney markers.
+    
+    Provide your analysis in JSON format with the following structure:
+    {
+      "summary": "Brief summary of the lab results",
+      "keyFindings": ["List of key findings from the lab results"],
+      "abnormalValues": [
+        {
+          "value": "Name and measurement of abnormal value",
+          "analysis": "Brief analysis of this abnormal value",
+          "severity": "mild/moderate/severe/critical/normal"
+        }
+      ],
+      "trendAnalysis": "Analysis of trends if previous results are available",
+      "recommendations": ["Specific recommendations based on these results"],
+      "requiresFollowUp": true/false
+    }`;
 
-    // Generate content using Gemini
     const result = await model.generateContent(prompt);
-    const response = result.response;
-    const responseText = response.text();
+    const text = result.response.text();
     
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not parse valid JSON from response");
     }
     
-    // Fallback if JSON parsing fails
-    return {
-      summary: "Unable to process lab results into structured format. Please consult with your healthcare provider for interpretation.",
-      abnormalValues: [],
-      trendAnalysis: "Trend analysis requires structured lab data. Please consult with your healthcare provider.",
-      recommendations: ["Review these results with your healthcare provider"],
-      suggestedFollowUp: ["Schedule an appointment with your nephrologist to discuss these results"]
-    };
+    return JSON.parse(jsonMatch[0]) as LabResultsAnalysis;
   } catch (error) {
     console.error("Error analyzing lab results with Gemini:", error);
     return {
-      summary: "An error occurred while analyzing the lab results.",
+      summary: "Unable to generate a detailed analysis at this time. Please consult with your healthcare provider for interpretation of your lab results.",
+      keyFindings: ["Analysis unavailable due to technical limitations"],
       abnormalValues: [],
-      trendAnalysis: "Unable to perform trend analysis due to a technical error.",
-      recommendations: ["Please try again later or consult with your healthcare provider"],
-      suggestedFollowUp: ["Contact your healthcare provider for proper interpretation of your lab results"]
+      trendAnalysis: "Trend analysis unavailable",
+      recommendations: ["Discuss these lab results with your healthcare provider"],
+      requiresFollowUp: true
     };
   }
 }
@@ -195,85 +204,45 @@ export async function getKidneyEducationContent(
   topic: string,
   audience: string = "patient",
   diseaseStage?: number
-): Promise<{
-  title: string;
-  summary: string;
-  keyPoints: string[];
-  detailedExplanation: string;
-  commonMisconceptions: string[];
-  resources: Array<{title: string, description: string}>;
-}> {
+): Promise<KidneyEducationContent> {
   try {
-    const prompt = `
-    As a kidney health educator, provide educational content about the following topic:
+    const prompt = `You are an educational AI specializing in kidney disease information. Provide educational content about the following kidney-related topic:
     
     Topic: ${topic}
     Target Audience: ${audience}
-    ${diseaseStage ? `Disease Stage: ${diseaseStage}` : ''}
+    ${diseaseStage ? `Kidney Disease Stage: ${diseaseStage}` : ''}
     
-    Create comprehensive educational content formatted as JSON with the following fields:
-    - title: A clear title for this educational content
-    - summary: A concise 2-3 sentence summary of the key information
-    - keyPoints: An array of 4-6 essential points about this topic
-    - detailedExplanation: A detailed explanation in patient-friendly language
-    - commonMisconceptions: An array of common misconceptions about this topic
-    - resources: An array of objects with {title, description} for additional learning resources
+    Provide comprehensive, evidence-based information that is easy to understand for the specified audience. Avoid medical jargon when possible, and explain technical terms when they are necessary to use.
     
-    Ensure the content is:
-    - Evidence-based and medically accurate
-    - Written in clear, accessible language appropriate for the target audience
-    - Free of medical jargon or with explanations where medical terms are necessary
-    - Compassionate and empowering rather than alarming
-    - Practical with actionable information where appropriate
-    `;
+    Format your response as JSON with the following structure:
+    {
+      "topic": "The specific topic",
+      "contentSummary": "A brief summary of the content (1-2 sentences)",
+      "contentDetails": "Detailed information about the topic (2-3 paragraphs)",
+      "keyPoints": ["3-5 key points to remember"],
+      "resources": ["Suggested resources for more information"],
+      "relatedTopics": ["Related topics that might be of interest"]
+    }`;
 
-    // Generate content using Gemini
     const result = await model.generateContent(prompt);
-    const response = result.response;
-    const responseText = response.text();
+    const text = result.response.text();
     
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not parse valid JSON from response");
     }
     
-    // Fallback if JSON parsing fails
-    return {
-      title: topic,
-      summary: "Unable to generate structured content for this topic. Please try a different topic or contact support.",
-      keyPoints: ["Please consult reliable kidney health resources for information on this topic"],
-      detailedExplanation: "Detailed explanation unavailable due to content processing issues.",
-      commonMisconceptions: [],
-      resources: [
-        {
-          title: "National Kidney Foundation",
-          description: "Provides comprehensive resources on kidney health and disease management."
-        },
-        {
-          title: "American Association of Kidney Patients",
-          description: "Offers patient-centered education and advocacy resources."
-        }
-      ]
-    };
+    return JSON.parse(jsonMatch[0]) as KidneyEducationContent;
   } catch (error) {
     console.error("Error getting kidney education content from Gemini:", error);
     return {
-      title: topic,
-      summary: "An error occurred while generating educational content.",
-      keyPoints: ["Please try again later or explore other reliable kidney health resources"],
-      detailedExplanation: "Detailed explanation unavailable due to a technical error.",
-      commonMisconceptions: [],
-      resources: [
-        {
-          title: "National Kidney Foundation",
-          description: "Provides comprehensive resources on kidney health and disease management."
-        },
-        {
-          title: "American Association of Kidney Patients",
-          description: "Offers patient-centered education and advocacy resources."
-        }
-      ]
+      topic: topic,
+      contentSummary: "Educational content temporarily unavailable.",
+      contentDetails: "We're sorry, but the detailed information about this topic is not available at the moment. Please try again later or consult other educational resources provided by your healthcare team.",
+      keyPoints: ["Consult with your healthcare provider for information about this topic"],
+      resources: ["National Kidney Foundation (kidney.org)", "American Association of Kidney Patients (aakp.org)"],
+      relatedTopics: ["General kidney health", "Kidney diet guidelines", "Understanding kidney disease stages"]
     };
   }
 }
