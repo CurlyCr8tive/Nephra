@@ -492,6 +492,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Perplexity API routes for evidence-based health information
+  app.post("/api/evidence-health-info", async (req, res) => {
+    try {
+      // Check for Perplexity API key
+      if (!process.env.PERPLEXITY_API_KEY) {
+        return res.status(500).json({ 
+          error: "Perplexity API key is not configured",
+          message: "The evidence-based health information service is currently unavailable."
+        });
+      }
+
+      const { topic, context, relatedCondition, patientDetails } = req.body;
+      
+      if (!topic) {
+        return res.status(400).json({ error: "Topic is required" });
+      }
+      
+      const result = await getEvidenceBasedHealthInfo({
+        topic,
+        context,
+        relatedCondition,
+        patientDetails
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Perplexity API error:", error);
+      res.status(500).json({ 
+        error: "Could not retrieve evidence-based health information", 
+        message: "Unable to retrieve health information at this time. Please try again later."
+      });
+    }
+  });
+
+  app.post("/api/explain-medical-terms", async (req, res) => {
+    try {
+      // Check for Perplexity API key
+      if (!process.env.PERPLEXITY_API_KEY) {
+        return res.status(500).json({ 
+          error: "Perplexity API key is not configured",
+          message: "The medical terms explanation service is currently unavailable."
+        });
+      }
+
+      const { text } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+      
+      const result = await explainMedicalTerms(text);
+      res.json(result);
+    } catch (error) {
+      console.error("Perplexity API error:", error);
+      res.status(500).json({ 
+        error: "Could not explain medical terms", 
+        message: "Unable to process medical terminology at this time. Please try again later."
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
