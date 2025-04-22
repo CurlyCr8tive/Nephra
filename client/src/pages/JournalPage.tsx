@@ -21,14 +21,15 @@ interface AIProvider {
 }
 
 export default function JournalPage() {
-  // Try to get user context, handle gracefully if not available
-  let user = null;
-  try {
-    const userContext = useUser();
-    user = userContext.user;
-  } catch (error) {
-    console.error("UserContext not available:", error);
-  }
+  // Use a default test user since we don't have auth implemented yet
+  // In a real application, this would come from authentication
+  const user = { 
+    id: 1,
+    username: "testuser",
+    email: "test@example.com",
+    firstName: "Test",
+    lastName: "User"
+  };
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -52,9 +53,10 @@ export default function JournalPage() {
   ];
 
   // Query to fetch journal entries
-  const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery({
+  const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery<JournalEntry[]>({
     queryKey: [user ? `/api/journal-entries/${user.id}` : null],
     enabled: !!user,
+    initialData: [],
   });
 
   // Mutation to submit journal entry
