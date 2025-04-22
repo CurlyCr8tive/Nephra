@@ -67,7 +67,9 @@ export async function analyzeJournalEntry(
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(response.choices[0].message.content) as JournalAnalysisResult;
+    // Parse the JSON response, ensuring we handle null content (which shouldn't happen)
+    const messageContent = response.choices[0].message.content || '{}';
+    const result = JSON.parse(messageContent) as JournalAnalysisResult;
     
     // Ensure scores are within bounds
     result.stressScore = Math.min(10, Math.max(1, result.stressScore));

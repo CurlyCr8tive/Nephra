@@ -3,6 +3,7 @@ import * as openaiService from "./openai-service";
 import * as perplexityService from "./perplexity-service";
 import * as geminiService from "./gemini-service";
 import * as journalService from "./journal-service";
+import { SupabaseService } from "./supabase-service";
 import { storage } from "./storage";
 
 const router = Router();
@@ -227,6 +228,88 @@ router.post("/education", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error getting kidney education content:", error);
     res.status(500).json({ error: "Failed to get education content" });
+  }
+});
+
+/**
+ * Process journal entry with enhanced analysis (from Python implementation)
+ * POST /api/ai/journal/process
+ */
+router.post("/journal/process", async (req: Request, res: Response) => {
+  try {
+    const { userId, content } = req.body;
+    
+    if (!userId || !content) {
+      return res.status(400).json({ error: "Missing userId or journal content" });
+    }
+    
+    // Process the journal entry using the service
+    const journalData = await journalService.processJournalEntry(userId, content);
+    
+    // Save to database
+    const savedEntry = await storage.createJournalEntry(journalData);
+    
+    // Return the processed entry with analysis
+    res.json({
+      entry: savedEntry,
+      analysis: {
+        stressScore: journalData.stressScore,
+        fatigueScore: journalData.fatigueScore,
+        painScore: journalData.painScore,
+        sentiment: journalData.sentiment,
+        tags: journalData.tags,
+        supportiveResponse: journalData.aiResponse
+      }
+    });
+  } catch (error) {
+    console.error("Error processing journal entry:", error);
+    res.status(500).json({ error: "Failed to process journal entry" });
+  }
+});
+
+/**
+ * Process and save journal entry with health metrics
+ * POST /api/ai/journal/process-with-metrics
+ */
+router.post("/journal/process-with-metrics", async (req: Request, res: Response) => {
+  try {
+    const { userId, content } = req.body;
+    
+    if (!userId || !content) {
+      return res.status(400).json({ error: "Missing userId or journal content" });
+    }
+    
+    // Process and save the journal entry with optional health metrics
+    const result = await journalService.processAndSaveJournalEntry(userId, content);
+    
+    // If Supabase is configured, also save to Supabase
+    let supabaseResult = { success: false, message: "Supabase not configured" };
+    
+    if (SupabaseService.isConfigured()) {
+      try {
+        const supabaseService = new SupabaseService();
+        const success = await supabaseService.exportJournalEntryToSupabase(result.entry);
+        
+        supabaseResult = {
+          success,
+          message: success ? "Successfully exported to Supabase" : "Failed to export to Supabase"
+        };
+      } catch (supabaseError) {
+        console.error("Supabase integration error:", supabaseError);
+        supabaseResult = {
+          success: false,
+          message: "Error connecting to Supabase"
+        };
+      }
+    }
+    
+    res.json({
+      ...result,
+      supabase: supabaseResult
+    });
+  } catch (error) {
+    console.error("Error processing journal entry with metrics:", error);
+    res.status(500).json({ error: "Failed to process journal entry" });
   }
 });
 
