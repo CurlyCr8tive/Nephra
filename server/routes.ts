@@ -15,6 +15,7 @@ import {
 
 import OpenAI from "openai";
 import { validateMedicalDocument, validateHealthMetrics } from "./ai-service";
+import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
