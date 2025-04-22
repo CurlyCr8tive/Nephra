@@ -10,6 +10,7 @@ export function BottomNavigation() {
   const navItems = [
     { path: "/", icon: "home", label: "Home" },
     { path: "/trends", icon: "monitoring", label: "Track" },
+    { path: "/journal", icon: "edit_note", label: "Journal" },
     { path: "/chat", icon: "chat", label: "Chat" },
     { path: "/roadmap", icon: "map", label: "Roadmap" },
   ];
