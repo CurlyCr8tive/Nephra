@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { JournalEntry } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send, RefreshCw, Bot } from "lucide-react";
 
 // Interface for the AI model selector
 interface AIProvider {
@@ -35,6 +36,10 @@ export default function JournalPage() {
   const queryClient = useQueryClient();
   const [journalContent, setJournalContent] = useState("");
   const [selectedAIProvider, setSelectedAIProvider] = useState<string>("openai");
+  const [conversationMode, setConversationMode] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<{role: 'user' | 'ai', content: string}[]>([]);
+  const [followUpPrompt, setFollowUpPrompt] = useState("");
 
   // AI providers
   const aiProviders: AIProvider[] = [
@@ -76,6 +81,17 @@ export default function JournalPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/journal-entries/${user?.id}`] });
+      
+      // Save AI response for conversation
+      if (data.entry && data.entry.aiResponse) {
+        setAiResponse(data.entry.aiResponse);
+        setConversation([
+          { role: 'user', content: journalContent },
+          { role: 'ai', content: data.entry.aiResponse }
+        ]);
+        setConversationMode(true);
+      }
+      
       setJournalContent("");
       toast({
         title: "Journal entry saved",
@@ -85,6 +101,40 @@ export default function JournalPage() {
     onError: (error) => {
       toast({
         title: "Error saving journal",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutation for follow-up conversation
+  const { mutate: submitFollowUp, isPending: isSubmittingFollowUp } = useMutation({
+    mutationFn: async (prompt: string) => {
+      if (!user) throw new Error("No user found");
+      
+      const response = await apiRequest("POST", "/api/ai/chat", {
+        userId: user.id,
+        userMessage: prompt,
+        context: { previousConversation: conversation }
+      });
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const aiResponseText = data.message || "I'm not sure how to respond to that.";
+      
+      // Add to conversation
+      setConversation(prev => [
+        ...prev,
+        { role: 'user', content: followUpPrompt },
+        { role: 'ai', content: aiResponseText }
+      ]);
+      
+      setFollowUpPrompt("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error in conversation",
         description: error.message,
         variant: "destructive",
       });
@@ -101,10 +151,21 @@ export default function JournalPage() {
       return;
     }
     
+    // Reset conversation if starting a new journal entry
+    setConversation([]);
+    setAiResponse(null);
+    setConversationMode(false);
+    
     submitJournal({
       content: journalContent,
       aiProvider: selectedAIProvider
     });
+  };
+  
+  const handleFollowUpSubmit = () => {
+    if (!followUpPrompt.trim()) return;
+    
+    submitFollowUp(followUpPrompt);
   };
 
   return (
@@ -121,53 +182,137 @@ export default function JournalPage() {
           </TabsList>
           
           <TabsContent value="write" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">How are you feeling today?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <Textarea
-                    placeholder="Write about your physical symptoms, emotions, or any experiences today..."
-                    className="min-h-[200px] mb-4"
-                    value={journalContent}
-                    onChange={(e) => setJournalContent(e.target.value)}
-                  />
-                </div>
-                
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium mb-2">AI Analysis Provider</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {aiProviders.map((provider) => (
-                      <Button
-                        key={provider.id}
-                        variant={selectedAIProvider === provider.id ? "default" : "outline"}
-                        className="justify-start h-auto py-2 px-3"
-                        onClick={() => setSelectedAIProvider(provider.id)}
-                      >
-                        <div className="text-left">
-                          <div className="font-medium">{provider.name}</div>
-                          <div className="text-xs text-muted-foreground">{provider.description}</div>
-                        </div>
-                      </Button>
-                    ))}
+            {!conversationMode ? (
+              // Journal Entry Form
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">How are you feeling today?</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Textarea
+                      placeholder="Write about your physical symptoms, emotions, or any experiences today..."
+                      className="min-h-[200px] mb-4"
+                      value={journalContent}
+                      onChange={(e) => setJournalContent(e.target.value)}
+                    />
                   </div>
-                </div>
+                  
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium mb-2">AI Analysis Provider</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {aiProviders.map((provider) => (
+                        <Button
+                          key={provider.id}
+                          variant={selectedAIProvider === provider.id ? "default" : "outline"}
+                          className="justify-start h-auto py-2 px-3"
+                          onClick={() => setSelectedAIProvider(provider.id)}
+                        >
+                          <div className="text-left">
+                            <div className="font-medium">{provider.name}</div>
+                            <div className="text-xs text-muted-foreground">{provider.description}</div>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    className="w-full"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !journalContent.trim()}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : "Save & Analyze"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              // Conversation Interface
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">Your Health Assistant</CardTitle>
+                      <p className="text-sm text-muted-foreground">Chat about your journal entry</p>
+                    </div>
+                    <Button variant="outline" size="icon" onClick={() => setConversationMode(false)}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-4 mb-4">
+                      {conversation.map((message, index) => (
+                        <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-2 max-w-[80%]`}>
+                            <Avatar className={`h-8 w-8 ${message.role === 'ai' ? 'bg-primary' : 'bg-muted'}`}>
+                              <AvatarFallback>
+                                {message.role === 'ai' ? <Bot className="h-4 w-4" /> : user.firstName?.charAt(0) || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="flex items-end gap-2">
+                      <Textarea
+                        placeholder="Ask a follow-up question..."
+                        className="min-h-[60px] flex-1"
+                        value={followUpPrompt}
+                        onChange={(e) => setFollowUpPrompt(e.target.value)}
+                      />
+                      <Button 
+                        size="icon" 
+                        className="h-10 w-10" 
+                        onClick={handleFollowUpSubmit}
+                        disabled={isSubmittingFollowUp || !followUpPrompt.trim()}
+                      >
+                        {isSubmittingFollowUp ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <Button 
-                  className="w-full"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !journalContent.trim()}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : "Save & Analyze"}
-                </Button>
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Health Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                        <span className="text-xs mb-1">Pain</span>
+                        <span className="text-xl font-bold">{journalEntries[0]?.painScore || "-"}/10</span>
+                      </div>
+                      <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                        <span className="text-xs mb-1">Stress</span>
+                        <span className="text-xl font-bold">{journalEntries[0]?.stressScore || "-"}/10</span>
+                      </div>
+                      <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                        <span className="text-xs mb-1">Fatigue</span>
+                        <span className="text-xl font-bold">{journalEntries[0]?.fatigueScore || "-"}/10</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t">
+                      <h4 className="text-sm font-medium mb-2">Mood Assessment</h4>
+                      <p className="text-sm">{journalEntries[0]?.sentiment || "No mood assessment available"}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
           
           <TabsContent value="history">
