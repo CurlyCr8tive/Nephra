@@ -9,13 +9,6 @@ import HealthTrends from "@/pages/HealthTrends";
 import MedicalDocuments from "@/pages/MedicalDocuments";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
-import { useUser } from "@/contexts/UserContext";
-
-// Wrapped components for protected routes
-const HealthLoggingPage = () => {
-  const userContext = useUser();
-  return <HealthLogging />;
-};
 
 function App() {
   // Use direct props from AppWithProviders instead of useUser hook
@@ -34,7 +27,7 @@ function App() {
       <Toaster />
       <Switch>
         <Route path="/" component={Dashboard} />
-        <Route path="/log" component={HealthLoggingPage} />
+        <Route path="/log" component={HealthLogging} />
         <Route path="/chat" component={AIChatView} />
         <Route path="/roadmap" component={TransplantRoadmap} />
         <Route path="/trends" component={HealthTrends} />

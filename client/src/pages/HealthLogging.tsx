@@ -11,8 +11,24 @@ interface HealthLoggingProps extends RouteComponentProps {
 
 export default function HealthLogging(props: HealthLoggingProps) {
   const { onClose } = props;
-  const { user } = useUser();
-  const { logHealthMetrics, isLogging } = user ? useHealthData({ userId: user.id }) : { logHealthMetrics: () => {}, isLogging: false };
+  
+  // Wrap in try/catch to handle case where UserProvider is not available
+  let user = null;
+  let logHealthMetrics = async () => { console.log("No user available"); };
+  let isLogging = false;
+  
+  try {
+    const userContext = useUser();
+    user = userContext.user;
+    
+    if (user) {
+      const healthData = useHealthData({ userId: user.id });
+      logHealthMetrics = healthData.logHealthMetrics;
+      isLogging = healthData.isLogging;
+    }
+  } catch (error) {
+    console.error("UserContext not available:", error);
+  }
   
   const [hydration, setHydration] = useState(1.2);
   const [systolicBP, setSystolicBP] = useState<number | "">("");
