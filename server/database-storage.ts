@@ -113,9 +113,11 @@ export class DatabaseStorage implements IStorage {
 
   // Transplant roadmap methods
   async getTransplantSteps(): Promise<TransplantStep[]> {
-    return await db.select()
+    const steps = await db.select()
       .from(transplantSteps)
       .orderBy(transplantSteps.orderIndex);
+    
+    return steps;
   }
 
   async createTransplantStep(step: InsertTransplantStep): Promise<TransplantStep> {
