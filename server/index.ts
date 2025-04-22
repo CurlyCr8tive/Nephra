@@ -38,6 +38,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database with transplant steps
+  try {
+    const dbStorage = new DatabaseStorage();
+    await dbStorage.initializeTransplantSteps();
+    log("Database initialized with transplant steps", "database");
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -179,14 +179,22 @@ export class DatabaseStorage implements IStorage {
   
   // Medical documents methods
   async getMedicalDocuments(userId: number, documentType?: string): Promise<MedicalDocument[]> {
-    let query = db.select().from(medicalDocuments)
-      .where(eq(medicalDocuments.userId, userId));
-    
     if (documentType) {
-      query = query.where(eq(medicalDocuments.documentType, documentType));
+      return await db.select()
+        .from(medicalDocuments)
+        .where(
+          and(
+            eq(medicalDocuments.userId, userId),
+            eq(medicalDocuments.documentType, documentType)
+          )
+        )
+        .orderBy(desc(medicalDocuments.uploadDate));
+    } else {
+      return await db.select()
+        .from(medicalDocuments)
+        .where(eq(medicalDocuments.userId, userId))
+        .orderBy(desc(medicalDocuments.uploadDate));
     }
-    
-    return await query.orderBy(desc(medicalDocuments.uploadDate));
   }
 
   async createMedicalDocument(document: InsertMedicalDocument): Promise<MedicalDocument> {
@@ -208,13 +216,14 @@ export class DatabaseStorage implements IStorage {
   
   // Education resources methods
   async getEducationResources(category?: string): Promise<EducationResource[]> {
-    let query = db.select().from(educationResources);
-    
     if (category) {
-      query = query.where(eq(educationResources.category, category));
+      return await db.select()
+        .from(educationResources)
+        .where(eq(educationResources.category, category))
+        .execute();
+    } else {
+      return await db.select().from(educationResources).execute();
     }
-    
-    return await query;
   }
 
   async createEducationResource(resource: InsertEducationResource): Promise<EducationResource> {
