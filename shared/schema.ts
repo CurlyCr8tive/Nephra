@@ -75,6 +75,9 @@ export const journalEntries = pgTable("journal_entries", {
   aiResponse: text("ai_response"),
   sentiment: text("sentiment"),
   tags: text("tags").array(),
+  stressScore: integer("stress_score"),
+  fatigueScore: integer("fatigue_score"),
+  painScore: integer("pain_score"),
 });
 
 // Medical documents table for upload center

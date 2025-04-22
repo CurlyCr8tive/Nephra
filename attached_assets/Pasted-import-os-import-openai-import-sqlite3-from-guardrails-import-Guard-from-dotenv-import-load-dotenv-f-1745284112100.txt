@@ -1,0 +1,109 @@
+import os
+import openai
+import sqlite3
+from guardrails import Guard
+from dotenv import load_dotenv
+from datetime import datetime
+import requests
+import json
+
+# Load .env
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# ========== DATABASE SETUP ==========
+# SQLite DB init
+conn = sqlite3.connect("nephra_logs.db")
+cursor = conn.cursor()
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS journal_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry TEXT,
+    stress_score INTEGER,
+    fatigue_score INTEGER,
+    ai_response TEXT,
+    timestamp TEXT
+)
+''')
+conn.commit()
+
+# ========== GUARDRAILS SCHEMA ==========
+guard = Guard.from_string(
+    """
+<guard>
+    <output>
+        <string name="response" description="Supportive response with encouragement." required="true">
+            <validations>
+                <required-phrase phrase="Cherice, you're doing your best" />
+                <no-harmful />
+            </validations>
+        </string>
+        <integer name="stress_score" description="Stress score from 1 to 10." required="true" />
+        <integer name="fatigue_score" description="Fatigue score from 1 to 10." required="true" />
+        <integer name="pain_score" description="Pain score from 1 to 10." required="true" />
+    </output>
+
+    <prompt>
+        A user named Cherice journaled: "{{ journal_entry }}". 
+        Return:
+        - A supportive, personalized message with the phrase "Cherice, you're doing your best"
+        - A stress score (1-10)
+        - A fatigue score (1-10)
+        - A pain score (1-10)
+    </prompt>
+</guard>
+""")
+
+# ========== USER INPUT ==========
+journal_entry = input("📝 How are you feeling today, Cherice?\n> ")
+
+# ========== RUN GUARDRAILS + GPT ==========
+result = guard(
+    openai.ChatCompletion.create,
+    prompt_params={"journal_entry": journal_entry},
+    model="gpt-3.5-turbo",
+    temperature=0.7,
+)
+
+response = result["response"]
+stress = result["stress_score"]
+fatigue = result["fatigue_score"]
+pain = result["pain_score"]
+
+print(f"\n🤖 AI Response: {response}")
+print(f"📊 Stress: {stress}/10 | Fatigue: {fatigue}/10" | Pain: {pain}/10) 
+
+# ========== SAVE TO SQLITE ==========
+timestamp = datetime.now().isoformat()
+cursor.execute('''
+INSERT INTO journal_logs (entry, stress_score, fatigue_score, ai_response, timestamp)
+VALUES (?, ?, ?, ?, ?)
+''', (journal_entry, stress, fatigue, pain, response, timestamp))
+conn.commit()
+
+# ========== SAVE TO SUPABASE ==========
+headers = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json"
+}
+supabase_data = {
+    "entry": journal_entry,
+    "stress_score": stress,
+    "fatigue_score": fatigue,
+    "pain_score": pain
+    "ai_response": response,
+    "timestamp": timestamp
+}
+res = requests.post(
+    f"{SUPABASE_URL}/rest/v1/journal_logs",
+    headers=headers,
+    data=json.dumps(supabase_data)
+)
+
+if res.status_code == 201:
+    print("✅ Logged to Supabase.")
+else:
+    print("⚠️ Supabase logging failed:", res.text)

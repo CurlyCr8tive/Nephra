@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import * as openaiService from "./openai-service";
 import * as perplexityService from "./perplexity-service";
 import * as geminiService from "./gemini-service";
+import * as journalService from "./journal-service";
 import { storage } from "./storage";
 
 const router = Router();
