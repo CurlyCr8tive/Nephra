@@ -7,6 +7,7 @@ import AIChatView from "@/pages/AIChatView";
 import TransplantRoadmap from "@/pages/TransplantRoadmap";
 import HealthTrends from "@/pages/HealthTrends";
 import MedicalDocuments from "@/pages/MedicalDocuments";
+import JournalPage from "@/pages/JournalPage";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
 
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" component={Dashboard} />
         <Route path="/log" component={HealthLogging} />
         <Route path="/chat" component={AIChatView} />
+        <Route path="/journal" component={JournalPage} />
         <Route path="/roadmap" component={TransplantRoadmap} />
         <Route path="/trends" component={HealthTrends} />
         <Route path="/documents" component={MedicalDocuments} />

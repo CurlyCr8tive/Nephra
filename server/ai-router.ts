@@ -5,8 +5,12 @@ import * as geminiService from "./gemini-service";
 import * as journalService from "./journal-service";
 import { SupabaseService } from "./supabase-service";
 import { storage } from "./storage";
+import journalApiRouter from "./journal-api-router";
 
 const router = Router();
+
+// Mount journal API router for journal-specific operations
+router.use("/journal", journalApiRouter);
 
 // OpenAI endpoints
 

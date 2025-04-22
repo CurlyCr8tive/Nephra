@@ -52,8 +52,8 @@ export default function JournalPage() {
   ];
 
   // Query to fetch journal entries
-  const { data: journalEntries, isLoading: isLoadingJournalEntries } = useQuery({
-    queryKey: [user ? `/api/journal/${user.id}` : null],
+  const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery({
+    queryKey: [user ? `/api/journal-entries/${user.id}` : null],
     enabled: !!user,
   });
 
@@ -73,7 +73,7 @@ export default function JournalPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/journal/${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/journal-entries/${user?.id}`] });
       setJournalContent("");
       toast({
         title: "Journal entry saved",
@@ -173,14 +173,14 @@ export default function JournalPage() {
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : journalEntries && journalEntries.length > 0 ? (
+            ) : journalEntries.length > 0 ? (
               <div className="space-y-4">
                 {journalEntries.map((entry: JournalEntry) => (
                   <Card key={entry.id} className="overflow-hidden">
                     <CardHeader className="p-4 pb-2 bg-muted/30">
                       <div className="flex justify-between items-center">
                         <CardTitle className="text-md">
-                          {new Date(entry.date).toLocaleDateString()}
+                          {new Date(entry.date || new Date()).toLocaleDateString()}
                         </CardTitle>
                         <div className="flex space-x-1">
                           {entry.tags && entry.tags.map((tag) => (
