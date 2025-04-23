@@ -36,33 +36,8 @@ import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 
 export default function ProfilePage() {
-  // Default fallback user data
-  const [userId, setUserId] = useState(1); // Default fallback userId
-  const [user, setUser] = useState({
-    id: 1,
-    username: "testuser",
-    password: "",
-    email: null,
-    firstName: "User",
-    lastName: null,
-    age: null,
-    gender: null,
-    weight: null,
-    race: null,
-    kidneyDiseaseType: null,
-    kidneyDiseaseStage: null,
-    diagnosisDate: null,
-    otherHealthConditions: null,
-    primaryCareProvider: null,
-    nephrologist: null,
-    otherSpecialists: null,
-    insuranceProvider: null,
-    insurancePolicyNumber: null,
-    transplantCenter: null,
-    transplantCoordinator: null,
-    transplantCoordinatorPhone: null,
-    createdAt: new Date()
-  });
+  // Use userId state to dynamically fetch profile data
+  const [userId, setUserId] = useState<number | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -105,17 +80,7 @@ export default function ProfilePage() {
     }
   }, [authUser]);
   
-  // Show error toast using useEffect
-  useEffect(() => {
-    const hasError = !user || user.id === 1; // Default user has id 1
-    if (hasError) {
-      toast({
-        title: "Error accessing user data",
-        description: "There was a problem accessing your user information. Please refresh the page and try again.",
-        variant: "destructive",
-      });
-    }
-  }, [toast, user]);
+  // No longer need error toast since we're using auth context
 
   const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState(false);
