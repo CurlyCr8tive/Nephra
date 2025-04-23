@@ -37,7 +37,7 @@ export interface LabResultsAnalysis {
 /**
  * Interface for kidney education content
  */
-export interface KidneyEducationContent {
+export interface NephraEducationContent {
   topic: string;
   contentSummary: string;
   contentDetails: string;
@@ -69,7 +69,7 @@ export async function getNephraHealthAdvice(
     stage?: number;
     conditions?: string[];
   }
-): Promise<KidneyHealthAdvisory> {
+): Promise<NephraHealthAdvisory> {
   try {
     const prompt = `You are a specialized kidney health advisor AI. Based on the following health metrics and patient information, provide tailored kidney health advice.
     
@@ -108,9 +108,9 @@ export async function getNephraHealthAdvice(
       throw new Error("Could not parse valid JSON from response");
     }
     
-    return JSON.parse(jsonMatch[0]) as KidneyHealthAdvisory;
+    return JSON.parse(jsonMatch[0]) as NephraHealthAdvisory;
   } catch (error) {
-    console.error("Error getting kidney health advice from Gemini:", error);
+    console.error("Error getting Nephra health advice from Gemini:", error);
     return {
       advice: "Unable to generate personalized advice at this time. Please consult with your healthcare provider for guidance on your kidney health.",
       dietaryRecommendations: ["Maintain proper hydration", "Follow your healthcare provider's dietary guidelines"],
@@ -200,11 +200,11 @@ export async function analyzeLaboratoryResults(
  * @param diseaseStage Optional kidney disease stage for more targeted information
  * @returns Educational content about the requested topic
  */
-export async function getKidneyEducationContent(
+export async function getNephraEducationContent(
   topic: string,
   audience: string = "patient",
   diseaseStage?: number
-): Promise<KidneyEducationContent> {
+): Promise<NephraEducationContent> {
   try {
     const prompt = `You are an educational AI specializing in kidney disease information. Provide educational content about the following kidney-related topic:
     
@@ -233,9 +233,9 @@ export async function getKidneyEducationContent(
       throw new Error("Could not parse valid JSON from response");
     }
     
-    return JSON.parse(jsonMatch[0]) as KidneyEducationContent;
+    return JSON.parse(jsonMatch[0]) as NephraEducationContent;
   } catch (error) {
-    console.error("Error getting kidney education content from Gemini:", error);
+    console.error("Error getting Nephra education content from Gemini:", error);
     return {
       topic: topic,
       contentSummary: "Educational content temporarily unavailable.",
