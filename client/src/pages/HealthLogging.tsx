@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Upload, PlusCircle, CalendarDays, Clock, Pill } from "lucide-react";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
+import { useToast } from "@/hooks/use-toast";
 
 interface HealthLoggingProps extends RouteComponentProps {
   onClose?: () => void;
@@ -27,6 +28,7 @@ interface Medication {
 export default function HealthLogging(props: HealthLoggingProps) {
   const { onClose } = props;
   const [activeTab, setActiveTab] = useState("health");
+  const { toast } = useToast();
   
   // Wrap in try/catch to handle case where UserProvider is not available
   let user = null;
@@ -43,6 +45,11 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
   } catch (error) {
     console.error("UserContext not available:", error);
+    toast({
+      title: "Error accessing user data",
+      description: "There was a problem accessing your user information. Please refresh the page and try again.",
+      variant: "destructive",
+    });
   }
   
   // Create a wrapper function for the mutation to handle the TypeScript error

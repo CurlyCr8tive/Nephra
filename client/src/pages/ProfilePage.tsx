@@ -23,6 +23,7 @@ import { CalendarIcon, SaveIcon, AlertCircle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from "@/contexts/UserContext";
 
 const ProfilePage = () => {
   // Safely access user context with fallback for error cases
@@ -34,9 +35,11 @@ const ProfilePage = () => {
   };
   
   try {
-    // This will be replaced with actual user context when available
-    // For now using hardcoded values
-    userId = 1;
+    const userContext = useUser();
+    if (userContext.user) {
+      userId = userContext.user.id;
+      user = userContext.user;
+    }
   } catch (error) {
     console.error("UserContext not available:", error);
     // Continue with default user
