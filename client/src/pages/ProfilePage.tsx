@@ -508,24 +508,26 @@ const ProfilePage = () => {
                         <div className="space-y-2">
                           <Label>Other Health Conditions</Label>
                           <div className="flex flex-wrap gap-2 mb-2">
-                            {form.getValues("otherHealthConditions")?.map((condition, index) => (
-                              <Badge 
-                                key={index} 
-                                variant="secondary"
-                                className="flex items-center gap-1"
-                              >
-                                {condition}
-                                {isEditing && (
-                                  <button 
-                                    type="button"
-                                    className="ml-1 text-xs"
-                                    onClick={() => removeHealthCondition(condition)}
-                                  >
-                                    ×
-                                  </button>
-                                )}
-                              </Badge>
-                            ))}
+                            {Array.isArray(form.getValues("otherHealthConditions")) 
+                              ? form.getValues("otherHealthConditions").map((condition, index) => (
+                                <Badge 
+                                  key={index} 
+                                  variant="secondary"
+                                  className="flex items-center gap-1"
+                                >
+                                  {condition}
+                                  {isEditing && (
+                                    <button 
+                                      type="button"
+                                      className="ml-1 text-xs"
+                                      onClick={() => removeHealthCondition(condition)}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </Badge>
+                              ))
+                              : null}
                           </div>
                           
                           {isEditing && (
@@ -591,39 +593,41 @@ const ProfilePage = () => {
                           <div className="space-y-2">
                             <Label>Other Specialists</Label>
                             
-                            {form.getValues("otherSpecialists")?.map((specialist, index) => (
-                              <div 
-                                key={index} 
-                                className="bg-muted p-3 rounded-md mb-2 relative"
-                              >
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <Label className="text-xs">Name</Label>
-                                    <p>{specialist.name}</p>
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">Specialty</Label>
-                                    <p>{specialist.specialty}</p>
-                                  </div>
-                                  {specialist.phone && (
-                                    <div className="col-span-2">
-                                      <Label className="text-xs">Phone</Label>
-                                      <p>{specialist.phone}</p>
+                            {Array.isArray(form.getValues("otherSpecialists")) 
+                              ? form.getValues("otherSpecialists").map((specialist, index) => (
+                                <div 
+                                  key={index} 
+                                  className="bg-muted p-3 rounded-md mb-2 relative"
+                                >
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label className="text-xs">Name</Label>
+                                      <p>{specialist.name}</p>
                                     </div>
+                                    <div>
+                                      <Label className="text-xs">Specialty</Label>
+                                      <p>{specialist.specialty}</p>
+                                    </div>
+                                    {specialist.phone && (
+                                      <div className="col-span-2">
+                                        <Label className="text-xs">Phone</Label>
+                                        <p>{specialist.phone}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {isEditing && (
+                                    <button 
+                                      type="button"
+                                      className="absolute top-2 right-2 text-sm text-destructive"
+                                      onClick={() => removeSpecialist(specialist)}
+                                    >
+                                      Remove
+                                    </button>
                                   )}
                                 </div>
-                                
-                                {isEditing && (
-                                  <button 
-                                    type="button"
-                                    className="absolute top-2 right-2 text-sm text-destructive"
-                                    onClick={() => removeSpecialist(specialist)}
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
-                            ))}
+                              ))
+                              : null}
                             
                             {isEditing && (
                               <div className="border rounded-md p-3 mt-2">

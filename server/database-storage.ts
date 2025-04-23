@@ -1,4 +1,4 @@
-import { 
+import {
   users, type User, type InsertUser,
   healthMetrics, type HealthMetrics, type InsertHealthMetrics,
   emotionalCheckIns, type EmotionalCheckIn, type InsertEmotionalCheckIn,
@@ -10,10 +10,25 @@ import {
   educationResources, type EducationResource, type InsertEducationResource
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, lte, gte } from "drizzle-orm";
+import { eq, and, desc, gte, lte } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 import { IStorage } from "./storage";
 
+const PostgresSessionStore = connectPg(session);
+
 export class DatabaseStorage implements IStorage {
+  public sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
+    });
+  }
+
+  // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -25,10 +40,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values({...insertUser, createdAt: new Date()})
-      .returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
@@ -43,17 +55,22 @@ export class DatabaseStorage implements IStorage {
 
   // Health metrics methods
   async getHealthMetrics(userId: number, limit?: number): Promise<HealthMetrics[]> {
-    const query = db.select()
+    let query = db
+      .select()
       .from(healthMetrics)
       .where(eq(healthMetrics.userId, userId))
       .orderBy(desc(healthMetrics.date));
-    
-    const result = limit ? await query.limit(limit) : await query;
-    return result;
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return await query;
   }
 
   async getHealthMetricsByDate(userId: number, startDate: Date, endDate: Date): Promise<HealthMetrics[]> {
-    return await db.select()
+    return await db
+      .select()
       .from(healthMetrics)
       .where(
         and(
@@ -62,79 +79,78 @@ export class DatabaseStorage implements IStorage {
           lte(healthMetrics.date, endDate)
         )
       )
-      .orderBy(desc(healthMetrics.date));
+      .orderBy(healthMetrics.date);
   }
 
   async createHealthMetrics(metrics: InsertHealthMetrics): Promise<HealthMetrics> {
-    const [healthMetric] = await db
-      .insert(healthMetrics)
-      .values(metrics)
-      .returning();
+    const [healthMetric] = await db.insert(healthMetrics).values(metrics).returning();
     return healthMetric;
   }
 
   // Emotional check-in methods
   async getEmotionalCheckIns(userId: number, limit?: number): Promise<EmotionalCheckIn[]> {
-    const query = db.select()
+    let query = db
+      .select()
       .from(emotionalCheckIns)
       .where(eq(emotionalCheckIns.userId, userId))
       .orderBy(desc(emotionalCheckIns.date));
-    
-    const result = limit ? await query.limit(limit) : await query;
-    return result;
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return await query;
   }
 
   async createEmotionalCheckIn(checkIn: InsertEmotionalCheckIn): Promise<EmotionalCheckIn> {
-    const [emotionalCheckIn] = await db
-      .insert(emotionalCheckIns)
-      .values(checkIn)
-      .returning();
+    const [emotionalCheckIn] = await db.insert(emotionalCheckIns).values(checkIn).returning();
     return emotionalCheckIn;
   }
 
   // AI chat methods
   async getAiChats(userId: number, limit?: number): Promise<AiChat[]> {
-    const query = db.select()
+    let query = db
+      .select()
       .from(aiChats)
       .where(eq(aiChats.userId, userId))
       .orderBy(desc(aiChats.timestamp));
-    
-    const result = limit ? await query.limit(limit) : await query;
-    return result;
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return await query;
   }
 
   async createAiChat(chat: InsertAiChat): Promise<AiChat> {
-    const [aiChat] = await db
-      .insert(aiChats)
-      .values(chat)
-      .returning();
+    const [aiChat] = await db.insert(aiChats).values(chat).returning();
     return aiChat;
   }
 
   // Transplant roadmap methods
   async getTransplantSteps(): Promise<TransplantStep[]> {
-    const steps = await db.select()
+    return await db
+      .select()
       .from(transplantSteps)
       .orderBy(transplantSteps.orderIndex);
-    
-    return steps;
   }
 
   async createTransplantStep(step: InsertTransplantStep): Promise<TransplantStep> {
-    const [transplantStep] = await db
-      .insert(transplantSteps)
-      .values(step)
-      .returning();
+    const [transplantStep] = await db.insert(transplantSteps).values(step).returning();
     return transplantStep;
   }
 
   async getUserTransplantProgress(userId: number): Promise<UserTransplantProgress[]> {
-    return await db.select()
+    return await db
+      .select()
       .from(userTransplantProgress)
       .where(eq(userTransplantProgress.userId, userId));
   }
 
-  async updateUserTransplantProgress(id: number, progressData: Partial<InsertUserTransplantProgress>): Promise<UserTransplantProgress | undefined> {
+  async updateUserTransplantProgress(
+    id: number,
+    progressData: Partial<InsertUserTransplantProgress>
+  ): Promise<UserTransplantProgress | undefined> {
     const [updatedProgress] = await db
       .update(userTransplantProgress)
       .set(progressData)
@@ -143,34 +159,40 @@ export class DatabaseStorage implements IStorage {
     return updatedProgress;
   }
 
-  async createUserTransplantProgress(progress: InsertUserTransplantProgress): Promise<UserTransplantProgress> {
+  async createUserTransplantProgress(
+    progress: InsertUserTransplantProgress
+  ): Promise<UserTransplantProgress> {
     const [userProgress] = await db
       .insert(userTransplantProgress)
       .values(progress)
       .returning();
     return userProgress;
   }
-  
+
   // Journal entries methods
   async getJournalEntries(userId: number, limit?: number): Promise<JournalEntry[]> {
-    const query = db.select()
+    let query = db
+      .select()
       .from(journalEntries)
       .where(eq(journalEntries.userId, userId))
       .orderBy(desc(journalEntries.date));
-    
-    const result = limit ? await query.limit(limit) : await query;
-    return result;
+
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    return await query;
   }
 
   async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {
-    const [journalEntry] = await db
-      .insert(journalEntries)
-      .values(entry)
-      .returning();
+    const [journalEntry] = await db.insert(journalEntries).values(entry).returning();
     return journalEntry;
   }
 
-  async updateJournalEntry(id: number, entryData: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined> {
+  async updateJournalEntry(
+    id: number,
+    entryData: Partial<InsertJournalEntry>
+  ): Promise<JournalEntry | undefined> {
     const [updatedEntry] = await db
       .update(journalEntries)
       .set(entryData)
@@ -178,25 +200,19 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedEntry;
   }
-  
+
   // Medical documents methods
   async getMedicalDocuments(userId: number, documentType?: string): Promise<MedicalDocument[]> {
+    let query = db
+      .select()
+      .from(medicalDocuments)
+      .where(eq(medicalDocuments.userId, userId));
+
     if (documentType) {
-      return await db.select()
-        .from(medicalDocuments)
-        .where(
-          and(
-            eq(medicalDocuments.userId, userId),
-            eq(medicalDocuments.documentType, documentType)
-          )
-        )
-        .orderBy(desc(medicalDocuments.uploadDate));
-    } else {
-      return await db.select()
-        .from(medicalDocuments)
-        .where(eq(medicalDocuments.userId, userId))
-        .orderBy(desc(medicalDocuments.uploadDate));
+      query = query.where(eq(medicalDocuments.documentType, documentType));
     }
+
+    return await query.orderBy(desc(medicalDocuments.uploadDate));
   }
 
   async createMedicalDocument(document: InsertMedicalDocument): Promise<MedicalDocument> {
@@ -207,7 +223,10 @@ export class DatabaseStorage implements IStorage {
     return medicalDocument;
   }
 
-  async updateMedicalDocument(id: number, documentData: Partial<InsertMedicalDocument>): Promise<MedicalDocument | undefined> {
+  async updateMedicalDocument(
+    id: number,
+    documentData: Partial<InsertMedicalDocument>
+  ): Promise<MedicalDocument | undefined> {
     const [updatedDocument] = await db
       .update(medicalDocuments)
       .set(documentData)
@@ -215,17 +234,16 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedDocument;
   }
-  
+
   // Education resources methods
   async getEducationResources(category?: string): Promise<EducationResource[]> {
+    let query = db.select().from(educationResources);
+
     if (category) {
-      return await db.select()
-        .from(educationResources)
-        .where(eq(educationResources.category, category))
-        .execute();
-    } else {
-      return await db.select().from(educationResources).execute();
+      query = query.where(eq(educationResources.category, category));
     }
+
+    return await query.orderBy(educationResources.title);
   }
 
   async createEducationResource(resource: InsertEducationResource): Promise<EducationResource> {
@@ -236,9 +254,9 @@ export class DatabaseStorage implements IStorage {
     return educationResource;
   }
 
-  // Initialize database with transplant steps if needed
   async initializeTransplantSteps(): Promise<void> {
     const existingSteps = await this.getTransplantSteps();
+    
     if (existingSteps.length === 0) {
       const steps = [
         { title: "Initial Evaluation", description: "Complete medical history, physical examination, and lab tests.", orderIndex: 1 },
@@ -254,6 +272,8 @@ export class DatabaseStorage implements IStorage {
       for (const step of steps) {
         await this.createTransplantStep(step);
       }
+      
+      console.log("[database] Database initialized with transplant steps");
     }
   }
 }
