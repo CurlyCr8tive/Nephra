@@ -310,6 +310,70 @@ Then provide:
 }
 
 /**
+ * Analyzes a journal entry for emotional patterns and health insights
+ * 
+ * @param entry Journal entry text to analyze
+ * @returns Analysis with stress/fatigue scores and supportive response
+ */
+export async function analyzeJournalEntry(entry: string): Promise<{
+  stress: number;
+  fatigue: number;
+  response: string;
+  link?: string;
+}> {
+  try {
+    const systemPrompt = `You are a compassionate emotional wellness assistant for kidney patients.
+      Estimate stress and fatigue from 1–10, then give a kind, encouraging reply.
+      Also, include a suggestion from a public health source and a relevant link.
+      Output this JSON: { "stress": X, "fatigue": Y, "response": "...", "link": "..." }`;
+
+    const userPrompt = entry;
+    
+    const response = await callPerplexityAPI(systemPrompt, userPrompt);
+    const content = response.choices[0].message.content;
+    
+    // Try to parse as JSON first
+    try {
+      const result = JSON.parse(content);
+      return {
+        stress: Math.min(10, Math.max(1, result.stress || 5)),
+        fatigue: Math.min(10, Math.max(1, result.fatigue || 5)),
+        response: result.response || "I analyzed your entry but couldn't generate a detailed response.",
+        link: result.link || ""
+      };
+    } catch (parseError) {
+      // If parsing fails, extract values using regex
+      const stressMatch = content.match(/stress:?\s*(\d+)/i);
+      const fatigueMatch = content.match(/fatigue:?\s*(\d+)/i);
+      
+      // Extract a supportive response
+      let supportiveResponse = content;
+      const responseMatch = content.match(/response:?\s*"([^"]+)"/i);
+      if (responseMatch) {
+        supportiveResponse = responseMatch[1];
+      }
+      
+      // Extract a link if present
+      let link = "";
+      const linkMatch = content.match(/link:?\s*"([^"]+)"/i);
+      if (linkMatch) {
+        link = linkMatch[1];
+      }
+      
+      return {
+        stress: stressMatch ? Math.min(10, Math.max(1, parseInt(stressMatch[1]))) : 5,
+        fatigue: fatigueMatch ? Math.min(10, Math.max(1, parseInt(fatigueMatch[1]))) : 5,
+        response: supportiveResponse.substring(0, 500), // Limit length for safety
+        link: link
+      };
+    }
+  } catch (error) {
+    console.error("Error analyzing journal with Perplexity:", error);
+    throw error;
+  }
+}
+
+/**
  * Helper function to extract sections from the response content
  */
 function extractSection(content: string, sectionStart: string, sectionEnd: string): string[] {

@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { JournalEntry, InsertJournalEntry, journalEntries } from "@shared/schema";
 import { db } from "./db";
+import * as perplexityService from "./perplexity-service";
 
 // Initialize API clients
 const openai = new OpenAI({ 
@@ -84,8 +85,8 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
  */
 async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
   try {
-    // Update to use the latest Gemini model name
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Use the standard "gemini-pro" model which has wider availability
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     const prompt = `
       As a wellness assistant for kidney patients, estimate stress and fatigue levels from 1–10.
@@ -122,14 +123,21 @@ async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
       };
     }
   } catch (error) {
-    console.error("Gemini analysis failed:", error);
-    // Return default values if all else fails
-    return {
-      stress: 5,
-      fatigue: 5,
-      response: "I'm having trouble analyzing your entry right now, but I appreciate you sharing. How else can I support you today?",
-      link: ""
-    };
+    console.error("Gemini analysis failed, trying Perplexity...", error);
+    
+    // Try Perplexity as a final fallback
+    try {
+      return await perplexityService.analyzeJournalEntry(entry);
+    } catch (perplexityError) {
+      console.error("All AI services failed:", perplexityError);
+      // Return default values if all else fails
+      return {
+        stress: 5,
+        fatigue: 5,
+        response: "I'm having trouble analyzing your entry right now, but I appreciate you sharing. How else can I support you today?",
+        link: ""
+      };
+    }
   }
 }
 
@@ -222,8 +230,8 @@ export async function getJournalFollowUpResponse(
     
     // Fallback to Gemini
     try {
-      // Update to use the latest Gemini model name
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // Use the standard "gemini-pro" model which has wider availability
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
       
       // Format context for Gemini
       let contextText = "Previous conversation:\n";
@@ -242,8 +250,54 @@ export async function getJournalFollowUpResponse(
       const result = await model.generateContent(prompt);
       return result.response.text();
     } catch (geminiError) {
-      console.error("Gemini follow-up failed:", geminiError);
-      return "I'm having trouble responding right now. How else can I support you today?";
+      console.error("Gemini follow-up failed, trying Perplexity...", geminiError);
+      
+      // Try Perplexity as a final fallback
+      try {
+        // Create a simple prompt for Perplexity
+        const systemPrompt = "You are a compassionate wellness assistant for kidney patients. Provide supportive, evidence-based responses.";
+        
+        // Format context for Perplexity
+        let contextPrompt = "Previous conversation:\n";
+        for (const message of previousContext) {
+          contextPrompt += `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}\n`;
+        }
+        contextPrompt += `\nUser: ${followUpPrompt}\n\nProvide a supportive response:`;
+        
+        // Call Perplexity API
+        const response = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: "llama-3.1-sonar-small-128k-online",
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt
+              },
+              {
+                role: "user",
+                content: contextPrompt
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1024
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Perplexity API error: ${response.status}`);
+        }
+        
+        const perplexityData = await response.json();
+        return perplexityData.choices[0].message.content || "I understand your question, but I'm having trouble formulating a response right now.";
+      } catch (perplexityError) {
+        console.error("All AI services failed for follow-up:", perplexityError);
+        return "I'm having trouble responding right now. How else can I support you today?";
+      }
     }
   }
 }
