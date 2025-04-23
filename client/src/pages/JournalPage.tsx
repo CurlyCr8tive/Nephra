@@ -27,15 +27,19 @@ export default function JournalPage() {
   let user = {
     id: 1,
     username: "testuser",
-    firstName: "User",
-    lastName: ""
+    firstName: "User"
   };
   
   try {
     const userContext = useUser();
     if (userContext.user) {
-      user = userContext.user;
-      userId = user.id;
+      // Create safe user object with only needed properties
+      userId = userContext.user.id;
+      user = {
+        id: userContext.user.id,
+        username: userContext.user.username,
+        firstName: userContext.user.firstName || "User" // Handle potential null value
+      };
     }
   } catch (error) {
     console.error("UserContext not available:", error);
@@ -280,7 +284,10 @@ export default function JournalPage() {
                           <div className={`flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-2 max-w-[80%]`}>
                             <Avatar className={`h-8 w-8 ${message.role === 'ai' ? 'bg-primary' : 'bg-muted'}`}>
                               <AvatarFallback>
-                                {message.role === 'ai' ? <Bot className="h-4 w-4" /> : user.firstName?.charAt(0) || 'U'}
+                                {message.role === 'ai' ? 
+                                  <Bot className="h-4 w-4" /> : 
+                                  (typeof user.firstName === 'string' ? user.firstName.charAt(0) : 'U')
+                                }
                               </AvatarFallback>
                             </Avatar>
                             <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>

@@ -6,6 +6,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useHealthData } from "@/hooks/useHealthData";
 import Chart from "chart.js/auto";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { HealthMetrics } from "@shared/schema";
 
 export default function HealthTrends() {
   // Safely access user, fallback to a default userId if not available
@@ -56,35 +57,35 @@ export default function HealthTrends() {
     
     // Filter data within date range
     const filteredData = weeklyMetrics.filter(
-      metric => new Date(metric.date) >= startDate && new Date(metric.date) <= today
+      (metric: HealthMetrics) => new Date(metric.date) >= startDate && new Date(metric.date) <= today
     );
     
     // Sort by date
     const sortedData = filteredData.sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a: HealthMetrics, b: HealthMetrics) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
     
     // Extract labels (dates) and data points
     const labels = sortedData.map(
-      metric => format(new Date(metric.date), dateRange === "7d" ? "EEE" : "MM/dd")
+      (metric: HealthMetrics) => format(new Date(metric.date), dateRange === "7d" ? "EEE" : "MM/dd")
     );
     
-    let dataPoints;
+    let dataPoints: number[];
     switch (activeTab) {
       case "hydration":
-        dataPoints = sortedData.map(metric => metric.hydration || 0);
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.hydration || 0);
         break;
       case "bp":
-        dataPoints = sortedData.map(metric => metric.systolicBP || 0);
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.systolicBP || 0);
         break;
       case "gfr":
-        dataPoints = sortedData.map(metric => metric.estimatedGFR || 0);
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.estimatedGFR || 0);
         break;
       case "pain":
-        dataPoints = sortedData.map(metric => metric.painLevel || 0);
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.painLevel || 0);
         break;
       case "stress":
-        dataPoints = sortedData.map(metric => metric.stressLevel || 0);
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.stressLevel || 0);
         break;
       default:
         dataPoints = [];
@@ -252,7 +253,7 @@ export default function HealthTrends() {
       return "No data";
     }
     
-    const sum = data.reduce((acc, val) => acc + val, 0);
+    const sum = data.reduce((acc: number, val: number) => acc + val, 0);
     const avg = sum / data.length;
     
     switch (activeTab) {
@@ -281,8 +282,8 @@ export default function HealthTrends() {
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
     const secondHalf = data.slice(Math.floor(data.length / 2));
     
-    const firstAvg = firstHalf.reduce((acc, val) => acc + val, 0) / firstHalf.length;
-    const secondAvg = secondHalf.reduce((acc, val) => acc + val, 0) / secondHalf.length;
+    const firstAvg = firstHalf.reduce((acc: number, val: number) => acc + val, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((acc: number, val: number) => acc + val, 0) / secondHalf.length;
     
     const difference = secondAvg - firstAvg;
     
