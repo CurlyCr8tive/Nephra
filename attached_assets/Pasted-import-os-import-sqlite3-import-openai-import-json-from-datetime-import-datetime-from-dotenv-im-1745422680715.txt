@@ -1,0 +1,113 @@
+import os
+import sqlite3
+import openai
+import json
+from datetime import datetime
+from dotenv import load_dotenv
+from google.generativeai import GenerativeModel, configure
+
+# Load .env variables
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+
+# Configure Gemini API
+configure(api_key=gemini_api_key)
+gemini_model = GenerativeModel("gemini-pro")
+
+# Initialize local DB
+def init_db():
+    conn = sqlite3.connect('journal.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry TEXT,
+            ai_response TEXT,
+            stress_score INTEGER,
+            fatigue_score INTEGER,
+            created_at TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# AI Analysis + Response with OpenAI
+
+def analyze_with_openai(entry):
+    system_prompt = """
+    You are a compassionate emotional wellness assistant for kidney patients.
+    Estimate stress and fatigue from 1–10, then give a kind, encouraging reply.
+    Also, include a suggestion from a public health source and a relevant link.
+    Output this JSON: { "stress": X, "fatigue": Y, "response": "...", "link": "..." }
+    """
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": entry}
+    ]
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=messages
+        )
+        return completion.choices[0].message["content"]
+    except Exception as e:
+        print("OpenAI failed, falling back to Gemini...", e)
+        return analyze_with_gemini(entry)
+
+# Fallback: Analysis with Gemini
+
+def analyze_with_gemini(entry):
+    prompt = f"""
+    As a wellness assistant for kidney patients, estimate stress and fatigue levels from 1–10.
+    Then give an encouraging response and include a health suggestion with a credible source link.
+
+    Entry:
+    {entry}
+    """
+    response = gemini_model.generate_content(prompt)
+    return response.text
+
+# Save to DB
+def save_to_db(entry, ai_response, stress, fatigue):
+    conn = sqlite3.connect('journal.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO journal_entries (entry, ai_response, stress_score, fatigue_score, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (entry, ai_response, stress, fatigue, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+# Run Chatbot
+def run_journal():
+    init_db()
+    print("📝 Hey Cherice, how are you feeling today?")
+    entry = input("Your journal entry:\n")
+
+    print("✨ Processing your entry...")
+    raw_response = analyze_with_openai(entry)
+
+    try:
+        data = json.loads(raw_response)
+        ai_reply = data['response']
+        stress = data['stress']
+        fatigue = data['fatigue']
+        link = data.get('link', '')
+    except:
+        ai_reply = raw_response
+        stress = 0
+        fatigue = 0
+        link = ""
+
+    print("\n💬 AI Reply:")
+    print(ai_reply)
+    if link:
+        print(f"\n🔗 Learn more: {link}")
+    print(f"\n📊 Stress: {stress}/10 | Fatigue: {fatigue}/10")
+
+    save_to_db(entry, ai_reply, stress, fatigue)
+    print("\n✅ Journal saved!")
+
+if __name__ == "__main__":
+    run_journal()

@@ -15,6 +15,7 @@ import {
 
 // AI services
 import aiRouter from "./ai-router";
+import enhancedJournalRouter from "./enhanced-journal-api-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
 // Import OpenAI
@@ -79,6 +80,9 @@ function estimateGFR(
 export async function registerRoutes(app: Express): Promise<Server> {
   // Mount AI router with all AI service endpoints
   app.use('/api/ai', aiRouter);
+  
+  // Mount enhanced journal router with Python-converted chatbot functionality
+  app.use('/api/enhanced-journal', enhancedJournalRouter);
   // Health metrics endpoints
   app.post("/api/health-metrics", async (req, res) => {
     try {
