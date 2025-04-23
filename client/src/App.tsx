@@ -30,7 +30,6 @@ function App() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/log" component={HealthLogging} />
-        <Route path="/chat" component={AIChatView} />
         <Route path="/journal" component={JournalPage} />
         <Route path="/roadmap" component={TransplantRoadmap} />
         <Route path="/trends" component={HealthTrends} />
