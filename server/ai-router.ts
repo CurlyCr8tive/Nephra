@@ -27,7 +27,7 @@ router.post("/chat", async (req: Request, res: Response) => {
     }
     
     // Get the AI response
-    const aiResponse = await openaiService.getKidneyHealthSupportChat(userMessage, context);
+    const aiResponse = await openaiService.getNephraSupportChat(userMessage, context);
     
     // Save the chat to the database
     const chat = await storage.createAiChat({
@@ -176,7 +176,7 @@ router.post("/explain-terms", async (req: Request, res: Response) => {
 // Gemini endpoints
 
 /**
- * Get kidney health advice
+ * Get Nephra health advice
  * POST /api/ai/kidney-advice
  */
 router.post("/kidney-advice", async (req: Request, res: Response) => {
@@ -187,11 +187,11 @@ router.post("/kidney-advice", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing health metrics" });
     }
     
-    const advice = await geminiService.getKidneyHealthAdvice(metrics, patientInfo);
+    const advice = await geminiService.getNephraHealthAdvice(metrics, patientInfo);
     res.json(advice);
   } catch (error) {
-    console.error("Error getting kidney health advice:", error);
-    res.status(500).json({ error: "Failed to get kidney health advice" });
+    console.error("Error getting Nephra health advice:", error);
+    res.status(500).json({ error: "Failed to get health advice" });
   }
 });
 
@@ -216,7 +216,7 @@ router.post("/analyze/lab-results", async (req: Request, res: Response) => {
 });
 
 /**
- * Get kidney education content
+ * Get Nephra education content
  * POST /api/ai/education
  */
 router.post("/education", async (req: Request, res: Response) => {
@@ -227,10 +227,10 @@ router.post("/education", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing topic" });
     }
     
-    const content = await geminiService.getKidneyEducationContent(topic, audience, diseaseStage);
+    const content = await geminiService.getNephraEducationContent(topic, audience, diseaseStage);
     res.json(content);
   } catch (error) {
-    console.error("Error getting kidney education content:", error);
+    console.error("Error getting Nephra education content:", error);
     res.status(500).json({ error: "Failed to get education content" });
   }
 });

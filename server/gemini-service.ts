@@ -47,11 +47,11 @@ export interface NephraEducationContent {
 }
 
 /**
- * Provides tailored kidney health advice using Google Gemini
+ * Provides tailored Nephra health advice using Google Gemini
  * 
  * @param metrics Recent health metrics
  * @param patientInfo Patient information context
- * @returns Kidney health advisory with recommendations
+ * @returns Nephra health advisory with recommendations
  */
 export async function getNephraHealthAdvice(
   metrics: {
