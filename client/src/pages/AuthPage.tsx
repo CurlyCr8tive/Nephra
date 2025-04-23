@@ -90,7 +90,7 @@ export default function AuthPage() {
                 <div className="bg-primary-light p-3 rounded-full inline-flex mb-4">
                   <Activity className="h-10 w-10 text-primary" />
                 </div>
-                <h1 className="text-3xl font-bold">KidneyHealth</h1>
+                <h1 className="text-3xl font-bold">Nephra</h1>
                 <p className="text-muted-foreground mt-2">Your personal kidney health companion</p>
               </div>
 
@@ -106,7 +106,7 @@ export default function AuthPage() {
                     <CardHeader>
                       <CardTitle>Welcome Back</CardTitle>
                       <CardDescription>
-                        Sign in to your KidneyHealth account
+                        Sign in to your Nephra account
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -194,7 +194,7 @@ export default function AuthPage() {
                     <CardHeader>
                       <CardTitle>Create Account</CardTitle>
                       <CardDescription>
-                        Sign up for a new KidneyHealth account
+                        Sign up for a new Nephra account
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

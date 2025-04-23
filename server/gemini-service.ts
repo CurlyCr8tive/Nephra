@@ -8,7 +8,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 /**
  * Interface for kidney health advisory results from Gemini
  */
-export interface KidneyHealthAdvisory {
+export interface NephraHealthAdvisory {
   advice: string;
   dietaryRecommendations: string[];
   lifestyleRecommendations: string[];
@@ -53,7 +53,7 @@ export interface KidneyEducationContent {
  * @param patientInfo Patient information context
  * @returns Kidney health advisory with recommendations
  */
-export async function getKidneyHealthAdvice(
+export async function getNephraHealthAdvice(
   metrics: {
     hydration: number;
     systolicBP: number;

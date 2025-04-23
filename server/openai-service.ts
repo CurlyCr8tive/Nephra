@@ -152,7 +152,7 @@ export async function validateHealthMetrics(
  * @param userContext Additional context about the user
  * @returns AI response to the user's message
  */
-export async function getKidneyHealthSupportChat(
+export async function getNephraSupportChat(
   userMessage: string,
   userContext?: {
     age?: number;
@@ -217,7 +217,7 @@ export async function getKidneyHealthSupportChat(
 
     return response.choices[0].message.content || "I'm sorry, I couldn't generate a response. Please try asking again.";
   } catch (error) {
-    console.error("Error getting kidney health support from OpenAI:", error);
+    console.error("Error getting Nephra support from OpenAI:", error);
     return "I'm sorry, I'm having trouble processing your request right now. Please try again later or contact your healthcare provider if you have urgent questions.";
   }
 }
