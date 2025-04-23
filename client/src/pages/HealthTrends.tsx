@@ -26,7 +26,7 @@ export default function HealthTrends() {
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("7d");
   
   // Initialize tabs
-  const [activeTab, setActiveTab] = useState<"hydration" | "bp" | "gfr" | "pain" | "stress">("hydration");
+  const [activeTab, setActiveTab] = useState<"hydration" | "bp" | "gfr" | "pain" | "stress" | "fatigue">("hydration");
   
   // Chart references
   const chartRef = useRef<HTMLCanvasElement | null>(null);
@@ -86,6 +86,9 @@ export default function HealthTrends() {
         break;
       case "stress":
         dataPoints = sortedData.map((metric: HealthMetrics) => metric.stressLevel || 0);
+        break;
+      case "fatigue":
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.fatigueLevel || 0);
         break;
       default:
         dataPoints = [];
