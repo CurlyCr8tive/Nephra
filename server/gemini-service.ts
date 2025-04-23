@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
 /**
- * Interface for kidney health advisory results from Gemini
+ * Interface for Nephra health advisory results from Gemini
  */
 export interface NephraHealthAdvisory {
   advice: string;
@@ -35,7 +35,7 @@ export interface LabResultsAnalysis {
 }
 
 /**
- * Interface for kidney education content
+ * Interface for Nephra education content
  */
 export interface NephraEducationContent {
   topic: string;
@@ -71,7 +71,7 @@ export async function getNephraHealthAdvice(
   }
 ): Promise<NephraHealthAdvisory> {
   try {
-    const prompt = `You are a specialized kidney health advisor AI. Based on the following health metrics and patient information, provide tailored kidney health advice.
+    const prompt = `You are a specialized Nephra health advisor AI. Based on the following health metrics and patient information, provide tailored kidney health advice.
     
     Health Metrics:
     - Hydration Level (1-10): ${metrics.hydration}
@@ -112,7 +112,7 @@ export async function getNephraHealthAdvice(
   } catch (error) {
     console.error("Error getting Nephra health advice from Gemini:", error);
     return {
-      advice: "Unable to generate personalized advice at this time. Please consult with your healthcare provider for guidance on your kidney health.",
+      advice: "Unable to generate personalized advice at this time. Please consult with your healthcare provider for guidance on your Nephra health.",
       dietaryRecommendations: ["Maintain proper hydration", "Follow your healthcare provider's dietary guidelines"],
       lifestyleRecommendations: ["Monitor your blood pressure regularly", "Track your symptoms and share them with your healthcare team"],
       medicationConsiderations: ["Take medications as prescribed by your healthcare provider"],
@@ -140,7 +140,7 @@ export async function analyzeLaboratoryResults(
   }
 ): Promise<LabResultsAnalysis> {
   try {
-    const prompt = `You are a specialized medical AI focused on kidney health. Analyze the following laboratory results with a focus on kidney function and related markers.
+    const prompt = `You are a specialized medical AI focused on Nephra health. Analyze the following laboratory results with a focus on kidney function and related markers.
     
     Lab Results:
     ${labText}
@@ -193,9 +193,9 @@ export async function analyzeLaboratoryResults(
 }
 
 /**
- * Provides educational content about kidney disease topics using Google Gemini
+ * Provides educational content about Nephra health topics using Google Gemini
  * 
- * @param topic The kidney disease related topic
+ * @param topic The kidney health related topic
  * @param audience The target audience (patient, caregiver, etc.)
  * @param diseaseStage Optional kidney disease stage for more targeted information
  * @returns Educational content about the requested topic
@@ -206,7 +206,7 @@ export async function getNephraEducationContent(
   diseaseStage?: number
 ): Promise<NephraEducationContent> {
   try {
-    const prompt = `You are an educational AI specializing in kidney disease information. Provide educational content about the following kidney-related topic:
+    const prompt = `You are an educational AI specializing in Nephra health information. Provide educational content about the following kidney health-related topic:
     
     Topic: ${topic}
     Target Audience: ${audience}

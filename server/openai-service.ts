@@ -146,7 +146,7 @@ export async function validateHealthMetrics(
 }
 
 /**
- * Provides chat-based support and information for kidney health using OpenAI
+ * Provides chat-based support and information for Nephra health using OpenAI
  * 
  * @param userMessage The user's message or question
  * @param userContext Additional context about the user
