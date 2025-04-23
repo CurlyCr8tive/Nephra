@@ -96,6 +96,9 @@ export class MemStorage implements IStorage {
 
     // Initialize with some transplant steps
     this.initializeTransplantSteps();
+    
+    // Initialize a demo user with profile information
+    this.initializeDemoUser();
   }
 
   // Initialize common transplant steps
@@ -115,6 +118,37 @@ export class MemStorage implements IStorage {
       const id = this.transplantStepId++;
       this.transplantSteps.set(id, { ...step, id });
     });
+  }
+  
+  // Initialize demo user with profile information
+  private initializeDemoUser() {
+    const demoUser: User = {
+      id: this.userId++,
+      username: "demouser",
+      password: "password123", // In a real app, this would be hashed
+      firstName: "Alex",
+      lastName: "Johnson",
+      email: "alex.johnson@example.com",
+      age: 42,
+      gender: "Male",
+      weight: 175,
+      race: "White",
+      kidneyDiseaseType: "IgA Nephropathy",
+      kidneyDiseaseStage: "Stage 3",
+      diagnosisDate: new Date("2022-03-15"),
+      otherHealthConditions: "Hypertension, High Cholesterol",
+      primaryCareProvider: "Dr. Sarah Williams",
+      nephrologist: "Dr. Michael Chen",
+      otherSpecialists: "Dr. Emily Parker (Cardiologist)",
+      insuranceProvider: "Blue Cross Blue Shield",
+      insurancePolicyNumber: "BCBS12345678",
+      transplantCenter: "University Medical Center",
+      transplantCoordinator: "Jessica Adams, RN",
+      transplantCoordinatorPhone: "(555) 123-4567",
+      createdAt: new Date()
+    };
+    
+    this.users.set(demoUser.id, demoUser);
   }
 
   // User methods
