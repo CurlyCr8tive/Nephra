@@ -169,6 +169,7 @@ export default function ProfilePage() {
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
     mutationFn: async (data: any) => {
       console.log("Updating profile with data:", data);
+      // Use the correct API endpoint - /api/users (plural)
       const response = await apiRequest("PATCH", `/api/users/${userId}`, data);
       return await response.json();
     },
