@@ -4,12 +4,16 @@
  */
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { JournalEntry, InsertJournalEntry } from "@shared/schema";
+import { JournalEntry, InsertJournalEntry, journalEntries } from "@shared/schema";
 import { db } from "./db";
 
 // Initialize API clients
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY || '' 
+});
+const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY || ''
+);
 
 // Types for AI responses
 interface AIJournalAnalysis {
@@ -45,13 +49,24 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
     });
 
     // Parse the response as JSON
-    const result = JSON.parse(completion.choices[0].message.content);
-    return {
-      stress: Math.min(10, Math.max(1, result.stress)),
-      fatigue: Math.min(10, Math.max(1, result.fatigue)),
-      response: result.response,
-      link: result.link
-    };
+    const content = completion.choices[0].message.content || '{}';
+    try {
+      const result = JSON.parse(content);
+      return {
+        stress: Math.min(10, Math.max(1, result.stress || 5)),
+        fatigue: Math.min(10, Math.max(1, result.fatigue || 5)),
+        response: result.response || "I analyzed your entry but couldn't generate a detailed response.",
+        link: result.link || ""
+      };
+    } catch (e) {
+      console.error("Error parsing OpenAI response:", e);
+      return {
+        stress: 5,
+        fatigue: 5,
+        response: content.substring(0, 500) || "I analyzed your entry but couldn't structure my response properly.",
+        link: ""
+      };
+    }
   } catch (error) {
     console.error("OpenAI failed, falling back to Gemini...", error);
     return analyzeWithGemini(entry);
@@ -170,7 +185,7 @@ export async function getJournalFollowUpResponse(
 ): Promise<string> {
   try {
     // Format previous conversation for OpenAI chat format
-    const messages = [
+    const messages: {role: 'system' | 'user' | 'assistant', content: string}[] = [
       {
         role: "system",
         content: "You are a compassionate wellness assistant for kidney patients. Provide supportive, evidence-based responses. Include credible health information when appropriate."
@@ -194,10 +209,10 @@ export async function getJournalFollowUpResponse(
     // Get response from OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-      messages: messages,
+      messages: messages as any, // Type cast to resolve OpenAI's strict typing
     });
     
-    return completion.choices[0].message.content;
+    return completion.choices[0].message.content || "I understand your question, but I'm having trouble formulating a response right now.";
   } catch (error) {
     console.error("OpenAI follow-up failed:", error);
     

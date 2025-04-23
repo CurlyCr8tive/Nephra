@@ -44,6 +44,12 @@ export default function JournalPage() {
   // AI providers
   const aiProviders: AIProvider[] = [
     {
+      id: "enhanced",
+      name: "Enhanced Chatbot",
+      description: "Multi-AI kidney wellness assistant with fallback options",
+      apiEndpoint: "/api/enhanced-journal/process"
+    },
+    {
       id: "openai",
       name: "OpenAI",
       description: "General health support and emotional analysis",
@@ -56,6 +62,11 @@ export default function JournalPage() {
       apiEndpoint: "/api/ai/health-info"
     }
   ];
+  
+  // Default to enhanced chatbot
+  useState(() => {
+    setSelectedAIProvider("enhanced");
+  });
 
   // Query to fetch journal entries
   const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery<JournalEntry[]>({
@@ -112,16 +123,24 @@ export default function JournalPage() {
     mutationFn: async (prompt: string) => {
       if (!user) throw new Error("No user found");
       
-      const response = await apiRequest("POST", "/api/ai/chat", {
+      // Use enhanced journal API for follow-up if enhanced chatbot is selected
+      const endpoint = selectedAIProvider === "enhanced" 
+        ? "/api/enhanced-journal/follow-up"
+        : "/api/ai/chat";
+      
+      const response = await apiRequest("POST", endpoint, {
         userId: user.id,
         userMessage: prompt,
-        context: { previousConversation: conversation }
+        followUpPrompt: prompt, // For enhanced journal API
+        previousContext: conversation, // For enhanced journal API
+        context: { previousConversation: conversation } // For regular AI chat
       });
       
       return response.json();
     },
     onSuccess: (data) => {
-      const aiResponseText = data.message || "I'm not sure how to respond to that.";
+      // Extract response from the appropriate field depending on API used
+      const aiResponseText = data.response || data.message || "I'm not sure how to respond to that.";
       
       // Add to conversation
       setConversation(prev => [
