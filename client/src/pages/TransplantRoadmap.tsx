@@ -433,11 +433,8 @@ export default function TransplantRoadmap() {
                           {roadmapData.education_resources
                             .filter(resource => resource.category === "disease_info")
                             .map((resource, index) => (
-                              <a 
+                              <div 
                                 key={index}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
                               >
                                 <div className="flex items-start">
@@ -446,9 +443,17 @@ export default function TransplantRoadmap() {
                                     <h5 className="font-medium text-sm">{resource.title}</h5>
                                     <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
                                     <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                    <a 
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center"
+                                    >
+                                      Read Article <span className="material-icons text-xs ml-1">open_in_new</span>
+                                    </a>
                                   </div>
                                 </div>
-                              </a>
+                              </div>
                             ))}
                         </div>
                       </div>
@@ -460,11 +465,8 @@ export default function TransplantRoadmap() {
                           {roadmapData.education_resources
                             .filter(resource => ["surgery", "medications"].includes(resource.category))
                             .map((resource, index) => (
-                              <a 
+                              <div 
                                 key={index}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
                               >
                                 <div className="flex items-start">
@@ -473,9 +475,17 @@ export default function TransplantRoadmap() {
                                     <h5 className="font-medium text-sm">{resource.title}</h5>
                                     <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
                                     <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                    <a 
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center"
+                                    >
+                                      Read Article <span className="material-icons text-xs ml-1">open_in_new</span>
+                                    </a>
                                   </div>
                                 </div>
-                              </a>
+                              </div>
                             ))}
                         </div>
                       </div>
@@ -487,11 +497,8 @@ export default function TransplantRoadmap() {
                           {roadmapData.education_resources
                             .filter(resource => resource.category === "lifestyle")
                             .map((resource, index) => (
-                              <a 
+                              <div 
                                 key={index}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
                               >
                                 <div className="flex items-start">
@@ -500,9 +507,17 @@ export default function TransplantRoadmap() {
                                     <h5 className="font-medium text-sm">{resource.title}</h5>
                                     <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
                                     <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                    <a 
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center"
+                                    >
+                                      Read Article <span className="material-icons text-xs ml-1">open_in_new</span>
+                                    </a>
                                   </div>
                                 </div>
-                              </a>
+                              </div>
                             ))}
                         </div>
                       </div>
@@ -514,11 +529,8 @@ export default function TransplantRoadmap() {
                           {roadmapData.education_resources
                             .filter(resource => resource.category === "living_donation")
                             .map((resource, index) => (
-                              <a 
+                              <div 
                                 key={index}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
                               >
                                 <div className="flex items-start">
@@ -527,9 +539,17 @@ export default function TransplantRoadmap() {
                                     <h5 className="font-medium text-sm">{resource.title}</h5>
                                     <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
                                     <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                    <a 
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center"
+                                    >
+                                      Read Article <span className="material-icons text-xs ml-1">open_in_new</span>
+                                    </a>
                                   </div>
                                 </div>
-                              </a>
+                              </div>
                             ))}
                         </div>
                       </div>
@@ -541,11 +561,8 @@ export default function TransplantRoadmap() {
                           {roadmapData.education_resources
                             .filter(resource => ["support", "inspiration", "financial"].includes(resource.category))
                             .map((resource, index) => (
-                              <a 
+                              <div 
                                 key={index}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
                               >
                                 <div className="flex items-start">
@@ -554,9 +571,17 @@ export default function TransplantRoadmap() {
                                     <h5 className="font-medium text-sm">{resource.title}</h5>
                                     <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
                                     <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                    <a 
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center"
+                                    >
+                                      Read Article <span className="material-icons text-xs ml-1">open_in_new</span>
+                                    </a>
                                   </div>
                                 </div>
-                              </a>
+                              </div>
                             ))}
                         </div>
                       </div>
@@ -568,11 +593,8 @@ export default function TransplantRoadmap() {
                           {roadmapData.education_resources
                             .filter(resource => resource.category === "statistics")
                             .map((resource, index) => (
-                              <a 
+                              <div 
                                 key={index}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
                               >
                                 <div className="flex items-start">
@@ -581,9 +603,17 @@ export default function TransplantRoadmap() {
                                     <h5 className="font-medium text-sm">{resource.title}</h5>
                                     <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
                                     <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                    <a 
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 text-xs text-primary hover:text-primary/80 font-medium flex items-center"
+                                    >
+                                      Read Article <span className="material-icons text-xs ml-1">open_in_new</span>
+                                    </a>
                                   </div>
                                 </div>
-                              </a>
+                              </div>
                             ))}
                         </div>
                       </div>
