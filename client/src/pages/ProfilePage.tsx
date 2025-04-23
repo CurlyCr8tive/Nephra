@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -113,7 +113,7 @@ const ProfilePage = () => {
   });
 
   // Update form values when profile data is loaded
-  useState(() => {
+  useEffect(() => {
     if (profileData) {
       form.reset({
         firstName: profileData.firstName || "",
@@ -137,7 +137,7 @@ const ProfilePage = () => {
         transplantCoordinatorPhone: profileData.transplantCoordinatorPhone || "",
       });
     }
-  }, [profileData]);
+  }, [profileData, form]);
 
   // Update profile mutation
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({

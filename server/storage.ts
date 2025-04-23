@@ -10,6 +10,9 @@ import {
   educationResources, type EducationResource, type InsertEducationResource
 } from "@shared/schema";
 
+import session from "express-session";
+import createMemoryStore from "memorystore";
+
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -50,6 +53,9 @@ export interface IStorage {
   // Education resources methods
   getEducationResources(category?: string): Promise<EducationResource[]>;
   createEducationResource(resource: InsertEducationResource): Promise<EducationResource>;
+  
+  // Session storage
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -72,8 +78,12 @@ export class MemStorage implements IStorage {
   private journalEntryId: number;
   private medicalDocumentId: number;
   private educationResourceId: number;
+  
+  // Session store for express-session
+  public sessionStore: session.Store;
 
   constructor() {
+    // Initialize collections
     this.users = new Map();
     this.healthMetrics = new Map();
     this.emotionalCheckIns = new Map();
@@ -84,6 +94,7 @@ export class MemStorage implements IStorage {
     this.medicalDocuments = new Map();
     this.educationResources = new Map();
 
+    // Initialize IDs
     this.userId = 1;
     this.healthMetricsId = 1;
     this.emotionalCheckInId = 1;
@@ -93,6 +104,12 @@ export class MemStorage implements IStorage {
     this.journalEntryId = 1;
     this.medicalDocumentId = 1;
     this.educationResourceId = 1;
+    
+    // Initialize session store
+    const MemoryStore = createMemoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    });
 
     // Initialize with some transplant steps
     this.initializeTransplantSteps();
@@ -360,8 +377,5 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Import DatabaseStorage from our dedicated file
-import { DatabaseStorage } from "./database-storage";
-
-// Use the database storage implementation
-export const storage = new DatabaseStorage();
+// Use the in-memory storage implementation for now
+export const storage = new MemStorage();

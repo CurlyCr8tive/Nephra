@@ -94,6 +94,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount enhanced journal router with Python-converted chatbot functionality
   app.use('/api/enhanced-journal', enhancedJournalRouter);
+  
+  // User profile endpoints
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Don't send the password in the response
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+  
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const userData = req.body;
+      
+      // Verify the user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update the user
+      const updatedUser = await storage.updateUser(userId, userData);
+      
+      // Don't send the password in the response
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(404).json({ error: "User not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+  
   // Health metrics endpoints
   app.post("/api/health-metrics", async (req, res) => {
     try {
