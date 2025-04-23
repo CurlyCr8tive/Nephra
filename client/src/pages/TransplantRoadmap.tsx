@@ -408,6 +408,177 @@ export default function TransplantRoadmap() {
                   
                   <Separator className="my-6" />
                   
+                  <h3 className="font-medium mb-4">Education Resources</h3>
+                  
+                  {/* Display education resources by category */}
+                  {roadmapData.education_resources && (
+                    <div className="space-y-6">
+                      {/* Disease Information */}
+                      <div>
+                        <h4 className="text-sm font-medium text-primary mb-2">Disease Information</h4>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {roadmapData.education_resources
+                            .filter(resource => resource.category === "disease_info")
+                            .map((resource, index) => (
+                              <a 
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
+                              >
+                                <div className="flex items-start">
+                                  <span className="material-icons text-primary mr-2">{resource.icon}</span>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{resource.title}</h5>
+                                    <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                                    <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      {/* Surgery & Medical */}
+                      <div>
+                        <h4 className="text-sm font-medium text-primary mb-2">Surgery & Medical</h4>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {roadmapData.education_resources
+                            .filter(resource => ["surgery", "medications"].includes(resource.category))
+                            .map((resource, index) => (
+                              <a 
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
+                              >
+                                <div className="flex items-start">
+                                  <span className="material-icons text-primary mr-2">{resource.icon}</span>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{resource.title}</h5>
+                                    <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                                    <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      {/* Lifestyle */}
+                      <div>
+                        <h4 className="text-sm font-medium text-primary mb-2">Lifestyle & Wellness</h4>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {roadmapData.education_resources
+                            .filter(resource => resource.category === "lifestyle")
+                            .map((resource, index) => (
+                              <a 
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
+                              >
+                                <div className="flex items-start">
+                                  <span className="material-icons text-primary mr-2">{resource.icon}</span>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{resource.title}</h5>
+                                    <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                                    <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      {/* Living Donation */}
+                      <div>
+                        <h4 className="text-sm font-medium text-primary mb-2">Living Donation</h4>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {roadmapData.education_resources
+                            .filter(resource => resource.category === "living_donation")
+                            .map((resource, index) => (
+                              <a 
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
+                              >
+                                <div className="flex items-start">
+                                  <span className="material-icons text-primary mr-2">{resource.icon}</span>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{resource.title}</h5>
+                                    <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                                    <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      {/* Support & Personal */}
+                      <div>
+                        <h4 className="text-sm font-medium text-primary mb-2">Support & Personal Resources</h4>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {roadmapData.education_resources
+                            .filter(resource => ["support", "inspiration", "financial"].includes(resource.category))
+                            .map((resource, index) => (
+                              <a 
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
+                              >
+                                <div className="flex items-start">
+                                  <span className="material-icons text-primary mr-2">{resource.icon}</span>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{resource.title}</h5>
+                                    <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                                    <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      {/* Statistics & Data */}
+                      <div>
+                        <h4 className="text-sm font-medium text-primary mb-2">Statistics & Data</h4>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {roadmapData.education_resources
+                            .filter(resource => resource.category === "statistics")
+                            .map((resource, index) => (
+                              <a 
+                                key={index}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-slate-50 hover:bg-slate-100 p-3 rounded-lg border border-slate-200 transition-colors"
+                              >
+                                <div className="flex items-start">
+                                  <span className="material-icons text-primary mr-2">{resource.icon}</span>
+                                  <div>
+                                    <h5 className="font-medium text-sm">{resource.title}</h5>
+                                    <p className="text-xs text-muted-foreground mt-1">{resource.description}</p>
+                                    <span className="text-[10px] text-slate-500 block mt-1">Source: {resource.source}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Separator className="my-6" />
+                  
                   <h3 className="font-medium mb-4">Additional Resources</h3>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Button variant="outline" className="justify-start" asChild>

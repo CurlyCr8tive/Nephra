@@ -35,5 +35,87 @@
     "title": "Medicare & Transplant Coverage",
     "content": "Medicare Part B covers transplant-related drugs and services for eligible patients, even if you're under 65.",
     "source": "https://www.cms.gov/medicare-coverage-database"
-  }
+  },
+  "education_resources": [
+    {
+      "title": "Understanding Kidney Disease",
+      "description": "Comprehensive guide to kidney disease stages, symptoms, and management",
+      "url": "https://www.kidney.org/atoz/content/about-chronic-kidney-disease",
+      "source": "National Kidney Foundation",
+      "category": "disease_info",
+      "icon": "info"
+    },
+    {
+      "title": "Transplant Surgery Process",
+      "description": "Step-by-step explanation of the transplant surgery and recovery",
+      "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidney-transplant",
+      "source": "National Institute of Diabetes and Digestive and Kidney Diseases",
+      "category": "surgery",
+      "icon": "medical_services"
+    },
+    {
+      "title": "Living Donor Information",
+      "description": "Information for potential living donors including eligibility and process",
+      "url": "https://www.organdonor.gov/learn/process/living-donation",
+      "source": "OrganDonor.gov",
+      "category": "living_donation",
+      "icon": "favorite"
+    },
+    {
+      "title": "Post-Transplant Medications",
+      "description": "Guide to immunosuppressant medications and their side effects",
+      "url": "https://www.myast.org/patient-information/medications",
+      "source": "American Society of Transplantation",
+      "category": "medications",
+      "icon": "medication"
+    },
+    {
+      "title": "Diet After Transplantation",
+      "description": "Nutrition guidelines for kidney transplant recipients",
+      "url": "https://www.eatright.org/health/diseases-and-conditions/kidney-disease/kidney-transplants-and-diet",
+      "source": "Academy of Nutrition and Dietetics",
+      "category": "lifestyle",
+      "icon": "restaurant_menu"
+    },
+    {
+      "title": "Exercise Guidelines",
+      "description": "Physical activity recommendations following a kidney transplant",
+      "url": "https://www.kidney.org/transplantation/transaction/TC/summer14/Exercise",
+      "source": "National Kidney Foundation",
+      "category": "lifestyle",
+      "icon": "fitness_center"
+    },
+    {
+      "title": "Transplant Success Rates",
+      "description": "Statistics on kidney transplant outcomes and survival rates",
+      "url": "https://srtr.transplant.hrsa.gov/",
+      "source": "Scientific Registry of Transplant Recipients",
+      "category": "statistics",
+      "icon": "analytics"
+    },
+    {
+      "title": "Financial Assistance",
+      "description": "Resources for managing transplant costs and finding financial help",
+      "url": "https://transplantliving.org/financing-a-transplant/",
+      "source": "Transplant Living",
+      "category": "financial",
+      "icon": "payments"
+    },
+    {
+      "title": "Mental Health Resources",
+      "description": "Support for emotional and psychological aspects of transplantation",
+      "url": "https://www.kidney.org/patients/peers/peersupport",
+      "source": "National Kidney Foundation",
+      "category": "support",
+      "icon": "psychology"
+    },
+    {
+      "title": "Patient Stories",
+      "description": "Real experiences from kidney transplant recipients",
+      "url": "https://www.donatelife.net/stories/",
+      "source": "Donate Life America",
+      "category": "inspiration",
+      "icon": "record_voice_over"
+    }
+  ]
 }
