@@ -22,12 +22,13 @@ export function BottomNavigation() {
           <Link
             key={item.path}
             href={item.path}
-            className={`flex flex-col items-center py-3 px-5 ${
+            className={`flex flex-col items-center justify-center py-3 ${
               isActive(item.path) ? "text-primary" : "text-neutral-500"
             }`}
+            style={{ width: '20%', textAlign: 'center' }}
           >
-            <span className="material-icons">{item.icon}</span>
-            <span className="text-xs mt-1">{item.label}</span>
+            <span className="material-icons flex justify-center">{item.icon}</span>
+            <span className="text-xs mt-1 text-center w-full">{item.label}</span>
           </Link>
         ))}
       </div>
