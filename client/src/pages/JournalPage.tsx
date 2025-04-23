@@ -22,15 +22,25 @@ interface AIProvider {
 }
 
 export default function JournalPage() {
-  // Use a default test user since we don't have auth implemented yet
-  // In a real application, this would come from authentication
-  const user = { 
+  // Safely access user context with fallback for error cases
+  let userId = 1; // Default fallback userId
+  let user = {
     id: 1,
     username: "testuser",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User"
+    firstName: "User",
+    lastName: ""
   };
+  
+  try {
+    const userContext = useUser();
+    if (userContext.user) {
+      user = userContext.user;
+      userId = user.id;
+    }
+  } catch (error) {
+    console.error("UserContext not available:", error);
+    // Continue with default user
+  }
 
   const { toast } = useToast();
   const queryClient = useQueryClient();

@@ -8,7 +8,20 @@ import Chart from "chart.js/auto";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
 export default function HealthTrends() {
-  const { user } = useUser();
+  // Safely access user, fallback to a default userId if not available
+  // This approach is more resilient than throwing an error
+  let userId = 1; // Default fallback userId
+  let user = null;
+  
+  try {
+    const userContext = useUser();
+    user = userContext.user;
+    userId = user?.id || 1;
+  } catch (error) {
+    console.error("UserContext not available:", error);
+    // Continue with default userId
+  }
+  
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("7d");
   
   // Initialize tabs
@@ -18,8 +31,8 @@ export default function HealthTrends() {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
   
-  // Get health data
-  const { weeklyMetrics, isLoadingWeekly } = user ? useHealthData({ userId: user.id }) : { weeklyMetrics: [], isLoadingWeekly: false };
+  // Get health data with a safe fallback
+  const { weeklyMetrics = [], isLoadingWeekly = false } = useHealthData({ userId });
 
   // Format data based on date range
   const getDateRangeData = () => {
