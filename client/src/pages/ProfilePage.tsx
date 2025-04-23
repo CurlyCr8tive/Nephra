@@ -142,7 +142,7 @@ const ProfilePage = () => {
   // Update profile mutation
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
     mutationFn: async (data: Partial<User>) => {
-      const response = await apiRequest("PUT", `/api/users/${userId}`, data);
+      const response = await apiRequest("PATCH", `/api/users/${userId}`, data);
       return response.json();
     },
     onSuccess: (data) => {
