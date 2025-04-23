@@ -100,13 +100,18 @@ export default function ProfilePage() {
     try {
       const userContext = useUser();
       if (userContext && userContext.user) {
-        userId = userContext.user.id;
-        setUser(userContext.user);
+        setUserId(userContext.user.id);
+        // Create a new object with same structure as our user state
+        const userObj = {
+          ...user,
+          ...userContext.user
+        };
+        setUser(userObj);
       } 
     } catch (error) {
       console.error("UserContext not available:", error);
     }
-  }, []);
+  }, [user]);
   
   // Show error toast using useEffect
   useEffect(() => {
@@ -129,8 +134,34 @@ export default function ProfilePage() {
     phone: ""
   });
 
+  // Define user profile interface matching the API response
+  interface UserProfile {
+    id: number;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    age: number | null;
+    gender: string | null;
+    weight: number | null;
+    race: string | null;
+    kidneyDiseaseType: string | null;
+    kidneyDiseaseStage: number | null;
+    diagnosisDate: string | null;
+    otherHealthConditions: string[] | null;
+    primaryCareProvider: string | null;
+    nephrologist: string | null;
+    otherSpecialists: Array<{name: string, specialty: string, phone: string}> | null;
+    insuranceProvider: string | null;
+    insurancePolicyNumber: string | null;
+    transplantCenter: string | null;
+    transplantCoordinator: string | null;
+    transplantCoordinatorPhone: string | null;
+    createdAt: string | null;
+  }
+
   // Fetch user profile data
-  const { data: profileData, isLoading } = useQuery({
+  const { data: profileData, isLoading } = useQuery<UserProfile>({
     queryKey: [`/api/users/${userId}`],
     enabled: !!userId,
   });
