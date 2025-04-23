@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-KidneyHealth AI Services - Main Entry Point
+Nephra AI Services - Main Entry Point
 
 This script serves as the main entry point for the Python-based AI and NLP services
-that support the KidneyHealth application. It provides a Flask API server that integrates
+that support the Nephra application. It provides a Flask API server that integrates
 with multiple AI providers (OpenAI, Google Gemini, Perplexity, and Anthropic) to offer
 health insights, journal analysis, and conversational support for kidney patients.
 
@@ -14,7 +14,7 @@ Features:
 - Medical document validation and summarization
 - Health metrics validation and interpretation
 - Conversational AI with fallback mechanisms across multiple providers
-- Educational content generation on kidney health topics
+- Educational content generation on Nephra health topics
 
 Usage:
     python main.py [--port PORT] [--debug]
@@ -164,7 +164,7 @@ def validate_document() -> Response:
 # Educational content route
 @app.route("/api/education/content", methods=["POST"])
 def get_education_content() -> Response:
-    """Generate educational content on kidney health topics."""
+    """Generate educational content on Nephra health topics."""
     data = request.json
     topic = data.get("topic")
     audience = data.get("audience", "patient")
@@ -411,7 +411,7 @@ def extract_supportive_response(text: str) -> str:
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="KidneyHealth AI Services")
+    parser = argparse.ArgumentParser(description="Nephra AI Services")
     parser.add_argument("--port", type=int, default=5001, help="Port to run the server on")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
     return parser.parse_args()

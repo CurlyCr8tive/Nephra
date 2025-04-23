@@ -195,7 +195,7 @@ export async function getNephraSupportChat(
       messages: [
         {
           role: "system",
-          content: `You are a compassionate kidney health assistant providing support and information to patients with kidney disease. Your responses should be:
+          content: `You are a compassionate Nephra health assistant providing support and information to patients with kidney disease. Your responses should be:
           
           1. Accurate and evidence-based
           2. Easy to understand without medical jargon
@@ -240,7 +240,7 @@ export async function analyzeJournalEntry(journalText: string): Promise<{
       messages: [
         {
           role: "system",
-          content: `You are an empathetic assistant trained to analyze journal entries for emotional patterns, particularly for people managing kidney disease.
+          content: `You are an empathetic assistant trained to analyze journal entries for emotional patterns, particularly for people managing Nephra health.
           
           Analyze the provided journal entry and identify:
           1. Overall sentiment (positive, negative, neutral, mixed)

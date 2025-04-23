@@ -177,9 +177,9 @@ router.post("/explain-terms", async (req: Request, res: Response) => {
 
 /**
  * Get Nephra health advice
- * POST /api/ai/kidney-advice
+ * POST /api/ai/nephra-advice
  */
-router.post("/kidney-advice", async (req: Request, res: Response) => {
+router.post("/nephra-advice", async (req: Request, res: Response) => {
   try {
     const { metrics, patientInfo } = req.body;
     
