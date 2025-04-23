@@ -7,13 +7,32 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
   firstName: text("first_name"),
+  lastName: text("last_name"),
   age: integer("age"),
   gender: text("gender"),
   weight: doublePrecision("weight"),
   race: text("race"),
+  
+  // Kidney disease and health information
   kidneyDiseaseType: text("kidney_disease_type"),
   kidneyDiseaseStage: integer("kidney_disease_stage"),
+  diagnosisDate: timestamp("diagnosis_date"),
+  otherHealthConditions: text("other_health_conditions").array(),
+  
+  // Healthcare providers
+  primaryCareProvider: text("primary_care_provider"),
+  nephrologist: text("nephrologist"),
+  otherSpecialists: jsonb("other_specialists"), // Array of {name, specialty, phone}
+  
+  // Insurance and transplant information
+  insuranceProvider: text("insurance_provider"),
+  insurancePolicyNumber: text("insurance_policy_number"),
+  transplantCenter: text("transplant_center"),
+  transplantCoordinator: text("transplant_coordinator"),
+  transplantCoordinatorPhone: text("transplant_coordinator_phone"),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
