@@ -37,25 +37,51 @@ import BottomNavigation from "@/components/BottomNavigation";
 
 export default function ProfilePage() {
   // Default fallback user data
-  let userId = 1; // Default fallback userId
-  let user = {
+  const [userId, setUserId] = useState(1); // Default fallback userId
+  const [user, setUser] = useState({
     id: 1,
     username: "testuser",
-    firstName: "User"
-  };
+    password: "",
+    email: null,
+    firstName: "User",
+    lastName: null,
+    age: null,
+    gender: null,
+    weight: null,
+    race: null,
+    kidneyDiseaseType: null,
+    kidneyDiseaseStage: null,
+    diagnosisDate: null,
+    otherHealthConditions: null,
+    primaryCareProvider: null,
+    nephrologist: null,
+    otherSpecialists: null,
+    insuranceProvider: null,
+    insurancePolicyNumber: null,
+    transplantCenter: null,
+    transplantCoordinator: null,
+    transplantCoordinatorPhone: null,
+    createdAt: new Date()
+  });
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   // Helper functions to safely handle form values with proper typing
+  
+  // Safely get array values from the form
+  function getSafeFormArray<T>(fieldValue: unknown): T[] {
+    if (Array.isArray(fieldValue)) return fieldValue as T[];
+    if (typeof fieldValue === 'string' && fieldValue.trim() !== '') {
+      // Handle comma-separated string
+      return fieldValue.split(',').filter(item => item.trim() !== '') as unknown as T[];
+    }
+    return [] as T[];
+  }
+  
   const getHealthConditions = (): string[] => {
     const conditions = form.getValues("otherHealthConditions");
-    if (Array.isArray(conditions)) return conditions as string[];
-    if (typeof conditions === 'string') {
-      // Handle comma-separated string
-      return conditions.split(',').filter((c: string) => c.trim() !== '');
-    }
-    return [];
+    return getSafeFormArray<string>(conditions);
   };
   
   interface Specialist {
@@ -66,19 +92,21 @@ export default function ProfilePage() {
   
   const getSpecialists = (): Specialist[] => {
     const specialists = form.getValues("otherSpecialists");
-    return Array.isArray(specialists) ? specialists : [];
+    return getSafeFormArray<Specialist>(specialists);
   };
   
   // Try to get real user data from context
-  try {
-    const userContext = useUser();
-    if (userContext && userContext.user) {
-      userId = userContext.user.id;
-      user = userContext.user;
-    } 
-  } catch (error) {
-    console.error("UserContext not available:", error);
-  }
+  useEffect(() => {
+    try {
+      const userContext = useUser();
+      if (userContext && userContext.user) {
+        userId = userContext.user.id;
+        setUser(userContext.user);
+      } 
+    } catch (error) {
+      console.error("UserContext not available:", error);
+    }
+  }, []);
   
   // Show error toast using useEffect
   useEffect(() => {

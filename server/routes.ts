@@ -517,55 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // User profile endpoints
-  app.get("/api/users/:id", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ error: "Invalid user ID" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      // Don't send password to the client
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ error: handleError(error) });
-    }
-  });
-  
-  app.put("/api/users/:id", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      if (isNaN(userId)) {
-        return res.status(400).json({ error: "Invalid user ID" });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      // Sanitize the input - don't allow updating password through this endpoint
-      const { password, id, createdAt, ...updateData } = req.body;
-      
-      // Update the user data
-      const updatedUser = await storage.updateUser(userId, updateData);
-      if (!updatedUser) {
-        return res.status(500).json({ error: "Failed to update user" });
-      }
-      
-      // Don't send password back to client
-      const { password: pwd, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      res.status(500).json({ error: handleError(error) });
-    }
-  });
+  // User profile endpoints are already defined above
 
   // Education resources endpoints
   app.get("/api/education-resources", async (req, res) => {
