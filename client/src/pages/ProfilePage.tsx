@@ -191,11 +191,23 @@ export default function ProfilePage() {
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
     mutationFn: async (data: any) => {
       console.log("Updating profile with data:", data);
-      // Use the correct API endpoint - /api/users (plural)
-      const response = await apiRequest("PATCH", `/api/users/${userId}`, data);
-      return await response.json();
+      
+      try {
+        // Try PUT method instead of PATCH since that's defined in routes.ts
+        const response = await apiRequest("PUT", `/api/users/${userId}`, data);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API error response:", errorText);
+          throw new Error(`API returned status ${response.status}: ${errorText}`);
+        }
+        return await response.json();
+      } catch (err) {
+        console.error("Profile update error:", err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
+      console.log("Profile update success:", data);
       queryClient.invalidateQueries({
         queryKey: [`/api/users/${userId}`]
       });
@@ -206,6 +218,7 @@ export default function ProfilePage() {
       setIsEditing(false);
     },
     onError: (error: any) => {
+      console.error("Profile update error details:", error);
       toast({
         title: "Error updating profile",
         description: error.message || "Failed to update your profile. Please try again.",

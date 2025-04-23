@@ -255,13 +255,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/users/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      console.log(`Updating user ${id} with data:`, req.body);
+      
       const user = await storage.updateUser(id, req.body);
+      console.log("Updated user result:", user);
+      
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      res.json(user);
+      
+      // Don't send the password in the response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      console.error("Error updating user:", error);
+      res.status(400).json({ error: handleError(error) });
     }
   });
 
