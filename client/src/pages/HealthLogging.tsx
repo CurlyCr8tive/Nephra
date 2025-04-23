@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SliderWithLabel } from "@/components/SliderWithLabel";
 import { useUser } from "@/contexts/UserContext";
@@ -45,12 +45,20 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
   } catch (error) {
     console.error("UserContext not available:", error);
-    toast({
-      title: "Error accessing user data",
-      description: "There was a problem accessing your user information. Please refresh the page and try again.",
-      variant: "destructive",
-    });
+    // Don't call toast here during render - it causes React errors
   }
+  
+  // Show toast on error using useEffect instead
+  useEffect(() => {
+    const hasError = !user;
+    if (hasError) {
+      toast({
+        title: "Error accessing user data",
+        description: "There was a problem accessing your user information. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
   
   // Create a wrapper function for the mutation to handle the TypeScript error
   const logHealthMetrics = async (data: any) => {

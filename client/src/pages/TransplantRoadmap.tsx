@@ -21,9 +21,12 @@ export default function TransplantRoadmap() {
     firstName: "User"
   };
   
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   try {
     const userContext = useUser();
-    if (userContext.user) {
+    if (userContext && userContext.user) {
       // Create safe user object with only needed properties
       userId = userContext.user.id;
       user = {
@@ -34,11 +37,21 @@ export default function TransplantRoadmap() {
     }
   } catch (error) {
     console.error("UserContext not available:", error);
-    // Continue with default user
+    // Don't call toast in render phase
   }
+  
+  // Show error toast using useEffect
+  useEffect(() => {
+    const hasError = !user || user.id === 1; // Default user has id 1
+    if (hasError) {
+      toast({
+        title: "Error accessing user data",
+        description: "There was a problem accessing your user information. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast, user]);
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("roadmap");
 
   // Fetch transplant steps

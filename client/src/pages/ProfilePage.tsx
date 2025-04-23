@@ -1,32 +1,42 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
-import Header from "@/components/Header";
-import BottomNavigation from "@/components/BottomNavigation";
+import { useUser } from "@/contexts/UserContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { User } from "@shared/schema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CalendarIcon, SaveIcon, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { useUser } from "@/contexts/UserContext";
+import { CalendarIcon, PlusCircle, X } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/Header";
+import BottomNavigation from "@/components/BottomNavigation";
 
-const ProfilePage = () => {
-  // Safely access user context with fallback for error cases
+export default function ProfilePage() {
+  // Default fallback user data
   let userId = 1; // Default fallback userId
   let user = {
     id: 1,
@@ -34,19 +44,32 @@ const ProfilePage = () => {
     firstName: "User"
   };
   
-  try {
-    const userContext = useUser();
-    if (userContext.user) {
-      userId = userContext.user.id;
-      user = userContext.user;
-    }
-  } catch (error) {
-    console.error("UserContext not available:", error);
-    // Continue with default user
-  }
-
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Try to get real user data from context
+  try {
+    const userContext = useUser();
+    if (userContext && userContext.user) {
+      userId = userContext.user.id;
+      user = userContext.user;
+    } 
+  } catch (error) {
+    console.error("UserContext not available:", error);
+  }
+  
+  // Show error toast using useEffect
+  useEffect(() => {
+    const hasError = !user || user.id === 1; // Default user has id 1
+    if (hasError) {
+      toast({
+        title: "Error accessing user data",
+        description: "There was a problem accessing your user information. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast, user]);
+
   const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState(false);
   const [otherCondition, setOtherCondition] = useState("");
@@ -144,9 +167,10 @@ const ProfilePage = () => {
 
   // Update profile mutation
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
-    mutationFn: async (data: Partial<User>) => {
+    mutationFn: async (data: any) => {
+      console.log("Updating profile with data:", data);
       const response = await apiRequest("PATCH", `/api/users/${userId}`, data);
-      return response.json();
+      return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({
@@ -158,7 +182,7 @@ const ProfilePage = () => {
       });
       setIsEditing(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error updating profile",
         description: error.message || "Failed to update your profile. Please try again.",
@@ -169,6 +193,7 @@ const ProfilePage = () => {
 
   // Handle form submission
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    console.log("Form submitted with values:", values);
     updateProfile(values);
   };
 
@@ -328,10 +353,10 @@ const ProfilePage = () => {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Gender</FormLabel>
-                                <Select 
-                                  disabled={!isEditing} 
-                                  onValueChange={field.onChange} 
-                                  value={field.value}
+                                <Select
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  disabled={!isEditing}
                                 >
                                   <FormControl>
                                     <SelectTrigger>
@@ -342,7 +367,7 @@ const ProfilePage = () => {
                                     <SelectItem value="male">Male</SelectItem>
                                     <SelectItem value="female">Female</SelectItem>
                                     <SelectItem value="other">Other</SelectItem>
-                                    <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -363,7 +388,7 @@ const ProfilePage = () => {
                                     {...field} 
                                     disabled={!isEditing}
                                     value={field.value || ""}
-                                    onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)} 
+                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -378,27 +403,13 @@ const ProfilePage = () => {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Race/Ethnicity</FormLabel>
-                              <Select 
-                                disabled={!isEditing} 
-                                onValueChange={field.onChange} 
-                                value={field.value || ""}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select race/ethnicity" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="asian">Asian</SelectItem>
-                                  <SelectItem value="black">Black or African American</SelectItem>
-                                  <SelectItem value="hispanic">Hispanic or Latino</SelectItem>
-                                  <SelectItem value="native-american">Native American</SelectItem>
-                                  <SelectItem value="pacific-islander">Pacific Islander</SelectItem>
-                                  <SelectItem value="white">White</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
-                                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Race/Ethnicity" 
+                                  {...field} 
+                                  disabled={!isEditing} 
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -412,25 +423,23 @@ const ProfilePage = () => {
                           name="kidneyDiseaseType"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Kidney Disease Diagnosis</FormLabel>
-                              <Select 
-                                disabled={!isEditing} 
-                                onValueChange={field.onChange} 
-                                value={field.value || ""}
+                              <FormLabel>Kidney Disease Type</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                disabled={!isEditing}
                               >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select diagnosis" />
+                                    <SelectValue placeholder="Select kidney disease type" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="diabetic-nephropathy">Diabetic Nephropathy</SelectItem>
-                                  <SelectItem value="hypertensive-nephrosclerosis">Hypertensive Nephrosclerosis</SelectItem>
+                                  <SelectItem value="chronic_kidney_disease">Chronic Kidney Disease (CKD)</SelectItem>
+                                  <SelectItem value="polycystic_kidney_disease">Polycystic Kidney Disease (PKD)</SelectItem>
                                   <SelectItem value="glomerulonephritis">Glomerulonephritis</SelectItem>
-                                  <SelectItem value="polycystic-kidney">Polycystic Kidney Disease</SelectItem>
-                                  <SelectItem value="lupus-nephritis">Lupus Nephritis</SelectItem>
-                                  <SelectItem value="iga-nephropathy">IgA Nephropathy</SelectItem>
-                                  <SelectItem value="focal-segmental-glomerulosclerosis">Focal Segmental Glomerulosclerosis</SelectItem>
+                                  <SelectItem value="diabetic_nephropathy">Diabetic Nephropathy</SelectItem>
+                                  <SelectItem value="hypertensive_nephropathy">Hypertensive Nephropathy</SelectItem>
                                   <SelectItem value="other">Other</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -439,112 +448,113 @@ const ProfilePage = () => {
                           )}
                         />
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="kidneyDiseaseStage"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Kidney Disease Stage (1-5)</FormLabel>
-                                <Select 
-                                  disabled={!isEditing} 
-                                  onValueChange={(value) => field.onChange(parseInt(value))} 
-                                  value={field.value?.toString() || ""}
-                                >
+                        <FormField
+                          control={form.control}
+                          name="kidneyDiseaseStage"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Kidney Disease Stage</FormLabel>
+                              <Select
+                                onValueChange={(value) => field.onChange(parseInt(value))}
+                                defaultValue={field.value?.toString()}
+                                disabled={!isEditing}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select stage" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="1">Stage 1</SelectItem>
+                                  <SelectItem value="2">Stage 2</SelectItem>
+                                  <SelectItem value="3">Stage 3</SelectItem>
+                                  <SelectItem value="4">Stage 4</SelectItem>
+                                  <SelectItem value="5">Stage 5 (ESRD)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="diagnosisDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Diagnosis Date</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
                                   <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select stage" />
-                                    </SelectTrigger>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-full pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                      disabled={!isEditing}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
                                   </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="1">Stage 1</SelectItem>
-                                    <SelectItem value="2">Stage 2</SelectItem>
-                                    <SelectItem value="3">Stage 3</SelectItem>
-                                    <SelectItem value="4">Stage 4</SelectItem>
-                                    <SelectItem value="5">Stage 5 (ESRD)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="diagnosisDate"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-col">
-                                <FormLabel>Diagnosis Date</FormLabel>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <FormControl>
-                                      <Button
-                                        variant={"outline"}
-                                        className={`w-full pl-3 text-left font-normal ${!field.value ? "text-muted-foreground" : ""}`}
-                                        disabled={!isEditing}
-                                      >
-                                        {field.value ? (
-                                          format(field.value, "PPP")
-                                        ) : (
-                                          <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                    </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value || undefined}
-                                      onSelect={field.onChange}
-                                      disabled={(date) => date > new Date()}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value || undefined}
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                      date > new Date() || date < new Date("1900-01-01")
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         
                         <div className="space-y-2">
-                          <Label>Other Health Conditions</Label>
+                          <FormLabel>Other Health Conditions</FormLabel>
                           <div className="flex flex-wrap gap-2 mb-2">
-                            {Array.isArray(form.getValues("otherHealthConditions")) 
-                              ? form.getValues("otherHealthConditions").map((condition, index) => (
-                                <Badge 
-                                  key={index} 
-                                  variant="secondary"
-                                  className="flex items-center gap-1"
-                                >
-                                  {condition}
-                                  {isEditing && (
-                                    <button 
-                                      type="button"
-                                      className="ml-1 text-xs"
-                                      onClick={() => removeHealthCondition(condition)}
-                                    >
-                                      ×
-                                    </button>
-                                  )}
-                                </Badge>
-                              ))
-                              : null}
+                            {form.getValues("otherHealthConditions")?.map((condition, index) => (
+                              <Badge 
+                                key={index} 
+                                variant="outline"
+                                className="py-1 flex items-center gap-1"
+                              >
+                                {condition}
+                                {isEditing && (
+                                  <X 
+                                    className="h-3 w-3 cursor-pointer text-muted-foreground hover:text-destructive" 
+                                    onClick={() => removeHealthCondition(condition)}
+                                  />
+                                )}
+                              </Badge>
+                            ))}
                           </div>
                           
                           {isEditing && (
                             <div className="flex gap-2">
-                              <Input 
+                              <Input
+                                placeholder="Add health condition"
                                 value={otherCondition}
                                 onChange={(e) => setOtherCondition(e.target.value)}
-                                placeholder="Add health condition"
+                                className="flex-1"
                               />
                               <Button 
                                 type="button" 
-                                variant="outline"
+                                size="sm"
                                 onClick={addHealthCondition}
+                                disabled={!otherCondition.trim()}
                               >
+                                <PlusCircle className="h-4 w-4 mr-1" />
                                 Add
                               </Button>
                             </div>
@@ -554,163 +564,118 @@ const ProfilePage = () => {
                       
                       {/* Care Team Tab */}
                       <TabsContent value="care" className="space-y-4">
-                        <div className="space-y-4">
-                          <h3 className="font-medium text-lg">Healthcare Providers</h3>
-                          
-                          <FormField
-                            control={form.control}
-                            name="primaryCareProvider"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Primary Care Physician (PCP)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    placeholder="Dr. Name" 
-                                    {...field} 
-                                    disabled={!isEditing} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="nephrologist"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Nephrologist</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    placeholder="Dr. Name" 
-                                    {...field} 
-                                    disabled={!isEditing} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="space-y-2">
-                            <Label>Other Specialists</Label>
-                            
-                            {Array.isArray(form.getValues("otherSpecialists")) 
-                              ? form.getValues("otherSpecialists").map((specialist, index) => (
-                                <div 
-                                  key={index} 
-                                  className="bg-muted p-3 rounded-md mb-2 relative"
-                                >
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <Label className="text-xs">Name</Label>
-                                      <p>{specialist.name}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">Specialty</Label>
-                                      <p>{specialist.specialty}</p>
-                                    </div>
-                                    {specialist.phone && (
-                                      <div className="col-span-2">
-                                        <Label className="text-xs">Phone</Label>
-                                        <p>{specialist.phone}</p>
-                                      </div>
-                                    )}
+                        <FormField
+                          control={form.control}
+                          name="primaryCareProvider"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Primary Care Provider</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Primary care doctor" 
+                                  {...field} 
+                                  disabled={!isEditing} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="nephrologist"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nephrologist</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Kidney doctor" 
+                                  {...field} 
+                                  disabled={!isEditing} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <div className="space-y-2">
+                          <FormLabel>Other Specialists</FormLabel>
+                          <div className="space-y-3">
+                            {form.getValues("otherSpecialists")?.map((specialist, index) => (
+                              <div 
+                                key={index} 
+                                className="p-3 border rounded-md relative"
+                              >
+                                {isEditing && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-2 right-2 h-6 w-6"
+                                    onClick={() => removeSpecialist(specialist)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <div className="font-medium">{specialist.name}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-medium">Specialty:</span> {specialist.specialty}
+                                </div>
+                                {specialist.phone && (
+                                  <div className="text-sm text-muted-foreground">
+                                    <span className="font-medium">Phone:</span> {specialist.phone}
                                   </div>
-                                  
-                                  {isEditing && (
-                                    <button 
-                                      type="button"
-                                      className="absolute top-2 right-2 text-sm text-destructive"
-                                      onClick={() => removeSpecialist(specialist)}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </div>
-                              ))
-                              : null}
-                            
-                            {isEditing && (
-                              <div className="border rounded-md p-3 mt-2">
-                                <h4 className="font-medium text-sm mb-2">Add Specialist</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-                                  <Input 
-                                    value={otherSpecialist.name}
-                                    onChange={(e) => setOtherSpecialist({...otherSpecialist, name: e.target.value})}
-                                    placeholder="Specialist name"
-                                  />
-                                  <Input 
-                                    value={otherSpecialist.specialty}
-                                    onChange={(e) => setOtherSpecialist({...otherSpecialist, specialty: e.target.value})}
-                                    placeholder="Specialty"
-                                  />
-                                </div>
-                                <div className="mb-2">
-                                  <Input 
-                                    value={otherSpecialist.phone}
-                                    onChange={(e) => setOtherSpecialist({...otherSpecialist, phone: e.target.value})}
-                                    placeholder="Phone number (optional)"
-                                  />
-                                </div>
-                                <Button 
-                                  type="button" 
-                                  variant="outline"
-                                  onClick={addSpecialist}
-                                  className="w-full"
-                                >
-                                  Add Specialist
-                                </Button>
+                                )}
                               </div>
-                            )}
+                            ))}
                           </div>
                           
-                          <Separator className="my-4" />
-                          
-                          <h3 className="font-medium text-lg">Insurance</h3>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="insuranceProvider"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Insurance Provider</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Provider name" 
-                                      {...field} 
-                                      disabled={!isEditing} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name="insurancePolicyNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Policy Number</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Policy number" 
-                                      {...field} 
-                                      disabled={!isEditing} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          
-                          <Separator className="my-4" />
-                          
-                          <h3 className="font-medium text-lg">Transplant Center</h3>
+                          {isEditing && (
+                            <div className="border rounded-md p-3 space-y-3 mt-3">
+                              <div>
+                                <FormLabel htmlFor="specialist-name">Name</FormLabel>
+                                <Input
+                                  id="specialist-name"
+                                  placeholder="Specialist name"
+                                  value={otherSpecialist.name}
+                                  onChange={(e) => setOtherSpecialist({...otherSpecialist, name: e.target.value})}
+                                />
+                              </div>
+                              <div>
+                                <FormLabel htmlFor="specialist-specialty">Specialty</FormLabel>
+                                <Input
+                                  id="specialist-specialty"
+                                  placeholder="Specialty"
+                                  value={otherSpecialist.specialty}
+                                  onChange={(e) => setOtherSpecialist({...otherSpecialist, specialty: e.target.value})}
+                                />
+                              </div>
+                              <div>
+                                <FormLabel htmlFor="specialist-phone">Phone (optional)</FormLabel>
+                                <Input
+                                  id="specialist-phone"
+                                  placeholder="Phone number"
+                                  value={otherSpecialist.phone}
+                                  onChange={(e) => setOtherSpecialist({...otherSpecialist, phone: e.target.value})}
+                                />
+                              </div>
+                              <Button 
+                                type="button" 
+                                className="w-full"
+                                onClick={addSpecialist}
+                                disabled={!otherSpecialist.name.trim() || !otherSpecialist.specialty.trim()}
+                              >
+                                <PlusCircle className="h-4 w-4 mr-1" />
+                                Add Specialist
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-4 pt-4 border-t">
+                          <h3 className="font-medium text-lg">Transplant Information</h3>
                           
                           <FormField
                             control={form.control}
@@ -720,7 +685,7 @@ const ProfilePage = () => {
                                 <FormLabel>Transplant Center</FormLabel>
                                 <FormControl>
                                   <Input 
-                                    placeholder="Center name" 
+                                    placeholder="Transplant center name" 
                                     {...field} 
                                     disabled={!isEditing} 
                                   />
@@ -730,52 +695,59 @@ const ProfilePage = () => {
                             )}
                           />
                           
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="transplantCoordinator"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Transplant Coordinator</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Coordinator name" 
-                                      {...field} 
-                                      disabled={!isEditing} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name="transplantCoordinatorPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Coordinator Phone</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Phone number" 
-                                      {...field} 
-                                      disabled={!isEditing} 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
+                          <FormField
+                            control={form.control}
+                            name="transplantCoordinator"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Transplant Coordinator</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Coordinator name" 
+                                    {...field} 
+                                    disabled={!isEditing} 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="transplantCoordinatorPhone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Coordinator Phone</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Phone number" 
+                                    {...field} 
+                                    disabled={!isEditing} 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
                       </TabsContent>
                     </Tabs>
                     
                     {isEditing && (
-                      <div className="flex justify-end gap-2 pt-4">
-                        <Button type="submit" disabled={isUpdating} className="flex items-center gap-2">
-                          {isUpdating && <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>}
-                          <SaveIcon className="w-4 h-4 mr-1" /> Save Profile
+                      <div className="flex justify-between pt-6">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsEditing(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit"
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? "Saving..." : "Save Profile Info"}
                         </Button>
                       </div>
                     )}
@@ -784,19 +756,10 @@ const ProfilePage = () => {
               )}
             </CardContent>
           </Card>
-          
-          <div className="text-center text-sm text-muted-foreground">
-            <p className="flex items-center justify-center gap-1">
-              <AlertCircle className="w-4 h-4" />
-              Your information is securely stored and private
-            </p>
-          </div>
         </div>
       </main>
       
       <BottomNavigation />
     </div>
   );
-};
-
-export default ProfilePage;
+}
