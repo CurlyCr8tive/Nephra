@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useUser } from "@/contexts/UserContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,23 +95,15 @@ export default function ProfilePage() {
     return getSafeFormArray<Specialist>(specialists);
   };
   
-  // Try to get real user data from context
+  // Get real user data from auth context
+  const { user: authUser } = useAuth();
+  
+  // Update userId and user state when authUser changes
   useEffect(() => {
-    try {
-      const userContext = useUser();
-      if (userContext && userContext.user) {
-        setUserId(userContext.user.id);
-        // Create a new object with same structure as our user state
-        const userObj = {
-          ...user,
-          ...userContext.user
-        };
-        setUser(userObj);
-      } 
-    } catch (error) {
-      console.error("UserContext not available:", error);
+    if (authUser) {
+      setUserId(authUser.id);
     }
-  }, [user]);
+  }, [authUser]);
   
   // Show error toast using useEffect
   useEffect(() => {
