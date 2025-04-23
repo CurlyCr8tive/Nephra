@@ -25,8 +25,19 @@ import { validateMedicalDocument } from "./openai-service";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || "sk-dummy-key-for-development" 
+  apiKey: process.env.OPENAI_API_KEY || "" 
 });
+
+// Helper function to safely handle errors
+function handleError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  } else if (typeof error === 'string') {
+    return error;
+  } else {
+    return 'An unknown error occurred';
+  }
+}
 
 // Estimate GFR based on health metrics and user profile
 // This is a simplified estimation for demonstration purposes
@@ -331,14 +342,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             age: user.age || 40,
             gender: user.gender || "unknown",
-            kidneyDiseaseType: user.kidneyDiseaseType || "CKD",
-            kidneyDiseaseStage: user.kidneyDiseaseStage || 3,
+            stage: user.kidneyDiseaseStage || 3,
+            conditions: user.kidneyDiseaseType ? [user.kidneyDiseaseType] : ["CKD"],
           },
-          {
+          JSON.stringify({
             fileName: result.fileName,
             description: result.fileName, // Use filename as description if none provided
             metadata: result.metadata || {},
-          }
+          })
         );
         
         // Update the document with validation results
@@ -394,14 +405,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           age: user.age || 40,
           gender: user.gender || "unknown",
-          kidneyDiseaseType: user.kidneyDiseaseType || "CKD",
-          kidneyDiseaseStage: user.kidneyDiseaseStage || 3,
+          stage: user.kidneyDiseaseStage || 3,
+          conditions: user.kidneyDiseaseType ? [user.kidneyDiseaseType] : ["CKD"],
         },
-        {
+        JSON.stringify({
           fileName: targetDocument.fileName,
           description: targetDocument.fileName,
           metadata: targetDocument.metadata || {},
-        }
+        })
       );
       
       // Update the document with validation results
@@ -449,16 +460,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           // Parse the JSON response
-          const aiResponse = JSON.parse(analysis.choices[0].message.content);
+          const content = analysis.choices[0].message.content || '{}';
+          const aiResponse = JSON.parse(content);
           
           // Update the journal entry with AI response and sentiment
           const updatedEntry = await storage.updateJournalEntry(result.id, {
-            aiResponse: aiResponse.response,
-            sentiment: aiResponse.sentiment,
-            tags: aiResponse.tags.split(',').map(tag => tag.trim())
+            aiResponse: aiResponse.response || '',
+            sentiment: aiResponse.sentiment || 'neutral',
+            tags: aiResponse.tags ? aiResponse.tags.split(',').map((tag: string) => tag.trim()) : []
           });
           
-          result = updatedEntry;
+          if (updatedEntry) {
+            result = updatedEntry;
+          }
         } catch (error) {
           console.error("AI analysis error:", error);
           // Continue without AI analysis if there's an error
