@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth } from "./auth";
 import { 
   insertUserSchema, 
   insertHealthMetricsSchema, 
@@ -89,6 +90,9 @@ function estimateGFR(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up authentication
+  setupAuth(app);
+  
   // Mount AI router with all AI service endpoints
   app.use('/api/ai', aiRouter);
   

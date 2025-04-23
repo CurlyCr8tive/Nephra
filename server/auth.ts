@@ -9,7 +9,32 @@ import { User } from "@shared/schema";
 
 declare global {
   namespace Express {
-    interface User extends User {}
+    // Define Express.User to be the same as our User type
+    interface User {
+      id: number;
+      username: string;
+      password: string;
+      email: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      age: number | null;
+      gender: string | null;
+      weight: number | null;
+      race: string | null;
+      kidneyDiseaseType: string | null;
+      kidneyDiseaseStage: number | null;
+      diagnosisDate: Date | null;
+      otherHealthConditions: string | null;
+      primaryCareProvider: string | null;
+      nephrologist: string | null;
+      otherSpecialists: string | null;
+      insuranceProvider: string | null;
+      insurancePolicyNumber: string | null;
+      transplantCenter: string | null;
+      transplantCoordinator: string | null;
+      transplantCoordinatorPhone: string | null;
+      createdAt: Date | null;
+    }
   }
 }
 
