@@ -259,17 +259,33 @@ Then provide:
     
     // Extract terms and explanations
     const terms: { term: string; explanation: string; category: string }[] = [];
-    const termsRegex = /[•\-*]?\s*(?<term>[A-Za-z\s\-]+?)(?:\s+\(.*?\))?\s*:(?<explanation>.*?)(?:\s+Category:\s*(?<category>[A-Za-z\s\-]+))?(?=\n[•\-*]|\n\n|$)/gs;
     
-    let match;
-    while ((match = termsRegex.exec(content)) !== null) {
-      if (match.groups?.term && match.groups?.explanation) {
-        terms.push({
-          term: match.groups.term.trim(),
-          explanation: match.groups.explanation.trim(),
-          category: match.groups.category?.trim() || "Medical term"
-        });
+    // Simpler regex approach without named groups to avoid TypeScript ES2018 issues
+    const termLines = content.split('\n').filter(line => /^\s*[•\-*]?\s*[A-Za-z\s\-]+?:/.test(line));
+    
+    for (const line of termLines) {
+      // Extract term and explanation with simple regex patterns
+      const termMatch = line.match(/^\s*[•\-*]?\s*([A-Za-z\s\-]+?)(?:\s+\(.*?\))?\s*:/);
+      if (!termMatch) continue;
+      
+      const term = termMatch[1].trim();
+      let remainingText = line.substring(line.indexOf(':') + 1).trim();
+      
+      // Extract category if present
+      let category = "Medical term";
+      const categoryMatch = remainingText.match(/Category:\s*([A-Za-z\s\-]+)$/i);
+      if (categoryMatch) {
+        category = categoryMatch[1].trim();
+        // Remove category part from explanation
+        remainingText = remainingText.substring(0, remainingText.indexOf('Category:')).trim();
       }
+      
+      // Add to terms array
+      terms.push({
+        term,
+        explanation: remainingText,
+        category
+      });
     }
     
     // Extract resources
