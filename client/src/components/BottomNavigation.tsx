@@ -13,7 +13,7 @@ export function BottomNavigation() {
         {/* Home */}
         <Link
           href="/"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/6 flex flex-col items-center py-3 ${
             isActive("/") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -24,7 +24,7 @@ export function BottomNavigation() {
         {/* Track - completely different implementation */}
         <Link
           href="/trends"
-          className={`w-1/5 text-center py-3 ${
+          className={`w-1/6 text-center py-3 ${
             isActive("/trends") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -44,7 +44,7 @@ export function BottomNavigation() {
         {/* Journal */}
         <Link
           href="/journal"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/6 flex flex-col items-center py-3 ${
             isActive("/journal") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -55,7 +55,7 @@ export function BottomNavigation() {
         {/* Chat */}
         <Link
           href="/chat"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/6 flex flex-col items-center py-3 ${
             isActive("/chat") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -63,10 +63,21 @@ export function BottomNavigation() {
           <span className="text-xs mt-1">Chat</span>
         </Link>
         
+        {/* Education Hub */}
+        <Link
+          href="/education"
+          className={`w-1/6 flex flex-col items-center py-3 ${
+            isActive("/education") ? "text-primary" : "text-neutral-500"
+          }`}
+        >
+          <span className="material-icons">school</span>
+          <span className="text-xs mt-1">Education</span>
+        </Link>
+        
         {/* Roadmap */}
         <Link
           href="/roadmap"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/6 flex flex-col items-center py-3 ${
             isActive("/roadmap") ? "text-primary" : "text-neutral-500"
           }`}
         >

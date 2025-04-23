@@ -8,6 +8,7 @@ import TransplantRoadmap from "@/pages/TransplantRoadmap";
 import HealthTrends from "@/pages/HealthTrends";
 import MedicalDocuments from "@/pages/MedicalDocuments";
 import JournalPage from "@/pages/JournalPage";
+import EducationHub from "@/pages/EducationHub";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
 
@@ -34,6 +35,7 @@ function App() {
         <Route path="/roadmap" component={TransplantRoadmap} />
         <Route path="/trends" component={HealthTrends} />
         <Route path="/documents" component={MedicalDocuments} />
+        <Route path="/education" component={EducationHub} />
         <Route component={NotFound} />
       </Switch>
     </TooltipProvider>
