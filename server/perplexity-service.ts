@@ -1,4 +1,17 @@
 /**
+ * Utility function to safely handle errors
+ */
+function handleError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  } else if (typeof error === 'string') {
+    return error;
+  } else {
+    return 'An unknown error occurred';
+  }
+}
+
+/**
  * Interface for Perplexity API response
  */
 interface PerplexityResponse {
@@ -385,7 +398,9 @@ export async function analyzeJournalEntry(entry: string): Promise<{
     }
   } catch (error) {
     console.error("Error analyzing journal with Perplexity:", error);
-    throw error;
+    const errorMessage = handleError(error);
+    console.log(`Handled Perplexity error: ${errorMessage}`);
+    throw new Error(`Failed to analyze journal entry: ${errorMessage}`);
   }
 }
 
