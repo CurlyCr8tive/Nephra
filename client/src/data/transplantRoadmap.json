@@ -1,0 +1,39 @@
+{
+  "eligibility": {
+    "title": "Am I Eligible for a Transplant?",
+    "content": "Answer questions about your age, kidney disease stage, other conditions, and transplant history to see if you qualify.",
+    "source": "https://www.kidney.org/transplantation/livingdonors"
+  },
+  "roadmap_steps": [
+    {
+      "step": "Get a referral to a transplant center",
+      "details": "Ask your nephrologist or healthcare provider for a referral.",
+      "source": "https://www.transplantliving.org/"
+    },
+    {
+      "step": "Evaluation at a Transplant Center",
+      "details": "You will undergo blood tests, imaging, and interviews to determine if you're a good candidate.",
+      "source": "https://optn.transplant.hrsa.gov/"
+    },
+    {
+      "step": "Join the National Transplant Waiting List",
+      "details": "If approved, you will be added to the UNOS-managed list. Your position depends on several factors including blood type and urgency.",
+      "source": "https://unos.org/"
+    },
+    {
+      "step": "Consider Living Donation",
+      "details": "A living donor may reduce your wait time. Donors can be family or friends.",
+      "source": "https://www.kidney.org/transplantation/livingdonors"
+    }
+  ],
+  "waitlist_comparison": {
+    "title": "Compare Waitlist Times",
+    "action": "Use OPTN explorer to compare average wait times by region and blood type.",
+    "source": "https://optn.transplant.hrsa.gov/data/view-data-reports/national-data/"
+  },
+  "coverage_and_rights": {
+    "title": "Medicare & Transplant Coverage",
+    "content": "Medicare Part B covers transplant-related drugs and services for eligible patients, even if you're under 65.",
+    "source": "https://www.cms.gov/medicare-coverage-database"
+  }
+}

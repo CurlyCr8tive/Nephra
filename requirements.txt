@@ -1,3 +1,6 @@
 openai
 google-generativeai
 supabase
+flask
+flask_cors
+python-dotenv
