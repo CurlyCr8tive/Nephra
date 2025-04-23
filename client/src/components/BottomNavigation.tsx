@@ -1,37 +1,19 @@
 import { Link, useLocation } from "wouter";
-import { useEffect, useRef } from "react";
 
 export function BottomNavigation() {
   const [location] = useLocation();
-  const trackLabelRef = useRef<HTMLSpanElement>(null);
 
   const isActive = (path: string) => {
     return location === path;
   };
   
-  // Use CSS custom properties for icon-specific label positioning
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      .track-label-fix {
-        position: relative;
-        left: -3px; /* More significant shift to the left */
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
   return (
     <nav className="bg-white shadow-lg fixed bottom-0 left-0 right-0 z-10 border-t border-neutral-200">
-      <div className="grid grid-cols-5 w-full">
+      <div className="flex justify-around">
         {/* Home */}
         <Link
           href="/"
-          className={`flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center py-3 ${
             isActive("/") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -39,21 +21,30 @@ export function BottomNavigation() {
           <span className="text-xs mt-1">Home</span>
         </Link>
         
-        {/* Track - with hardcoded fix */}
+        {/* Track - completely different implementation */}
         <Link
           href="/trends"
-          className={`flex flex-col items-center py-3 ${
+          className={`w-1/5 text-center py-3 ${
             isActive("/trends") ? "text-primary" : "text-neutral-500"
           }`}
         >
-          <span className="material-icons">monitoring</span>
-          <span ref={trackLabelRef} className="text-xs mt-1 track-label-fix">Track</span>
+          <div className="flex flex-col items-center">
+            <span className="material-icons">monitoring</span>
+            {/* Custom alignment for Track text only */}
+            <div className="w-full flex justify-center">
+              <div className="text-xs mt-1 translate-x-[-4px]">T</div>
+              <div className="text-xs mt-1 translate-x-[-4px]">r</div>
+              <div className="text-xs mt-1 translate-x-[-4px]">a</div>
+              <div className="text-xs mt-1 translate-x-[-4px]">c</div>
+              <div className="text-xs mt-1 translate-x-[-4px]">k</div>
+            </div>
+          </div>
         </Link>
         
         {/* Journal */}
         <Link
           href="/journal"
-          className={`flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center py-3 ${
             isActive("/journal") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -64,7 +55,7 @@ export function BottomNavigation() {
         {/* Chat */}
         <Link
           href="/chat"
-          className={`flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center py-3 ${
             isActive("/chat") ? "text-primary" : "text-neutral-500"
           }`}
         >
@@ -75,7 +66,7 @@ export function BottomNavigation() {
         {/* Roadmap */}
         <Link
           href="/roadmap"
-          className={`flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center py-3 ${
             isActive("/roadmap") ? "text-primary" : "text-neutral-500"
           }`}
         >
