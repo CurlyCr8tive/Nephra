@@ -208,7 +208,7 @@ def analyze_journal_entry(journal_content: str) -> Dict[str, Any]:
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are a kidney health AI assistant analyzing journal entries. 
+                        "content": """You are a Nephra health AI assistant analyzing journal entries. 
                         Extract the following information from the journal entry:
                         1. Stress level (1-10)
                         2. Fatigue level (1-10)
@@ -385,7 +385,7 @@ def extract_keywords(text: str) -> List[str]:
     if capitalized_words:
         return capitalized_words[:5]  # Return up to 5 keywords
     
-    return ["health", "kidney"]  # Default keywords
+    return ["health", "Nephra", "kidney"]  # Default keywords
 
 def extract_supportive_response(text: str) -> str:
     """Extract supportive response from text."""
@@ -430,5 +430,5 @@ if __name__ == "__main__":
         logger.warning("GEMINI_API_KEY not found in environment. Google Gemini services will not be available.")
     
     # Run the Flask app
-    logger.info(f"Starting KidneyHealth AI Services on port {args.port}")
+    logger.info(f"Starting Nephra AI Services on port {args.port}")
     app.run(host="0.0.0.0", port=args.port, debug=args.debug)
