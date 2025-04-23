@@ -134,6 +134,10 @@ export default function HealthTrends() {
           border: "rgba(156, 39, 176, 1)",
           background: "rgba(156, 39, 176, 0.2)",
         },
+        fatigue: {
+          border: "rgba(76, 175, 80, 1)",
+          background: "rgba(76, 175, 80, 0.2)",
+        },
       };
 
       chartInstance.current = new Chart(ctx, {
@@ -212,6 +216,8 @@ export default function HealthTrends() {
         return "Pain Level (1-10)";
       case "stress":
         return "Stress Level (1-10)";
+      case "fatigue":
+        return "Fatigue Level (1-10)";
       default:
         return "";
     }
@@ -227,6 +233,7 @@ export default function HealthTrends() {
         return 120;
       case "pain":
       case "stress":
+      case "fatigue":
         return 10;
       default:
         return 100;
@@ -243,6 +250,7 @@ export default function HealthTrends() {
         return 15;
       case "pain":
       case "stress":
+      case "fatigue":
         return 1;
       default:
         return 10;
@@ -268,6 +276,7 @@ export default function HealthTrends() {
         return `${Math.round(avg)}`;
       case "pain":
       case "stress":
+      case "fatigue":
         return `${avg.toFixed(1)}/10`;
       default:
         return `${avg.toFixed(1)}`;
@@ -301,7 +310,7 @@ export default function HealthTrends() {
         ? { text: "Improving", color: "text-success" }
         : { text: "Declining", color: "text-error" };
     } else {
-      // Lower is better for BP, pain, and stress
+      // Lower is better for BP, pain, stress, and fatigue
       return difference < 0 
         ? { text: "Improving", color: "text-success" }
         : { text: "Worsening", color: "text-error" };
@@ -349,6 +358,7 @@ export default function HealthTrends() {
                 <TabsTrigger value="gfr" className="flex-1">GFR</TabsTrigger>
                 <TabsTrigger value="pain" className="flex-1">Pain</TabsTrigger>
                 <TabsTrigger value="stress" className="flex-1">Stress</TabsTrigger>
+                <TabsTrigger value="fatigue" className="flex-1">Fatigue</TabsTrigger>
               </TabsList>
               
               <div className="chart-container mb-4" style={{ height: '300px' }}>
@@ -381,6 +391,7 @@ export default function HealthTrends() {
                     {activeTab === "gfr" && "Your GFR (Glomerular Filtration Rate) is an important indicator of kidney function. Monitor changes over time."}
                     {activeTab === "pain" && "Tracking pain levels can help your healthcare provider adjust your treatment plan."}
                     {activeTab === "stress" && "Reducing stress may help improve your overall health and potentially your kidney function."}
+                    {activeTab === "fatigue" && "Monitoring fatigue levels is important for kidney patients. Rest when needed and discuss persistent fatigue with your healthcare provider."}
                   </p>
                 </div>
               </div>
