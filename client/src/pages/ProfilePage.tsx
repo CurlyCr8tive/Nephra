@@ -47,10 +47,26 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Helper function to safely access form values
-  const getSafeFormArray = (fieldName: string) => {
-    const value = form?.getValues(fieldName);
-    return Array.isArray(value) ? value : [];
+  // Helper functions to safely handle form values with proper typing
+  const getHealthConditions = (): string[] => {
+    const conditions = form.getValues("otherHealthConditions");
+    if (Array.isArray(conditions)) return conditions as string[];
+    if (typeof conditions === 'string') {
+      // Handle comma-separated string
+      return conditions.split(',').filter((c: string) => c.trim() !== '');
+    }
+    return [];
+  };
+  
+  interface Specialist {
+    name: string;
+    specialty: string;
+    phone: string;
+  }
+  
+  const getSpecialists = (): Specialist[] => {
+    const specialists = form.getValues("otherSpecialists");
+    return Array.isArray(specialists) ? specialists : [];
   };
   
   // Try to get real user data from context
@@ -530,7 +546,7 @@ export default function ProfilePage() {
                         <div className="space-y-2">
                           <FormLabel>Other Health Conditions</FormLabel>
                           <div className="flex flex-wrap gap-2 mb-2">
-                            {getSafeFormArray("otherHealthConditions").map((condition, index) => (
+                            {getHealthConditions().map((condition: string, index: number) => (
                               <Badge 
                                 key={index} 
                                 variant="outline"
@@ -610,7 +626,7 @@ export default function ProfilePage() {
                         <div className="space-y-2">
                           <FormLabel>Other Specialists</FormLabel>
                           <div className="space-y-3">
-                            {Array.isArray(form.getValues("otherSpecialists")) && form.getValues("otherSpecialists").map((specialist, index) => (
+                            {getSpecialists().map((specialist: Specialist, index: number) => (
                               <div 
                                 key={index} 
                                 className="p-3 border rounded-md relative"
