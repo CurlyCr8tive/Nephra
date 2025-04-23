@@ -47,6 +47,12 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Helper function to safely access form values
+  const getSafeFormArray = (fieldName: string) => {
+    const value = form?.getValues(fieldName);
+    return Array.isArray(value) ? value : [];
+  };
+  
   // Try to get real user data from context
   try {
     const userContext = useUser();
@@ -524,7 +530,7 @@ export default function ProfilePage() {
                         <div className="space-y-2">
                           <FormLabel>Other Health Conditions</FormLabel>
                           <div className="flex flex-wrap gap-2 mb-2">
-                            {form.getValues("otherHealthConditions")?.map((condition, index) => (
+                            {getSafeFormArray("otherHealthConditions").map((condition, index) => (
                               <Badge 
                                 key={index} 
                                 variant="outline"
@@ -604,7 +610,7 @@ export default function ProfilePage() {
                         <div className="space-y-2">
                           <FormLabel>Other Specialists</FormLabel>
                           <div className="space-y-3">
-                            {form.getValues("otherSpecialists")?.map((specialist, index) => (
+                            {Array.isArray(form.getValues("otherSpecialists")) && form.getValues("otherSpecialists").map((specialist, index) => (
                               <div 
                                 key={index} 
                                 className="p-3 border rounded-md relative"
