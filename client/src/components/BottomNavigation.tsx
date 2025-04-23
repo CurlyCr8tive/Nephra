@@ -1,11 +1,29 @@
 import { Link, useLocation } from "wouter";
+import { useEffect, useRef } from "react";
 
 export function BottomNavigation() {
   const [location] = useLocation();
+  const trackLabelRef = useRef<HTMLSpanElement>(null);
 
   const isActive = (path: string) => {
     return location === path;
   };
+  
+  // Use CSS custom properties for icon-specific label positioning
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .track-label-fix {
+        position: relative;
+        left: -3px; /* More significant shift to the left */
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   return (
     <nav className="bg-white shadow-lg fixed bottom-0 left-0 right-0 z-10 border-t border-neutral-200">
@@ -21,21 +39,15 @@ export function BottomNavigation() {
           <span className="text-xs mt-1">Home</span>
         </Link>
         
-        {/* Track - with corrected alignment */}
+        {/* Track - with hardcoded fix */}
         <Link
           href="/trends"
           className={`flex flex-col items-center py-3 ${
             isActive("/trends") ? "text-primary" : "text-neutral-500"
           }`}
         >
-          <div className="flex justify-center w-full">
-            <span className="material-icons">monitoring</span>
-          </div>
-          <div className="flex justify-center w-full">
-            <span className="text-xs mt-1 inline-block" style={{ transform: 'translateX(-1px)' }}>
-              Track
-            </span>
-          </div>
+          <span className="material-icons">monitoring</span>
+          <span ref={trackLabelRef} className="text-xs mt-1 track-label-fix">Track</span>
         </Link>
         
         {/* Journal */}
