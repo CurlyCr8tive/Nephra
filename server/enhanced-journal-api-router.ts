@@ -4,6 +4,8 @@
  */
 import { Router, Request, Response } from "express";
 import { processEnhancedJournalEntry, getJournalFollowUpResponse } from "./enhanced-journal-service";
+import { InsertJournalEntry, journalEntries } from "@shared/schema";
+import { db } from "./db";
 
 const router = Router();
 
@@ -19,17 +21,50 @@ router.post("/process", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "User ID and content are required" });
     }
     
-    const result = await processEnhancedJournalEntry(userId, content);
-    
-    return res.status(200).json({
-      entry: result.entry,
-      analysis: {
-        stress: result.aiAnalysis.stress,
-        fatigue: result.aiAnalysis.fatigue,
-        response: result.aiAnalysis.response,
-        link: result.aiAnalysis.link || null
-      }
-    });
+    try {
+      // Try to process with our AI services
+      const result = await processEnhancedJournalEntry(userId, content);
+      
+      return res.status(200).json({
+        entry: result.entry,
+        analysis: {
+          stress: result.aiAnalysis.stress,
+          fatigue: result.aiAnalysis.fatigue,
+          response: result.aiAnalysis.response,
+          link: result.aiAnalysis.link || null
+        }
+      });
+    } catch (aiError) {
+      // All AI services failed, use fallback
+      console.error("All AI services failed:", aiError);
+      
+      // Create a fallback journal entry without AI analysis
+      const journalData: InsertJournalEntry = {
+        content: content,
+        date: new Date(),
+        userId: userId,
+        aiResponse: "I couldn't analyze your entry right now, but I've saved it. Please try again later.",
+        sentiment: "neutral",
+        stressScore: 5, // Default middle value
+        fatigueScore: 5, // Default middle value
+        painScore: 5, // Default middle value
+        tags: []
+      };
+      
+      // Insert the entry directly
+      const [savedEntry] = await db.insert(journalEntries).values(journalData).returning();
+      
+      // Return with a fallback message
+      return res.status(200).json({
+        entry: savedEntry,
+        analysis: {
+          stress: 5,
+          fatigue: 5,
+          response: "I couldn't analyze your entry right now, but I've saved it. Please try again later.",
+          link: null
+        }
+      });
+    }
   } catch (error) {
     console.error("Error processing enhanced journal entry:", error);
     return res.status(500).json({ 
@@ -45,19 +80,36 @@ router.post("/process", async (req: Request, res: Response) => {
  */
 router.post("/follow-up", async (req: Request, res: Response) => {
   try {
-    const { userId, prompt, context } = req.body;
+    const { userId, prompt, context, followUpPrompt, previousContext } = req.body;
     
-    if (!userId || !prompt) {
+    if (!userId || (!prompt && !followUpPrompt)) {
       return res.status(400).json({ error: "User ID and prompt are required" });
     }
     
-    const previousContext = context || [];
-    const response = await getJournalFollowUpResponse(userId, prompt, previousContext);
+    // Support both field names for flexibility
+    const userPrompt = followUpPrompt || prompt;
+    const conversationContext = previousContext || context || [];
     
-    return res.status(200).json({
-      response,
-      userId
-    });
+    try {
+      // Try to get response from AI service
+      const response = await getJournalFollowUpResponse(userId, userPrompt, conversationContext);
+      
+      return res.status(200).json({
+        response,
+        userId
+      });
+    } catch (aiError) {
+      // All AI services failed, return a graceful fallback response
+      console.error("All AI follow-up services failed:", aiError);
+      
+      const fallbackResponse = "I'm having trouble processing your question right now. " +
+                             "Could you try again later or rephrase your question?";
+      
+      return res.status(200).json({
+        response: fallbackResponse,
+        userId
+      });
+    }
   } catch (error) {
     console.error("Error getting follow-up response:", error);
     return res.status(500).json({ 

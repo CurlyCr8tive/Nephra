@@ -11,6 +11,9 @@ import { db } from "./db";
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || '' 
 });
+
+// Initialize Google Generative AI with proper configuration
+// For Gemini models, version should match current API version (v1) 
 const genAI = new GoogleGenerativeAI(
   process.env.GEMINI_API_KEY || ''
 );
@@ -81,7 +84,8 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
  */
 async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // Update to use the latest Gemini model name
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `
       As a wellness assistant for kidney patients, estimate stress and fatigue levels from 1–10.
@@ -218,7 +222,8 @@ export async function getJournalFollowUpResponse(
     
     // Fallback to Gemini
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      // Update to use the latest Gemini model name
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       // Format context for Gemini
       let contextText = "Previous conversation:\n";
