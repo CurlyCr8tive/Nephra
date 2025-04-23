@@ -14,7 +14,7 @@ export function Header({ title }: HeaderProps) {
         <div className="flex items-center">
           <span className="material-icons text-primary mr-2">favorite</span>
           <h1 className="font-display font-bold text-xl text-primary">
-            {title || "KidneyCompanion"}
+            {title || "Nephra"}
           </h1>
         </div>
         <Link href="/profile">
