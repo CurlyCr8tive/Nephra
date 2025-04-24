@@ -645,6 +645,32 @@ export default function HealthLogging(props: HealthLoggingProps) {
                   />
                 </div>
                 
+                {/* GFR Calculation Button */}
+                <div className="mb-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
+                    onClick={() => setEstimatedGFR(calculateGFR())}
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      className="mr-2"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Calculate Estimated GFR
+                  </Button>
+                </div>
+                
                 {/* Estimated GFR Display */}
                 {estimatedGFR !== null && (
                   <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-md">
