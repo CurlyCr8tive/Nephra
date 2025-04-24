@@ -94,6 +94,15 @@ export default function ProfilePage() {
     specialty: "",
     phone: ""
   });
+  
+  // State for medication form
+  const [medication, setMedication] = useState<Medication>({
+    name: "",
+    dosage: "",
+    frequency: "",
+    time: "",
+    notes: ""
+  });
 
   // Medication interface
   interface Medication {
@@ -408,6 +417,34 @@ export default function ProfilePage() {
     form.setValue("otherSpecialists", currentSpecialists.filter(s => 
       s.name !== specialist.name || s.specialty !== specialist.specialty));
   };
+  
+  // Helper function to get current medications
+  const getMedications = (): Medication[] => {
+    const meds = form.getValues("medications");
+    return getSafeFormArray<Medication>(meds);
+  };
+  
+  // Handle adding medication
+  const addMedication = () => {
+    if (medication.name.trim() && medication.dosage.trim() && medication.frequency.trim()) {
+      const currentMedications = form.getValues("medications") || [];
+      form.setValue("medications", [...currentMedications, { 
+        name: medication.name.trim(), 
+        dosage: medication.dosage.trim(), 
+        frequency: medication.frequency.trim(),
+        time: medication.time.trim(),
+        notes: medication.notes.trim()
+      }]);
+      setMedication({ name: "", dosage: "", frequency: "", time: "", notes: "" });
+    }
+  };
+  
+  // Handle removing medication
+  const removeMedication = (medToRemove: Medication) => {
+    const currentMedications = form.getValues("medications") || [];
+    form.setValue("medications", currentMedications.filter(med => 
+      med.name !== medToRemove.name || med.dosage !== medToRemove.dosage));
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -437,10 +474,11 @@ export default function ProfilePage() {
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <Tabs defaultValue="personal" className="w-full" onValueChange={setActiveTab}>
-                      <TabsList className="grid w-full grid-cols-3 mb-4">
+                      <TabsList className="grid w-full grid-cols-4 mb-4">
                         <TabsTrigger value="personal">Personal</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="care">Care Team</TabsTrigger>
+                        <TabsTrigger value="preferences">Health Preferences</TabsTrigger>
                       </TabsList>
                       
                       {/* Personal Information Tab */}
