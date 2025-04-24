@@ -45,6 +45,13 @@ try:
 except ImportError:
     Anthropic = None
 
+# Supabase imports
+try:
+    from supabase import create_client, Client
+except ImportError:
+    create_client = None
+    Client = None
+
 # Utility imports
 import requests
 from dotenv import load_dotenv
@@ -70,6 +77,7 @@ CORS(app)
 openai_client = None
 anthropic_client = None
 gemini_configured = False
+supabase_client = None
 
 try:
     if os.environ.get("OPENAI_API_KEY"):
@@ -92,6 +100,17 @@ try:
         logger.info("Google Gemini API configured")
 except Exception as e:
     logger.warning(f"Failed to configure Google Gemini API: {e}")
+    
+# Initialize Supabase client
+try:
+    if os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_KEY") and create_client:
+        supabase_client = create_client(
+            os.environ.get("SUPABASE_URL", ""),
+            os.environ.get("SUPABASE_KEY", "")
+        )
+        logger.info("Supabase client initialized")
+except Exception as e:
+    logger.warning(f"Failed to initialize Supabase client: {e}")
 
 # Health check route
 @app.route("/health", methods=["GET"])
@@ -119,12 +138,50 @@ def analyze_journal() -> Response:
     """
     data = request.json
     journal_content = data.get("content")
+    user_id = data.get("userId")
     
     if not journal_content:
         return jsonify({"error": "No journal content provided"}), 400
     
+    if not user_id:
+        logger.warning("No user ID provided, context from past entries will not be available")
+    
+    # Get past journal entries from Supabase if available
+    past_entries = []
+    if supabase_client and user_id:
+        try:
+            # Get past entries from Supabase
+            past_entries_response = supabase_client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(5).execute()
+            if hasattr(past_entries_response, 'data') and past_entries_response.data:
+                past_entries = past_entries_response.data
+                logger.info(f"Retrieved {len(past_entries)} past journal entries for user {user_id}")
+            else:
+                logger.info(f"No past journal entries found for user {user_id}")
+        except Exception as e:
+            logger.error(f"Error retrieving past journal entries: {e}")
+    
     # Analyze journal entry with fallback mechanisms across providers
-    analysis_result = analyze_journal_entry(journal_content)
+    analysis_result = analyze_journal_entry(journal_content, user_id, past_entries)
+    
+    # Save the journal entry and analysis to Supabase if available
+    if supabase_client and user_id:
+        try:
+            entry_data = {
+                "user_id": user_id,
+                "content": journal_content,
+                "created_at": datetime.now().isoformat(),
+                "stress_score": analysis_result.get("stressScore", 5),
+                "fatigue_score": analysis_result.get("fatigueScore", 5),
+                "pain_score": analysis_result.get("painScore", 3),
+                "sentiment": analysis_result.get("sentiment", "neutral"),
+                "ai_response": analysis_result.get("supportiveResponse", ""),
+                "keywords": analysis_result.get("keywords", [])
+            }
+            
+            supabase_client.table("journal_entries").insert(entry_data).execute()
+            logger.info(f"Saved journal entry for user {user_id}")
+        except Exception as e:
+            logger.error(f"Error saving journal entry to Supabase: {e}")
     
     return jsonify(analysis_result)
 
@@ -195,34 +252,66 @@ def chat_message() -> Response:
     return jsonify(chat_response)
 
 # Implementation of core analysis functions
-def analyze_journal_entry(journal_content: str) -> Dict[str, Any]:
+def analyze_journal_entry(journal_content: str, user_id: str = None, past_entries: List[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Analyze a journal entry with multiple AI providers.
     Falls back between providers if any fail.
+    
+    Args:
+        journal_content: The journal entry content to analyze
+        user_id: Optional user ID for context
+        past_entries: Optional list of past journal entries for context
     """
     # Try OpenAI first
     if openai_client:
         try:
+            messages = [
+                {
+                    "role": "system",
+                    "content": """You are a Nephra health AI assistant analyzing journal entries. 
+                    Extract the following information from the journal entry:
+                    1. Stress level (1-10)
+                    2. Fatigue level (1-10)
+                    3. Pain level (1-10)
+                    4. Overall sentiment (positive, negative, neutral)
+                    5. Key health concerns mentioned
+                    6. A brief supportive response to the user
+
+                    Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
+                    sentiment, keywords, supportiveResponse, healthInsights.
+                    """
+                }
+            ]
+            
+            # Add past entries context if available
+            if past_entries and len(past_entries) > 0:
+                context_message = "Here are the user's previous journal entries for context:\n\n"
+                for idx, entry in enumerate(past_entries):
+                    entry_content = entry.get('content', '')
+                    if entry_content:
+                        entry_date = entry.get('created_at', 'Unknown date')
+                        context_message += f"Entry {idx+1} ({entry_date}):\n{entry_content}\n\n"
+                
+                context_message += "\nBased on this history and their current entry, provide your analysis."
+                messages.append({"role": "system", "content": context_message})
+                
+                # If we have history and the user seems tired/overwhelmed, add empathetic prompt
+                if any('tired' in entry.get('content', '').lower() for entry in past_entries):
+                    prompt = f"""
+                    This user has been feeling tired and overwhelmed recently. Here's their last entry:
+                    "{past_entries[0].get('content', '')}"
+
+                    Based on that, respond empathetically and give one helpful suggestion.
+                    """
+                    messages.append({"role": "system", "content": prompt})
+            
+            # Add the current journal entry
+            messages.append({"role": "user", "content": journal_content})
+            
+            # Call OpenAI API
             response = openai_client.chat.completions.create(
                 model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are a Nephra health AI assistant analyzing journal entries. 
-                        Extract the following information from the journal entry:
-                        1. Stress level (1-10)
-                        2. Fatigue level (1-10)
-                        3. Pain level (1-10)
-                        4. Overall sentiment (positive, negative, neutral)
-                        5. Key health concerns mentioned
-                        6. A brief supportive response to the user
-
-                        Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
-                        sentiment, keywords, supportiveResponse, healthInsights.
-                        """
-                    },
-                    {"role": "user", "content": journal_content}
-                ],
+                messages=messages,
                 response_format={"type": "json_object"}
             )
             
@@ -322,9 +411,78 @@ def process_chat_message(message: str, conversation_history: List[Dict[str, str]
     Process chat messages with multiple AI providers.
     Falls back between providers if any fail.
     """
-    # Implementation would be similar to analyze_journal_entry
-    # with appropriate prompts and fallback mechanisms
-    pass
+    # Try Gemini first for variety (we used OpenAI for journal analysis)
+    if gemini_client:
+        try:
+            # Prepare conversation history for Gemini
+            gemini_history = []
+            for msg in conversation_history:
+                gemini_history.append({
+                    "role": "user" if msg.get("role") == "user" else "model",
+                    "parts": [{"text": msg.get("content", "")}]
+                })
+            
+            # Create the prompt
+            gemini_prompt = f"""
+            You are a kidney health assistant for the Nephra app. The user has sent this message:
+            "{message}"
+            Provide a helpful, empathetic response with accurate medical information. 
+            If you're unsure about something medical, be transparent about the limits of your knowledge.
+            """
+            
+            # Call Gemini API
+            gemini_response = gemini_client.generate_content(
+                contents=[{"role": "user", "parts": [{"text": gemini_prompt}]}],
+                generation_config={"temperature": 0.2, "max_output_tokens": 800}
+            )
+            
+            # Extract response
+            ai_response = gemini_response.text
+            
+            # Log to Supabase if available
+            if supabase_client:
+                try:
+                    # Add the example chat log to Supabase
+                    supabase_client.table("chat_logs").insert({
+                        "user_id": context.get("userId", "cherice_user"),  # or dynamic from auth/session
+                        "user_input": "I'm so tired after dialysis",
+                        "ai_response": "I'm really sorry you're feeling this way, Cherice. It's totally okay to rest. Your body is doing a lot. Maybe try a warm tea or gentle music if that helps.",
+                        "model_used": "gemini",
+                        "emotional_score": 7,
+                        "tags": ["fatigue", "self-care", "support"]
+                    }).execute()
+                    
+                    # Also log the actual interaction
+                    supabase_client.table("chat_logs").insert({
+                        "user_id": context.get("userId", "anonymous_user"), 
+                        "user_input": message,
+                        "ai_response": ai_response,
+                        "model_used": "gemini",
+                        "timestamp": datetime.now().isoformat(),
+                        "tags": extract_keywords(message + " " + ai_response)
+                    }).execute()
+                    
+                    logger.info(f"Saved chat log to Supabase for user {context.get('userId', 'anonymous_user')}")
+                except Exception as e:
+                    logger.error(f"Error saving chat log to Supabase: {e}")
+            
+            return {
+                "response": ai_response,
+                "provider": "gemini",
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.warning(f"Gemini chat processing failed, falling back to alternative: {e}")
+    
+    # Fallback to other providers
+    # ... fallback implementation similar to journal analysis
+    
+    # Final fallback
+    return {
+        "response": "I'm sorry, I couldn't process your message at this time. Please try again later.",
+        "provider": "fallback",
+        "timestamp": datetime.now().isoformat()
+    }
 
 # Utility extraction functions
 def extract_score(text: str, metric: str, default: int) -> int:
@@ -415,6 +573,128 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=5001, help="Port to run the server on")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
     return parser.parse_args()
+
+def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_used: str = "openai", tags: list = None, emotional_score: int = None):
+    """
+    Logs a chat interaction to the Supabase chat_logs table.
+
+    Args:
+        user_id (str): The user's unique ID or email.
+        user_input (str): The message sent by the user.
+        ai_response (str): The response generated by the AI.
+        model_used (str): The model name, e.g., 'openai' or 'gemini'.
+        tags (list): Optional keywords like ["fatigue", "stress"].
+        emotional_score (int): Optional stress or fatigue score (1–10).
+    """
+    data = {
+        "user_id": user_id,
+        "user_input": user_input,
+        "ai_response": ai_response,
+        "model_used": model_used,
+        "timestamp": datetime.now().isoformat()
+    }
+
+    if tags:
+        data["tags"] = tags
+    if emotional_score is not None:
+        data["emotional_score"] = emotional_score
+
+    if supabase_client:
+        try:
+            response = supabase_client.table("chat_logs").insert(data).execute()
+            logger.info(f"✅ Logged chat to Supabase: {user_input[:30]}...")
+            return response
+        except Exception as e:
+            logger.error(f"Error logging chat to Supabase: {e}")
+            return None
+    else:
+        logger.warning("Supabase client not available, chat not logged")
+        return None
+
+def get_chat_response(user_id, user_message, model="openai"):
+    """
+    Gets a response from an AI model and logs it to Supabase.
+    
+    Args:
+        user_id: User identifier for tracking conversations
+        user_message: Message from the user
+        model: AI model to use ('openai', 'gemini', 'perplexity')
+        
+    Returns:
+        AI response text
+    """
+    # Get response from AI model
+    ai_response = generate_ai_response(user_message, model)
+    
+    # Extract emotion keywords and score from response
+    keywords = extract_keywords(user_message + " " + ai_response)
+    
+    # Estimate emotional score based on content
+    emotional_score = None
+    if any(keyword in keywords for keyword in ["tired", "exhausted", "fatigue"]):
+        emotional_score = 7
+    elif any(keyword in keywords for keyword in ["pain", "hurt", "ache"]):
+        emotional_score = 8
+    elif any(keyword in keywords for keyword in ["stress", "anxiety", "worried"]):
+        emotional_score = 6
+    
+    # Log the response in Supabase with richer metadata
+    log_chat_to_supabase(
+        user_id=user_id,
+        user_input=user_message,
+        ai_response=ai_response,
+        model_used=model,
+        tags=keywords,
+        emotional_score=emotional_score
+    )
+    
+    return ai_response
+
+def generate_ai_response(user_message, model="openai"):
+    """
+    Generate a response using the specified AI model
+    
+    Args:
+        user_message: Message from the user
+        model: AI model to use
+        
+    Returns:
+        AI response text
+    """
+    if model == "openai" and openai_client:
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+                messages=[
+                    {"role": "system", "content": "You are a kidney health assistant for Nephra. Be helpful and empathetic."},
+                    {"role": "user", "content": user_message}
+                ],
+                max_tokens=800
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.warning(f"OpenAI failed: {e}")
+    
+    elif model == "gemini" and gemini_client:
+        try:
+            response = gemini_client.generate_content(
+                contents=[{"role": "user", "parts": [{"text": user_message}]}],
+                generation_config={"temperature": 0.2, "max_output_tokens": 800}
+            )
+            return response.text
+        except Exception as e:
+            logger.warning(f"Gemini failed: {e}")
+    
+    elif model == "perplexity" and perplexity_api_key:
+        try:
+            # Include implementation for Perplexity API
+            # This is a placeholder
+            return "Perplexity API response would appear here"
+        except Exception as e:
+            logger.warning(f"Perplexity failed: {e}")
+    
+    # Fallback response if the requested model is not available
+    return "I'm sorry, I couldn't process your message at this time. The requested AI service may be unavailable."
 
 if __name__ == "__main__":
     args = parse_arguments()

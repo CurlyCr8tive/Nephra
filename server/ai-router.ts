@@ -3,7 +3,7 @@ import * as openaiService from "./openai-service";
 import * as perplexityService from "./perplexity-service";
 import * as geminiService from "./gemini-service";
 import * as journalService from "./journal-service";
-import { SupabaseService } from "./supabase-service";
+import * as supabaseService from "./supabase-service";
 import { storage } from "./storage";
 import journalApiRouter from "./journal-api-router";
 
@@ -29,7 +29,27 @@ router.post("/chat", async (req: Request, res: Response) => {
     // Get the AI response
     const aiResponse = await openaiService.getNephraSupportChat(userMessage, context);
     
-    // Save the chat to the database
+    // Extract tags and emotions from content
+    let tags: string[] = [];
+    let emotionalScore: number | undefined = undefined;
+    
+    // Simple keyword matching for tagging (will be enhanced by AI in production)
+    if (userMessage.toLowerCase().includes('tired') || userMessage.toLowerCase().includes('fatigue')) {
+      tags.push('fatigue');
+      emotionalScore = 7;
+    }
+    
+    if (userMessage.toLowerCase().includes('pain') || userMessage.toLowerCase().includes('hurt')) {
+      tags.push('pain');
+      emotionalScore = 8;
+    }
+    
+    if (userMessage.toLowerCase().includes('stress') || userMessage.toLowerCase().includes('anxiety')) {
+      tags.push('stress');
+      emotionalScore = 6;
+    }
+    
+    // Save the chat to the local database
     const chat = await storage.createAiChat({
       userId,
       userMessage,
@@ -37,7 +57,28 @@ router.post("/chat", async (req: Request, res: Response) => {
       timestamp: new Date()
     });
     
-    res.json({ message: aiResponse, chat });
+    // Also log to Supabase for analytics and context history
+    try {
+      await supabaseService.logChatToSupabase(
+        userId,
+        userMessage,
+        aiResponse,
+        'openai',
+        tags.length > 0 ? tags : undefined,
+        emotionalScore
+      );
+    } catch (supabaseError) {
+      console.warn('Supabase logging failed but chat was saved locally:', supabaseError);
+    }
+    
+    res.json({ 
+      message: aiResponse, 
+      chat,
+      metadata: {
+        tags,
+        emotionalScore
+      }
+    });
   } catch (error) {
     console.error("Error in AI chat endpoint:", error);
     res.status(500).json({ error: "Failed to get AI response" });
@@ -57,11 +98,96 @@ router.get("/chat/:userId", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid user ID" });
     }
     
-    const chats = await storage.getAiChats(userId, limit);
-    res.json(chats);
+    // Get chats from local storage
+    const localChats = await storage.getAiChats(userId, limit);
+    
+    // Try to get richer chat data from Supabase if available
+    let supabaseChats = [];
+    try {
+      if (typeof supabaseService.getChatLogs === 'function') {
+        const isConnected = await supabaseService.checkSupabaseConnection();
+        if (isConnected) {
+          supabaseChats = await supabaseService.getChatLogs(userId, limit || 10);
+        }
+      }
+    } catch (supabaseError) {
+      console.warn('Failed to fetch Supabase chat logs, using local data only:', supabaseError);
+    }
+    
+    // Return both sources, prioritizing Supabase data which has richer metadata
+    res.json({
+      chats: localChats,
+      metadata: {
+        hasSupabaseData: supabaseChats.length > 0,
+        supabseChats: supabaseChats
+      }
+    });
   } catch (error) {
     console.error("Error fetching chat history:", error);
     res.status(500).json({ error: "Failed to fetch chat history" });
+  }
+});
+
+/**
+ * Get history specifically from Supabase with full context
+ * GET /api/ai/chat/:userId/supabase
+ */
+router.get("/chat/:userId/supabase", async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+    
+    // Check if Supabase is available
+    const isConnected = await supabaseService.checkSupabaseConnection();
+    if (!isConnected) {
+      return res.status(503).json({ 
+        error: "Supabase service unavailable",
+        message: "The enhanced chat history feature is currently unavailable. Please try again later."
+      });
+    }
+    
+    // Get chat logs from Supabase
+    const chats = await supabaseService.getChatLogs(userId, limit);
+    
+    // Return the chat logs with analytics
+    const emotions = chats
+      .filter(chat => chat.emotional_score)
+      .map(chat => chat.emotional_score);
+    
+    const avgEmotionalScore = emotions.length > 0 
+      ? emotions.reduce((sum, score) => sum + score, 0) / emotions.length 
+      : null;
+    
+    // Extract all tags for trend analysis
+    const allTags = chats
+      .filter(chat => chat.tags && Array.isArray(chat.tags))
+      .flatMap(chat => chat.tags);
+    
+    // Count tag frequencies
+    const tagCounts: Record<string, number> = {};
+    allTags.forEach(tag => {
+      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    });
+    
+    // Return with analysis
+    res.json({
+      chats,
+      analytics: {
+        totalChats: chats.length,
+        averageEmotionalScore: avgEmotionalScore,
+        mostFrequentTags: Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([tag, count]) => ({ tag, count }))
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching Supabase chat history:", error);
+    res.status(500).json({ error: "Failed to fetch chat history from Supabase" });
   }
 });
 
@@ -289,22 +415,42 @@ router.post("/journal/process-with-metrics", async (req: Request, res: Response)
     // If Supabase is configured, also save to Supabase
     let supabaseResult = { success: false, message: "Supabase not configured" };
     
-    if (SupabaseService.isConfigured()) {
-      try {
-        const supabaseService = new SupabaseService();
-        const success = await supabaseService.exportJournalEntryToSupabase(result.entry);
+    try {
+      // Check if Supabase is configured by testing for presence of functions
+      if (typeof supabaseService.checkSupabaseConnection === 'function') {
+        const isConnected = await supabaseService.checkSupabaseConnection();
         
-        supabaseResult = {
-          success,
-          message: success ? "Successfully exported to Supabase" : "Failed to export to Supabase"
-        };
-      } catch (supabaseError) {
-        console.error("Supabase integration error:", supabaseError);
-        supabaseResult = {
-          success: false,
-          message: "Error connecting to Supabase"
-        };
+        if (isConnected) {
+          // Get emotional scores and tags from the result
+          const tags = result.entry.tags || [];
+          const emotionalScore = Math.max(
+            result.entry.stressScore || 0, 
+            result.entry.fatigueScore || 0, 
+            result.entry.painScore || 0
+          );
+          
+          // Enhanced logging with emotional score and tags
+          await supabaseService.logChatToSupabase(
+            userId,
+            content,
+            result.entry.aiResponse || "No AI response generated",
+            'openai',
+            tags.length > 0 ? tags : undefined,
+            emotionalScore > 0 ? emotionalScore : undefined
+          );
+          
+          supabaseResult = {
+            success: true,
+            message: "Successfully exported to Supabase with enhanced metadata"
+          };
+        }
       }
+    } catch (supabaseError) {
+      console.error("Supabase integration error:", supabaseError);
+      supabaseResult = {
+        success: false,
+        message: "Error connecting to Supabase"
+      };
     }
     
     res.json({

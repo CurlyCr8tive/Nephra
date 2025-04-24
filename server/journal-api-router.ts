@@ -6,7 +6,7 @@
 import { Router, Request, Response } from "express";
 import { storage } from "./storage";
 import * as journalService from "./journal-service";
-import { SupabaseService } from "./supabase-service";
+import * as supabaseService from "./supabase-service";
 import { analyzeJournalEntryWithNLP } from "./nlp-service";
 import OpenAI from "openai";
 import fetch from "node-fetch";
@@ -35,22 +35,32 @@ router.post("/process", async (req: Request, res: Response) => {
     // If Supabase is configured, also save to Supabase
     let supabaseResult = { success: false, message: "Supabase not configured" };
     
-    if (SupabaseService.isConfigured()) {
-      try {
-        const supabaseService = new SupabaseService();
-        const success = await supabaseService.exportJournalEntryToSupabase(result.entry);
+    try {
+      // Check if Supabase is configured by testing for presence of functions
+      if (typeof supabaseService.checkSupabaseConnection === 'function') {
+        const isConnected = await supabaseService.checkSupabaseConnection();
         
-        supabaseResult = {
-          success,
-          message: success ? "Successfully exported to Supabase" : "Failed to export to Supabase"
-        };
-      } catch (supabaseError) {
-        console.error("Supabase integration error:", supabaseError);
-        supabaseResult = {
-          success: false,
-          message: `Supabase error: ${supabaseError.message}`
-        };
+        if (isConnected) {
+          // Log the journal entry in Supabase
+          await supabaseService.logChatInteraction(
+            userId,
+            content,
+            result.entry.aiResponse || "No AI response generated",
+            true
+          );
+          
+          supabaseResult = {
+            success: true,
+            message: "Successfully exported to Supabase"
+          };
+        }
       }
+    } catch (supabaseError) {
+      console.error("Supabase integration error:", supabaseError);
+      supabaseResult = {
+        success: false,
+        message: `Supabase error: ${supabaseError.message}`
+      };
     }
     
     res.json({

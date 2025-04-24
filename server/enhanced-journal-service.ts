@@ -7,6 +7,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { JournalEntry, InsertJournalEntry, journalEntries } from "@shared/schema";
 import { db } from "./db";
 import * as perplexityService from "./perplexity-service";
+import * as mockAiService from "./mock-ai-service";
+import * as supabaseService from "./supabase-service";
 
 // Initialize API clients
 const openai = new OpenAI({ 
