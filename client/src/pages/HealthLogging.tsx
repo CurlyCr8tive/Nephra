@@ -81,8 +81,54 @@ export default function HealthLogging(props: HealthLoggingProps) {
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // State to track save success
+  // State to track save success and GFR estimation
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [estimatedGFR, setEstimatedGFR] = useState<number | null>(null);
+  
+  // Local function to estimate GFR (simplified version of server calculation)
+  const calculateGFR = (): number | null => {
+    if (!user || !user.age || !user.gender || !user.race || !user.weight || 
+        !user.kidneyDiseaseStage || systolicBP === "" || !painLevel || !stressLevel) {
+      return null;
+    }
+    
+    // Base GFR range based on kidney disease stage (simplified)
+    let baseGFR = 90;
+    const diseaseStage = user.kidneyDiseaseStage;
+    
+    if (diseaseStage === 1) baseGFR = 90;
+    else if (diseaseStage === 2) baseGFR = 75;
+    else if (diseaseStage === 3) baseGFR = 45;
+    else if (diseaseStage === 4) baseGFR = 25;
+    else if (diseaseStage === 5) baseGFR = 15;
+    
+    // Adjustment factors (simplified for demo)
+    const ageAdjustment = Math.max(0, (40 - user.age) / 100);
+    const genderFactor = user.gender.toLowerCase() === 'female' ? 0.85 : 1.0;
+    const raceFactor = user.race.toLowerCase() === 'black' ? 1.2 : 1.0;
+    
+    // Health metric adjustments (simplified for demo)
+    const bpFactor = 1 - Math.max(0, (Number(systolicBP) - 120) / 400);
+    const hydrationFactor = 1 + (hydration / 10);
+    const stressFactor = 1 - (stressLevel / 20);
+    const painFactor = 1 - (painLevel / 20);
+    
+    // Calculate adjusted GFR
+    let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor * 
+                      raceFactor * bpFactor * hydrationFactor * 
+                      stressFactor * painFactor;
+    
+    // Ensure result is within reasonable bounds for the disease stage
+    adjustedGFR = Math.min(adjustedGFR, 120);
+    adjustedGFR = Math.max(adjustedGFR, 5);
+    
+    return Math.round(adjustedGFR);
+  };
+  
+  // Update estimated GFR when health metrics change
+  useEffect(() => {
+    setEstimatedGFR(calculateGFR());
+  }, [user, hydration, systolicBP, diastolicBP, painLevel, stressLevel]);
   
   const handleSave = async () => {
     if (!user) return;
@@ -90,6 +136,10 @@ export default function HealthLogging(props: HealthLoggingProps) {
     try {
       // Reset save success state
       setSaveSuccess(false);
+      
+      // Calculate the estimated GFR client-side to show immediately
+      const gfr = calculateGFR();
+      setEstimatedGFR(gfr);
       
       await logHealthMetrics({
         userId: user.id,
@@ -99,7 +149,8 @@ export default function HealthLogging(props: HealthLoggingProps) {
         diastolicBP: diastolicBP !== "" ? Number(diastolicBP) : undefined,
         painLevel,
         stressLevel,
-        fatigueLevel
+        fatigueLevel,
+        estimatedGFR: gfr || undefined
       });
       
       // Show success state
@@ -108,7 +159,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       // Show a toast confirmation
       toast({
         title: "Data saved successfully",
-        description: "Your health metrics have been recorded.",
+        description: "Your health metrics have been recorded and GFR estimated.",
         duration: 3000
       });
       
@@ -291,6 +342,37 @@ export default function HealthLogging(props: HealthLoggingProps) {
                     color="accent"
                   />
                 </div>
+                
+                {/* Estimated GFR Display */}
+                {estimatedGFR !== null && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-md">
+                    <h3 className="font-medium text-blue-800 mb-2">Estimated GFR</h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="text-3xl font-bold text-blue-700">{estimatedGFR}</div>
+                        <div className="ml-2 text-sm text-blue-600">mL/min/1.73m²</div>
+                      </div>
+                      <div className="text-sm text-blue-600 max-w-[60%]">
+                        {estimatedGFR >= 90 ? (
+                          <span>Normal kidney function</span>
+                        ) : estimatedGFR >= 60 ? (
+                          <span>Mildly reduced kidney function</span>
+                        ) : estimatedGFR >= 45 ? (
+                          <span>Mild to moderate reduction in kidney function</span>
+                        ) : estimatedGFR >= 30 ? (
+                          <span>Moderate to severe reduction in kidney function</span>
+                        ) : estimatedGFR >= 15 ? (
+                          <span>Severely reduced kidney function</span>
+                        ) : (
+                          <span>Kidney failure</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-blue-600">
+                      <strong>Note:</strong> This is an estimate based on your current health data. For clinical purposes, please consult your healthcare provider.
+                    </div>
+                  </div>
+                )}
                 
                 <Button
                   className={`w-full ${saveSuccess ? "bg-green-600 hover:bg-green-700" : ""}`}
