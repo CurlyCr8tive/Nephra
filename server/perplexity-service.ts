@@ -352,41 +352,79 @@ export async function analyzeJournalEntry(entry: string): Promise<{
 }> {
   try {
     const systemPrompt = `You are a compassionate emotional wellness assistant for kidney patients.
-      Estimate stress and fatigue from 1–10, then give a kind, encouraging reply.
-      Also, include a suggestion from a public health source and a relevant link.
-      Output this JSON: { "stress": X, "fatigue": Y, "response": "...", "link": "..." }`;
+      Analyze this journal entry, estimate stress and fatigue levels (1-10 scale), and provide a supportive response.
+      
+      IMPORTANT: Your entire response must be valid JSON.
+      FORMAT: { "stress": number, "fatigue": number, "response": "your supportive message", "link": "optional url" }
+      
+      Keep your response message under 300 words and focus on being encouraging and helpful.
+      Properly escape any quotes or special characters in your JSON response.`;
 
-    const userPrompt = entry;
+    const userPrompt = `Journal entry: "${entry}"
+      
+      Please analyze this entry and respond with properly formatted JSON only.`;
     
     const response = await callPerplexityAPI(systemPrompt, userPrompt);
     const content = response.choices[0].message.content;
     
+    // Extract JSON from the response if there's any other text
+    let jsonText = content.trim();
+    
+    // If response includes text before or after the JSON object, try to extract just the JSON part
+    const jsonStartIndex = jsonText.indexOf('{');
+    const jsonEndIndex = jsonText.lastIndexOf('}');
+    
+    if (jsonStartIndex >= 0 && jsonEndIndex > jsonStartIndex) {
+      jsonText = jsonText.substring(jsonStartIndex, jsonEndIndex + 1);
+    }
+    
     // Try to parse as JSON first
     try {
-      const result = JSON.parse(content);
+      const result = JSON.parse(jsonText);
+      
+      // Ensure we have valid values
       return {
-        stress: Math.min(10, Math.max(1, result.stress || 5)),
-        fatigue: Math.min(10, Math.max(1, result.fatigue || 5)),
-        response: result.response || "I analyzed your entry but couldn't generate a detailed response.",
+        stress: Math.min(10, Math.max(1, parseInt(String(result.stress)) || 5)),
+        fatigue: Math.min(10, Math.max(1, parseInt(String(result.fatigue)) || 5)),
+        response: result.response || "Thank you for sharing your journal entry.",
         link: result.link || ""
       };
     } catch (parseError) {
+      console.error("Failed to parse Perplexity response as JSON:", parseError);
+      
       // If parsing fails, extract values using regex
       const stressMatch = content.match(/stress:?\s*(\d+)/i);
       const fatigueMatch = content.match(/fatigue:?\s*(\d+)/i);
       
-      // Extract a supportive response
+      // Extract a supportive response in a more robust way
       let supportiveResponse = content;
-      const responseMatch = content.match(/response:?\s*"([^"]+)"/i);
+      
+      // Try different patterns for extracting the response
+      const responseMatch = content.match(/response[": ]+([^"]+?)["]/i) || 
+                           content.match(/response[": ]+(.*?)(?=,\s*"link"|,\s*link:|$)/i);
+                           
       if (responseMatch) {
-        supportiveResponse = responseMatch[1];
+        supportiveResponse = responseMatch[1].trim();
+      } else {
+        // Clean the content to be more readable if no specific response found
+        supportiveResponse = content
+          .replace(/{|}/g, '')
+          .replace(/"stress":|"fatigue":|"response":|"link":/g, '')
+          .replace(/,/g, ' ')
+          .replace(/"/g, '')
+          .trim();
+      }
+      
+      // If supportive response is still too raw or long, provide a fallback
+      if (supportiveResponse.length > 500 || supportiveResponse.includes('\\n')) {
+        supportiveResponse = "Thank you for sharing your journal entry. It's important to track how you're feeling. Consider discussing any persistent symptoms with your healthcare team.";
       }
       
       // Extract a link if present
       let link = "";
-      const linkMatch = content.match(/link:?\s*"([^"]+)"/i);
+      const linkMatch = content.match(/link[": ]+([^"]+?)["]/i);
       if (linkMatch) {
-        link = linkMatch[1];
+        link = linkMatch[1].trim();
       }
       
       return {

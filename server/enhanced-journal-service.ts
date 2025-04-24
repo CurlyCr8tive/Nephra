@@ -97,41 +97,74 @@ async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     
     const prompt = `
-      As a wellness assistant for kidney patients, estimate stress and fatigue levels from 1–10.
-      Then give an encouraging response (maximum 400 words) that is supportive and includes a health suggestion with a credible source link.
+      As a wellness assistant for kidney patients, analyze this journal entry:
+      "${entry}"
       
-      Keep your response focused on being encouraging. Your response must fit within a UI card.
+      1. Estimate stress level (integer between 1-10)
+      2. Estimate fatigue level (integer between 1-10)
+      3. Write a supportive response (maximum 300 words) that fits in a mobile app UI card
+      4. Include a relevant health resource link if appropriate
       
-      Output your response in this JSON format (ensure the response is properly formatted): 
-      { "stress": X, "fatigue": Y, "response": "...", "link": "..." }
+      OUTPUT FORMAT MUST BE VALID JSON (with properly escaped quotes and characters):
+      {
+        "stress": [number],
+        "fatigue": [number],
+        "response": "[your supportive response]",
+        "link": "[optional url to health resource]"
+      }
       
-      Make sure to properly escape any quotes or special characters in your response text.
-      
-      Entry:
-      ${entry}
+      IMPORTANT: Do not include any text, explanations, or formatting outside of the JSON. Your entire response must be parseable as JSON.
     `;
     
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     
+    // Extract JSON from the response if there's any other text
+    let jsonText = responseText.trim();
+    
+    // If response includes text before or after the JSON object, try to extract just the JSON part
+    const jsonStartIndex = jsonText.indexOf('{');
+    const jsonEndIndex = jsonText.lastIndexOf('}');
+    
+    if (jsonStartIndex >= 0 && jsonEndIndex > jsonStartIndex) {
+      jsonText = jsonText.substring(jsonStartIndex, jsonEndIndex + 1);
+    }
+    
     // Try to parse the response as JSON
     try {
-      const parsedResponse = JSON.parse(responseText);
+      const parsedResponse = JSON.parse(jsonText);
+      
+      // Ensure we have valid values
       return {
-        stress: Math.min(10, Math.max(1, parsedResponse.stress || 5)),
-        fatigue: Math.min(10, Math.max(1, parsedResponse.fatigue || 5)),
-        response: parsedResponse.response || responseText,
+        stress: Math.min(10, Math.max(1, parseInt(String(parsedResponse.stress)) || 5)),
+        fatigue: Math.min(10, Math.max(1, parseInt(String(parsedResponse.fatigue)) || 5)),
+        response: parsedResponse.response || "Thank you for sharing your journal entry.",
         link: parsedResponse.link || ""
       };
     } catch (parseError) {
+      console.error("Failed to parse Gemini response as JSON:", parseError);
+      
       // If parsing fails, extract values using regex and make best effort
       const stressMatch = responseText.match(/stress:?\s*(\d+)/i);
       const fatigueMatch = responseText.match(/fatigue:?\s*(\d+)/i);
       
+      // Extract the main content by removing potential JSON formatting attempts
+      let cleanedResponse = responseText
+        .replace(/{|}/g, '')
+        .replace(/"stress":|"fatigue":|"response":|"link":/g, '')
+        .replace(/,/g, ' ')
+        .replace(/"/g, '')
+        .trim();
+        
+      // If response is too long or seems like code/JSON, provide a more user-friendly fallback
+      if (cleanedResponse.length > 500 || cleanedResponse.includes('\\n')) {
+        cleanedResponse = "Thank you for sharing your journal entry. I see you've written about how you're feeling today. It's important to monitor your symptoms and share this information with your healthcare team.";
+      }
+      
       return {
         stress: stressMatch ? Math.min(10, Math.max(1, parseInt(stressMatch[1]))) : 5,
         fatigue: fatigueMatch ? Math.min(10, Math.max(1, parseInt(fatigueMatch[1]))) : 5,
-        response: responseText.substring(0, 500), // Limit length for safety
+        response: cleanedResponse.substring(0, 500), // Limit length for safety
         link: ""
       };
     }
