@@ -95,6 +95,15 @@ export default function ProfilePage() {
     phone: ""
   });
 
+  // Medication interface
+  interface Medication {
+    name: string;
+    dosage: string;
+    frequency: string;
+    time: string; // e.g., "morning", "evening", or specific time
+    notes: string;
+  }
+
   // Define user profile interface matching the API response
   interface UserProfile {
     id: number;
@@ -113,11 +122,17 @@ export default function ProfilePage() {
     primaryCareProvider: string | null;
     nephrologist: string | null;
     otherSpecialists: Array<{name: string, specialty: string, phone: string}> | null;
+    medications: Medication[] | null; // Added medications array
     insuranceProvider: string | null;
     insurancePolicyNumber: string | null;
     transplantCenter: string | null;
     transplantCoordinator: string | null;
     transplantCoordinatorPhone: string | null;
+    // Health preference settings
+    recommendedDailyHydration: number | null; // in liters
+    targetBloodPressureSystolic: number | null;
+    targetBloodPressureDiastolic: number | null;
+    preferredHydrationUnit: string | null; // 'liters' or 'cups'
     createdAt: string | null;
   }
 
@@ -147,11 +162,23 @@ export default function ProfilePage() {
       specialty: z.string(),
       phone: z.string()
     })).optional().nullable(),
+    medications: z.array(z.object({
+      name: z.string(),
+      dosage: z.string(),
+      frequency: z.string(),
+      time: z.string(),
+      notes: z.string().optional()
+    })).optional().nullable(),
     insuranceProvider: z.string().optional(),
     insurancePolicyNumber: z.string().optional(),
     transplantCenter: z.string().optional(),
     transplantCoordinator: z.string().optional(),
     transplantCoordinatorPhone: z.string().optional(),
+    // Health preference settings
+    recommendedDailyHydration: z.number().min(0).max(10).optional().nullable(),
+    targetBloodPressureSystolic: z.number().min(90).max(200).optional().nullable(),
+    targetBloodPressureDiastolic: z.number().min(60).max(120).optional().nullable(),
+    preferredHydrationUnit: z.string().optional().nullable(),
   });
 
   // Form setup
@@ -172,11 +199,17 @@ export default function ProfilePage() {
       primaryCareProvider: "",
       nephrologist: "",
       otherSpecialists: [],
+      medications: [], // Empty medications array
       insuranceProvider: "",
       insurancePolicyNumber: "",
       transplantCenter: "",
       transplantCoordinator: "",
       transplantCoordinatorPhone: "",
+      // Health preference settings with defaults
+      recommendedDailyHydration: 2.5, // Default 2.5 liters
+      targetBloodPressureSystolic: 120, // Default healthy systolic
+      targetBloodPressureDiastolic: 80, // Default healthy diastolic
+      preferredHydrationUnit: "liters", // Default unit
     }
   });
 
@@ -198,11 +231,17 @@ export default function ProfilePage() {
         primaryCareProvider: profileData.primaryCareProvider || "",
         nephrologist: profileData.nephrologist || "",
         otherSpecialists: profileData.otherSpecialists || [],
+        medications: profileData.medications || [],
         insuranceProvider: profileData.insuranceProvider || "",
         insurancePolicyNumber: profileData.insurancePolicyNumber || "",
         transplantCenter: profileData.transplantCenter || "",
         transplantCoordinator: profileData.transplantCoordinator || "",
         transplantCoordinatorPhone: profileData.transplantCoordinatorPhone || "",
+        // Health preference settings
+        recommendedDailyHydration: profileData.recommendedDailyHydration || 2.5,
+        targetBloodPressureSystolic: profileData.targetBloodPressureSystolic || 120,
+        targetBloodPressureDiastolic: profileData.targetBloodPressureDiastolic || 80,
+        preferredHydrationUnit: profileData.preferredHydrationUnit || "liters",
       });
     }
   }, [profileData, form]);
