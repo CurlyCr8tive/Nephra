@@ -230,8 +230,8 @@ export async function getJournalFollowUpResponse(
     
     // Fallback to Gemini
     try {
-      // Use the standard "gemini-pro" model which has wider availability
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      // Use the current 1.5 model which replaced gemini-pro
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
       
       // Format context for Gemini
       let contextText = "Previous conversation:\n";
