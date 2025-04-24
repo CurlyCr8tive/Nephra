@@ -1,6 +1,6 @@
 import os
 import datetime
-from typing import List
+from typing import List, Dict, Any
 from supabase import create_client, Client
 import openai
 import google.generativeai as genai
@@ -12,19 +12,21 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 
-# Set up Supabase, OpenAI, and Gemini clients
+# Set up Supabase and AI clients
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-openai.api_key = OPENAI_API_KEY
+# the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Function to summarize with OpenAI
+# Function to summarize with OpenAI (updated for 2024 API)
 def summarize_with_openai(text: str) -> str:
     try:
-        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
+                {"role": "system", "content": "You are a skilled medical writer who specializes in making complex health information accessible to patients."},
                 {"role": "user", "content": f"Summarize this for a kidney disease patient in plain language:\n{text}"}
             ],
             max_tokens=800,
@@ -33,25 +35,12 @@ def summarize_with_openai(text: str) -> str:
         return response.choices[0].message.content
     except Exception as e:
         print(f"OpenAI error: {e}")
-        # Fallback to older API format if necessary
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "user", "content": f"Summarize this for a kidney disease patient in plain language:\n{text}"}
-                ],
-                max_tokens=800,
-                temperature=0.7
-            )
-            return response.choices[0].message["content"]
-        except Exception as e2:
-            print(f"Fallback OpenAI error: {e2}")
-            return f"Failed to generate summary with OpenAI. Error: {e2}"
+        return "Error processing with OpenAI."
 
 # Function to summarize with Gemini
 def summarize_with_gemini(text: str) -> str:
     try:
-        # Note: Using the latest Gemini model available
+        # Using the latest Gemini model
         model = genai.GenerativeModel('gemini-1.5-pro')
         response = model.generate_content(
             f"Summarize this for a kidney disease patient in plain language:\n{text}",
@@ -60,32 +49,48 @@ def summarize_with_gemini(text: str) -> str:
         return response.text.strip()
     except Exception as e:
         print(f"Gemini error: {e}")
-        # Try fallback to older model if available
-        try:
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content(
-                f"Summarize this for a kidney disease patient in plain language:\n{text}",
-                generation_config={"max_output_tokens": 800}
-            )
-            return response.text.strip()
-        except Exception as e2:
-            print(f"Fallback Gemini error: {e2}")
-            return f"Failed to generate summary with Gemini. Error: {e2}"
+        return "Error processing with Gemini."
+
+# Function to summarize with Perplexity (as fallback)
+def summarize_with_perplexity(text: str) -> str:
+    try:
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            headers={
+                "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-sonar-small-128k-online",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a skilled medical writer who specializes in making complex health information accessible to patients."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Summarize this for a kidney disease patient in plain language:\n{text}"
+                    }
+                ],
+                "temperature": 0.2,
+                "max_tokens": 800
+            }
+        )
+        response_data = response.json()
+        return response_data["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"Perplexity error: {e}")
+        return "Error processing with Perplexity."
 
 # Function to fetch and clean article content
 def fetch_article_text(url: str) -> str:
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        })
         soup = BeautifulSoup(response.text, 'html.parser')
         paragraphs = soup.find_all('p')
-        content = '\n'.join(p.get_text() for p in paragraphs if len(p.get_text()) > 60)
-        
-        # If the content is too short, try getting all text
-        if len(content) < 500:
-            content = soup.get_text()
-            
-        # Limit to 10000 chars to avoid token limits
-        return content[:10000]
+        return '\n'.join(p.get_text() for p in paragraphs if len(p.get_text()) > 60)
     except Exception as e:
         print(f"Error fetching {url}: {e}")
         return ""
@@ -135,55 +140,49 @@ articles_to_upload = [
 ]
 
 # Upload summarized articles to Supabase
-def store_articles(articles: List[dict]):
+def store_articles(articles: List[Dict[str, Any]]):
     for article in articles:
+        print(f"Processing: {article['title']}...")
+        
+        # Try OpenAI first
+        summary = "No summary available."
         try:
-            print(f"Summarizing: {article['title']}...")
-            
-            # Try OpenAI first
+            summary = summarize_with_openai(article["content"])
+            model_used = "openai"
+        except Exception as e:
+            print(f"OpenAI summarization failed: {e}, trying Gemini...")
             try:
-                openai_summary = summarize_with_openai(article["content"])
-                print("✅ OpenAI summary generated")
-            except Exception as e:
-                print(f"⚠️ OpenAI summarization failed: {e}")
-                openai_summary = f"Summary generation failed with OpenAI: {str(e)}"
-            
-            # Try Gemini
-            try:
-                gemini_summary = summarize_with_gemini(article["content"])
-                print("✅ Gemini summary generated")
-            except Exception as e:
-                print(f"⚠️ Gemini summarization failed: {e}")
-                gemini_summary = f"Summary generation failed with Gemini: {str(e)}"
-            
-            # Use the best summary available
-            final_summary = openai_summary if len(openai_summary) > 100 and "failed" not in openai_summary.lower() else gemini_summary
-            
-            # Prepare entry data
+                summary = summarize_with_gemini(article["content"])
+                model_used = "gemini"
+            except Exception as e2:
+                print(f"Gemini summarization failed: {e2}, trying Perplexity...")
+                try:
+                    summary = summarize_with_perplexity(article["content"])
+                    model_used = "perplexity"
+                except Exception as e3:
+                    print(f"All summarization methods failed: {e3}")
+                    model_used = "none"
+        
+        if summary != "No summary available.":
             entry = {
                 "title": article["title"],
+                "summary": summary,
+                "url": article["url"],
+                "source": article["source"],
+                "published_date": datetime.date.today().isoformat(),
                 "category": article["category"],
-                "summary": final_summary,
-                "content": article["content"][:2000] if len(article["content"]) > 2000 else article["content"],
-                "resourceUrl": article["url"],
-                "imageUrl": None,  # Could be added in future
-                "publishDate": datetime.datetime.now().isoformat(),
-                "sortOrder": 0  # Default ordering
+                "user_focus_tags": article["tags"],
+                "model_used": model_used
             }
             
-            print("🔍 SUMMARY PREVIEW:\n", final_summary[:200] + "...")
-            
-            # Insert into Supabase
-            result = supabase.table("education_resources").insert(entry).execute()
-            
-            if hasattr(result, 'error') and result.error:
-                print(f"❌ Supabase error: {result.error}")
-            else:
-                print(f"✅ Successfully uploaded article: {article['title']}")
-                
-        except Exception as e:
-            print(f"❌ Error processing article {article['title']}: {e}")
-            continue
+            print(f"Summary generated using {model_used}. Storing in Supabase...")
+            try:
+                supabase.table("education_articles").insert(entry).execute()
+                print(f"✅ Stored: {article['title']}")
+            except Exception as e:
+                print(f"❌ Failed to store in Supabase: {e}")
+        else:
+            print(f"❌ Could not generate summary for: {article['title']}")
 
 # Reusable chat log function for journaling/chatbot
 def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_used: str = "openai", tags: list = None, emotional_score: int = None):
@@ -192,19 +191,25 @@ def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_
         "user_input": user_input,
         "ai_response": ai_response,
         "model_used": model_used,
+        "timestamp": datetime.datetime.now().isoformat()
     }
+    
     if tags:
         data["tags"] = tags
+    
     if emotional_score is not None:
         data["emotional_score"] = emotional_score
 
-    response = supabase.table("chat_logs").insert(data).execute()
-    print(f"✅ Logged chat to Supabase: {user_input[:30]}...")
-    return response
+    try:
+        response = supabase.table("chat_logs").insert(data).execute()
+        print(f"✅ Logged chat to Supabase: {user_input[:30]}...")
+        return response
+    except Exception as e:
+        print(f"❌ Failed to log chat: {e}")
+        return None
 
 # Health scoring logger with AI-generated self-care suggestions
 def generate_health_suggestion(pain: int, stress: int, fatigue: int) -> str:
-    """Generate a personalized health suggestion based on pain, stress, and fatigue levels"""
     try:
         prompt = f"""
         The user logged:
@@ -215,39 +220,31 @@ def generate_health_suggestion(pain: int, stress: int, fatigue: int) -> str:
         Write a short, supportive suggestion for managing these symptoms. Include self-care tips. Respond directly to the user in a kind, empathetic tone.
         """
         
-        # Try the latest model first with proper error handling
-        try:
-            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-            response = openai.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
-                temperature=0.7
-            )
-            suggestion = response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"Error with gpt-4o, trying fallback model: {e}")
-            # Fallback to older model and API
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
-                temperature=0.7
-            )
-            suggestion = response.choices[0].message["content"].strip()
-            
-        return suggestion
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a compassionate health assistant for kidney patients."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150
+        )
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"❌ Failed to generate health suggestion: {e}")
-        return "Remember to take care of yourself today. Rest when needed and stay hydrated."
+        print(f"Error generating health suggestion: {e}")
+        
+        # Fallback to Gemini if OpenAI fails
+        try:
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e2:
+            print(f"Fallback to Gemini also failed: {e2}")
+            return "I notice you're experiencing some discomfort. Remember to rest when needed, stay hydrated, and contact your healthcare provider if symptoms persist or worsen."
 
 def log_health_scores(user_id: str, pain: int, stress: int, fatigue: int, notes: str = ""):
-    """Log health scores and provide an AI-generated self-care suggestion"""
+    suggestion = generate_health_suggestion(pain, stress, fatigue)
+
     try:
-        # Generate personalized suggestion
-        suggestion = generate_health_suggestion(pain, stress, fatigue)
-        
-        # Create the record
         response = supabase.table("health_logs").insert({
             "user_id": user_id,
             "pain_score": pain,
@@ -258,15 +255,45 @@ def log_health_scores(user_id: str, pain: int, stress: int, fatigue: int, notes:
             "timestamp": datetime.datetime.now().isoformat()
         }).execute()
 
-        if hasattr(response, 'error') and response.error:
-            print("❌ Supabase insert error:", response.error)
+        if "error" in response:
+            print("❌ Supabase insert error:", response["error"])
             return False
         else:
-            print("✅ Health scores + suggestion saved successfully")
+            print("✅ Health scores + suggestion saved.")
             return True
     except Exception as e:
         print(f"❌ Error logging health scores: {e}")
         return False
+
+# GFR calculator based on CKD-EPI 2021 equation (no race factor)
+def calculate_egfr(age: int, gender: str, serum_creatinine: float) -> float:
+    """
+    Calculate eGFR using the CKD-EPI 2021 equation (no race factor)
+    
+    Args:
+        age: Patient age in years
+        gender: 'male' or 'female'
+        serum_creatinine: Serum creatinine in mg/dL
+        
+    Returns:
+        Estimated GFR in mL/min/1.73m²
+    """
+    if gender.lower() == 'female':
+        k = 0.7
+        alpha = -0.241
+        sex_factor = 1.012
+    else:
+        k = 0.9
+        alpha = -0.302
+        sex_factor = 1.0
+
+    scr_k_ratio = serum_creatinine / k
+    min_ratio = min(scr_k_ratio, 1)
+    max_ratio = max(scr_k_ratio, 1)
+
+    # CKD-EPI 2021 equation
+    egfr = 142 * (min_ratio ** alpha) * (max_ratio ** -1.200) * (0.9938 ** age) * sex_factor
+    return round(egfr, 2)
 
 if __name__ == "__main__":
     print("🔁 Uploading transplant and education summaries...")
