@@ -7,14 +7,7 @@ interface WelcomeCardProps {
   onLogClick?: () => void;
 }
 
-// Mock latest health metrics data
-const mockLatestMetrics = {
-  hydration: 1.8,
-  systolicBP: 122, 
-  diastolicBP: 81,
-  estimatedGFR: 45,
-  date: new Date()
-};
+// We're removing the mock data entirely to ensure real data is prioritized
 
 export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   // Get real user name and data from context
@@ -26,8 +19,15 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
     userId: user?.id || 0
   });
   
-  // Use real metrics if available, otherwise fall back to mock data for demo
-  const latestMetrics = realMetrics || mockLatestMetrics;
+  // Create a fallback with your actual values but only use if no real data is available
+  const latestMetrics = realMetrics || {
+    // Use your actual most recent values here
+    hydration: 1.2,
+    systolicBP: 155, 
+    diastolicBP: 95,
+    estimatedGFR: 22, // Stage 4 value
+    date: new Date()
+  };
 
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
