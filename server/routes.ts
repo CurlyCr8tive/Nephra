@@ -106,13 +106,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health metrics endpoints
   app.post("/api/health-metrics", async (req, res) => {
     try {
-      const data = insertHealthMetricsSchema.parse(req.body);
+      console.log("Received health metrics payload:", req.body);
+      
+      // Parse with more flexibility - use safeParse instead of parse to avoid throwing errors
+      const validationResult = insertHealthMetricsSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        console.error("Validation error for health metrics:", validationResult.error);
+        return res.status(400).json({ 
+          error: "Invalid health metrics data", 
+          details: validationResult.error.errors
+        });
+      }
+      
+      const data = validationResult.data;
       
       // If user exists, retrieve user data for GFR estimation
       const user = await storage.getUser(data.userId);
-      if (user && data.systolicBP && data.painLevel && data.stressLevel && data.hydration) {
+      if (!user) {
+        console.error(`User with ID ${data.userId} not found`);
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Calculate GFR if we have enough data
+      if (data.systolicBP && data.painLevel !== undefined && data.stressLevel !== undefined && data.hydration !== undefined) {
         // Only estimate GFR if we have the necessary user data
         if (user.age && user.gender && user.race && user.weight && user.kidneyDiseaseStage) {
+          console.log("Estimating GFR with user data", {
+            age: user.age,
+            gender: user.gender,
+            race: user.race,
+            weight: user.weight,
+            diseaseStage: user.kidneyDiseaseStage,
+            systolicBP: data.systolicBP,
+            diastolicBP: data.diastolicBP || 80,
+            hydration: data.hydration,
+            stressLevel: data.stressLevel,
+            painLevel: data.painLevel
+          });
+          
           const gfr = estimateGFR(
             user.age,
             user.gender,
@@ -125,15 +157,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             data.painLevel,
             user.kidneyDiseaseStage
           );
+          
           data.estimatedGFR = gfr;
+          console.log("Estimated GFR:", gfr);
+        } else {
+          console.log("Missing user profile data for GFR estimation");
         }
+      } else {
+        console.log("Missing health metrics for GFR estimation");
       }
       
+      console.log("Saving health metrics to database:", data);
       const result = await storage.createHealthMetrics(data);
+      console.log("Health metrics saved successfully with ID:", result.id);
       res.status(201).json(result);
     } catch (error) {
       console.error("Error creating health metrics:", error);
-      res.status(400).json({ error: handleError(error) });
+      res.status(500).json({ error: handleError(error) });
     }
   });
 

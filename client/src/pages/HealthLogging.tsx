@@ -51,10 +51,35 @@ export default function HealthLogging(props: HealthLoggingProps) {
   // Create a wrapper function for the mutation to handle the TypeScript error
   const logHealthMetrics = async (data: any) => {
     if (healthDataHook.logHealthMetrics) {
+      console.log("Logging health metrics via hook:", data);
       return healthDataHook.logHealthMetrics(data);
     } else {
-      console.log("No health data hook available");
-      return Promise.resolve();
+      // If hook is not available (likely due to user authentication issues),
+      // attempt a direct API call as fallback
+      console.warn("No health data hook available, trying direct API call");
+      
+      try {
+        const response = await fetch("/api/health-metrics", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(data),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Health metrics API error:", errorText);
+          throw new Error(errorText || "Failed to save health data");
+        }
+        
+        console.log("Health metrics saved successfully via direct API");
+        return await response.json();
+      } catch (error) {
+        console.error("Error saving health metrics:", error);
+        throw error;
+      }
     }
   };
   

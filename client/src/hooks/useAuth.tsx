@@ -50,25 +50,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
+    refetch: refetchUser,
   } = useQuery({
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/user");
+        console.log("Fetching user data...");
+        const res = await fetch("/api/user", {
+          credentials: "include", // Include cookies with the request
+          headers: {
+            "Cache-Control": "no-cache",  // Avoid caching issues
+            "Pragma": "no-cache"
+          }
+        });
+        
         if (!res.ok) {
           if (res.status === 401) {
+            console.log("User not authenticated");
             // Not authenticated, but not an error
             return null;
           }
-          throw new Error(`Failed to fetch user: ${res.statusText}`);
+          const errText = await res.text();
+          console.error(`Failed to fetch user (${res.status}): ${errText}`);
+          throw new Error(`Failed to fetch user: ${errText || res.statusText}`);
         }
-        return await res.json();
+        
+        const userData = await res.json();
+        console.log("User data retrieved:", userData?.username);
+        return userData;
       } catch (err) {
         console.error("Error fetching user:", err);
         return null;
       }
     },
-    retry: false,
+    retry: 1, // Retry once in case of network issues
+    retryDelay: 1000,
   });
 
   useEffect(() => {
