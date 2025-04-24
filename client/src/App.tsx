@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
@@ -12,43 +12,54 @@ import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useEffect } from "react";
 
-// Hardcoded user ID for testing purposes
-export const TEST_USER_ID = 1;
+// Main component for routing
+const AppRoutes = () => {
+  const { user, isLoading } = useAuth();
+  
+  // If loading, don't render routes yet
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+  
+  // If user is logged in, redirect from auth page to dashboard
+  return (
+    <Switch>
+      {/* Public routes */}
+      <Route path="/auth">
+        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+      </Route>
+      
+      {/* Protected routes */}
+      <Route path="/">
+        {!user ? <Redirect to="/auth" /> : <Redirect to="/dashboard" />}
+      </Route>
+      <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <ProtectedRoute path="/log" component={HealthLogging} />
+      <ProtectedRoute path="/track" component={HealthLogging} />
+      <ProtectedRoute path="/journal" component={JournalPage} />
+      <ProtectedRoute path="/roadmap" component={TransplantRoadmap} />
+      <ProtectedRoute path="/trends" component={HealthTrends} />
+      <ProtectedRoute path="/documents" component={MedicalDocuments} />
+      <ProtectedRoute path="/education" component={EducationHub} />
+      <ProtectedRoute path="/profile" component={ProfilePage} />
+      <ProtectedRoute path="/chat" component={AIChatView} />
+      
+      {/* 404 page */}
+      <Route component={NotFound} />
+    </Switch>
+  );
+};
 
 function App() {
-  // Auto-login functionality disabled temporarily to allow viewing login page
-  useEffect(() => {
-    console.log("Auto-login disabled");
-  }, []);
-
   return (
     <TooltipProvider>
       <AuthProvider>
-        <Switch>
-          {/* Public routes - Make auth page the main route */}
-          <Route path="/" component={AuthPage} />
-          <Route path="/auth" component={AuthPage} />
-          <Route path="/health-tracking" component={HealthLogging} />
-          <Route path="/chat" component={AIChatView} />
-          
-          {/* Protected routes */}
-          <ProtectedRoute path="/dashboard" component={Dashboard} />
-          <ProtectedRoute path="/log" component={HealthLogging} />
-          <ProtectedRoute path="/track" component={HealthLogging} />
-          <ProtectedRoute path="/journal" component={JournalPage} />
-          <ProtectedRoute path="/roadmap" component={TransplantRoadmap} />
-          <ProtectedRoute path="/trends" component={HealthTrends} />
-          <ProtectedRoute path="/documents" component={MedicalDocuments} />
-          <ProtectedRoute path="/education" component={EducationHub} />
-          <ProtectedRoute path="/profile" component={ProfilePage} />
-          
-          {/* 404 page */}
-          <Route component={NotFound} />
-        </Switch>
+        <AppRoutes />
+        <Toaster />
       </AuthProvider>
     </TooltipProvider>
   );

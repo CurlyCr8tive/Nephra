@@ -68,7 +68,7 @@ export default function AuthPage() {
   // Add a useEffect to redirect when authenticated
   useEffect(() => {
     if (user) {
-      setLocation("/");
+      setLocation("/dashboard");
     }
   }, [user, setLocation]);
 

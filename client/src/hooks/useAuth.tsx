@@ -172,28 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginCredentials) => {
       console.log("Login attempt for:", credentials.username);
       
-      // Try using the test login endpoint first (which bypasses password check)
-      try {
-        console.log("Trying test login...");
-        const testRes = await fetch("/api/login-test", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username: credentials.username }),
-        });
-        
-        if (testRes.ok) {
-          console.log("Test login successful");
-          return await testRes.json();
-        }
-        
-        console.log("Test login failed, trying normal login");
-      } catch (e) {
-        console.error("Test login error:", e);
-      }
-      
-      // Fall back to regular login
+      // Use the regular login endpoint without test login fallback
       const res = await fetch("/api/login", {
         method: "POST",
         headers: {
