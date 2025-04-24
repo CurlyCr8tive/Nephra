@@ -355,6 +355,61 @@ export async function storeEducationArticles(
  * @param limit - Maximum number of results to return
  * @returns Matching articles
  */
+/**
+ * Log health scores to Supabase
+ * Based on the provided Python implementation
+ * 
+ * @param userId - User identifier
+ * @param pain - Pain score (0-10)
+ * @param stress - Stress score (0-10)
+ * @param fatigue - Fatigue score (0-10)
+ * @param notes - Optional notes about health status
+ * @param additionalData - Any additional data to include
+ * @returns Success status and data or error
+ */
+export async function logHealthScores(
+  userId: string | number,
+  pain: number,
+  stress: number, 
+  fatigue: number,
+  notes: string = "",
+  additionalData: Record<string, any> = {}
+): Promise<{success: boolean, data?: any, error?: any}> {
+  try {
+    // Convert number userId to string if needed
+    const userIdStr = typeof userId === 'number' ? userId.toString() : userId;
+    
+    // Prepare data object following the Python example format
+    const data = {
+      user_id: userIdStr,
+      pain_level: pain,
+      stress_level: stress,
+      fatigue_level: fatigue,
+      notes: notes,
+      ...additionalData
+    };
+    
+    console.log(`🔍 Logging health scores to Supabase for user ${userIdStr}:`, data);
+    
+    // Insert into Supabase
+    const { data: responseData, error } = await supabase
+      .from('health_logs')
+      .insert([data])
+      .select();
+    
+    if (error) {
+      console.error("❌ Supabase insert error:", error);
+      return { success: false, error };
+    }
+    
+    console.log("✅ Health scores saved:", responseData);
+    return { success: true, data: responseData };
+  } catch (error) {
+    console.error("❌ Failed to log health scores:", error);
+    return { success: false, error };
+  }
+}
+
 export async function searchEducationArticles(
   query: string,
   limit: number = 5
