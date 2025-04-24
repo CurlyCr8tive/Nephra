@@ -40,7 +40,16 @@ router.post("/log-health", async (req: Request, res: Response) => {
     // 1. Try saving to our standard database if metrics data is provided
     if (metrics) {
       try {
-        const savedData = await storage.saveHealthMetrics(metrics);
+        // Make sure date is a proper Date object before saving
+        let sanitizedMetrics = { ...metrics };
+        
+        // If date is a string, convert to Date object
+        if (metrics.date && typeof metrics.date === 'string') {
+          console.log("Converting date string to Date object:", metrics.date);
+          sanitizedMetrics.date = new Date(metrics.date);
+        }
+        
+        const savedData = await storage.saveHealthMetrics(sanitizedMetrics);
         console.log("Health metrics saved to standard database:", savedData.id);
         results.standardDb = { success: true, id: savedData.id };
       } catch (error) {

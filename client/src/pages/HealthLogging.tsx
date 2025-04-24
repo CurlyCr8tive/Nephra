@@ -231,12 +231,13 @@ export default function HealthLogging(props: HealthLoggingProps) {
       };
       
       const entryTags = generateTags();
-      const entryDate = new Date().toISOString();
+      const entryDate = new Date(); // Keep as Date object for the API
+      const entryDateISO = entryDate.toISOString(); // ISO string for Supabase
       
       // Prepare the health metrics data to save for our API
       const metricsData = {
         userId,
-        date: entryDate,
+        date: entryDate, // Send as Date object
         hydration,
         systolicBP: Number(systolicBP),
         diastolicBP: Number(diastolicBP),
@@ -255,7 +256,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       // Create Supabase-specific data format for direct database saving
       const supabaseData = {
         user_id: userId,
-        created_at: entryDate, 
+        created_at: entryDateISO, // Use ISO string for Supabase
         bp_systolic: Number(systolicBP),
         bp_diastolic: Number(diastolicBP),
         hydration_level: hydration,

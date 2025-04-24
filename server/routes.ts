@@ -116,8 +116,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Received health metrics payload:", req.body);
       
+      // Handle date conversions before validation
+      const dataWithProperDate = { ...req.body };
+      
+      // Convert string date to Date object if needed
+      if (dataWithProperDate.date && typeof dataWithProperDate.date === 'string') {
+        console.log("Converting date string to Date object:", dataWithProperDate.date);
+        dataWithProperDate.date = new Date(dataWithProperDate.date);
+      }
+      
       // Parse with more flexibility - use safeParse instead of parse to avoid throwing errors
-      const validationResult = insertHealthMetricsSchema.safeParse(req.body);
+      const validationResult = insertHealthMetricsSchema.safeParse(dataWithProperDate);
       
       if (!validationResult.success) {
         console.error("Validation error for health metrics:", validationResult.error);
