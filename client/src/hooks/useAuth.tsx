@@ -37,6 +37,7 @@ type AuthContextType = {
   loginMutation: UseMutationResult<User, Error, LoginCredentials>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegisterCredentials>;
+  refreshUserData: () => void; // Add refreshUserData to the context type
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -213,6 +214,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Function to refresh user data
+  const refreshUserData = async () => {
+    console.log("Manually refreshing user data from API");
+    try {
+      await refetchUser();
+    } catch (err) {
+      console.error("Error refreshing user data:", err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -222,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        refreshUserData, // Add the refresh function to the context
       }}
     >
       {isInitialized ? children : (
