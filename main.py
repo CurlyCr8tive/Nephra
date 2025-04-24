@@ -315,8 +315,40 @@ def analyze_journal_entry(journal_content: str, user_id: str = None, past_entrie
                 response_format={"type": "json_object"}
             )
             
-            # Parse and return the JSON response
-            return json.loads(response.choices[0].message.content)
+            # Parse the JSON response
+            result = json.loads(response.choices[0].message.content)
+            
+            # Log to Supabase if available
+            if supabase_client and user_id:
+                try:
+                    # Calculate highest emotional score
+                    emotional_score = max(
+                        result.get("stressScore", 0),
+                        result.get("fatigueScore", 0),
+                        result.get("painScore", 0)
+                    )
+                    
+                    # Get keywords as tags
+                    tags = result.get("keywords", [])
+                    if isinstance(tags, str):
+                        # In case keywords are returned as a comma-separated string
+                        tags = [tag.strip() for tag in tags.split(",")]
+                    
+                    # Log the analyzed journal entry
+                    log_chat_to_supabase(
+                        user_id=user_id,
+                        user_input=journal_content,
+                        ai_response=result.get("supportiveResponse", ""),
+                        model_used="openai",
+                        tags=tags,
+                        emotional_score=emotional_score if emotional_score > 0 else None
+                    )
+                    logger.info(f"Journal analysis logged to Supabase for user {user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to log journal analysis to Supabase: {e}")
+            
+            # Return the result
+            return result
             
         except Exception as e:
             logger.warning(f"OpenAI analysis failed, falling back to alternative: {e}")
@@ -349,13 +381,44 @@ def analyze_journal_entry(journal_content: str, user_id: str = None, past_entrie
             
             # Try to parse the response as JSON
             try:
-                return json.loads(response.content[0].text)
+                result = json.loads(response.content[0].text)
+                
+                # Log to Supabase if available
+                if supabase_client and user_id:
+                    try:
+                        # Calculate highest emotional score
+                        emotional_score = max(
+                            result.get("stressScore", 0),
+                            result.get("fatigueScore", 0),
+                            result.get("painScore", 0)
+                        )
+                        
+                        # Get keywords as tags
+                        tags = result.get("keywords", [])
+                        if isinstance(tags, str):
+                            # In case keywords are returned as a comma-separated string
+                            tags = [tag.strip() for tag in tags.split(",")]
+                        
+                        # Log the analyzed journal entry
+                        log_chat_to_supabase(
+                            user_id=user_id,
+                            user_input=journal_content,
+                            ai_response=result.get("supportiveResponse", ""),
+                            model_used="anthropic",
+                            tags=tags,
+                            emotional_score=emotional_score if emotional_score > 0 else None
+                        )
+                        logger.info(f"Journal analysis (Anthropic) logged to Supabase for user {user_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to log Anthropic journal analysis to Supabase: {e}")
+                
+                return result
             except json.JSONDecodeError:
                 # If not valid JSON, extract info manually
                 text = response.content[0].text
                 
                 # Fallback extraction
-                return {
+                result = {
                     "stressScore": extract_score(text, "stress", 5),
                     "fatigueScore": extract_score(text, "fatigue", 5),
                     "painScore": extract_score(text, "pain", 3),
@@ -365,11 +428,31 @@ def analyze_journal_entry(journal_content: str, user_id: str = None, past_entrie
                     "healthInsights": "Analysis completed with limited structured data extraction."
                 }
                 
+                # Log to Supabase even with extracted info
+                if supabase_client and user_id:
+                    try:
+                        log_chat_to_supabase(
+                            user_id=user_id,
+                            user_input=journal_content,
+                            ai_response=result["supportiveResponse"],
+                            model_used="anthropic-extracted",
+                            tags=result["keywords"],
+                            emotional_score=max(
+                                result["stressScore"],
+                                result["fatigueScore"],
+                                result["painScore"]
+                            )
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to log extracted Anthropic analysis to Supabase: {e}")
+                
+                return result
+                
         except Exception as e:
             logger.warning(f"Anthropic analysis failed, falling back to fallback: {e}")
     
     # Final fallback to basic analysis
-    return {
+    result = {
         "stressScore": 5,
         "fatigueScore": 5,
         "painScore": 3,
@@ -378,6 +461,23 @@ def analyze_journal_entry(journal_content: str, user_id: str = None, past_entrie
         "supportiveResponse": "Thank you for sharing your thoughts. It's important to monitor your health and well-being. Consider discussing any concerns with your healthcare provider.",
         "healthInsights": "Unable to perform detailed analysis. Please ensure your journal entry contains health-related information."
     }
+    
+    # Log even the fallback analysis to Supabase if available
+    if supabase_client and user_id:
+        try:
+            log_chat_to_supabase(
+                user_id=user_id,
+                user_input=journal_content,
+                ai_response=result["supportiveResponse"],
+                model_used="fallback",
+                tags=result["keywords"],
+                emotional_score=5  # Mid-range default score
+            )
+            logger.info(f"Fallback journal analysis logged to Supabase for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to log fallback journal analysis to Supabase: {e}")
+    
+    return result
 
 def validate_health_metrics_data(metrics: Dict[str, Any], patient_info: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -574,7 +674,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
     return parser.parse_args()
 
-def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_used: str = "openai", tags: list = None, emotional_score: int = None):
+def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_used: str = "openai", tags: list = None, emotional_score = None):
     """
     Logs a chat interaction to the Supabase chat_logs table.
 
@@ -584,7 +684,7 @@ def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_
         ai_response (str): The response generated by the AI.
         model_used (str): The model name, e.g., 'openai' or 'gemini'.
         tags (list): Optional keywords like ["fatigue", "stress"].
-        emotional_score (int): Optional stress or fatigue score (1–10).
+        emotional_score: Optional stress or fatigue score (1–10), can be None.
     """
     data = {
         "user_id": user_id,
@@ -594,10 +694,24 @@ def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_
         "timestamp": datetime.now().isoformat()
     }
 
+    # Handle tags - ensure it's a list
     if tags:
-        data["tags"] = tags
+        if isinstance(tags, str):
+            # If tags is a string, convert to list by splitting
+            data["tags"] = [tag.strip() for tag in tags.split(",")]
+        else:
+            # Otherwise assume it's already a list or similar iterable
+            data["tags"] = list(tags)
+
+    # Handle emotional score - must be an integer if provided
     if emotional_score is not None:
-        data["emotional_score"] = emotional_score
+        try:
+            # Convert to integer or default to 5
+            data["emotional_score"] = int(emotional_score)
+        except (ValueError, TypeError):
+            # If conversion fails, use a default mid-range value
+            data["emotional_score"] = 5
+            logger.warning(f"Invalid emotional_score value '{emotional_score}', using default 5")
 
     if supabase_client:
         try:
