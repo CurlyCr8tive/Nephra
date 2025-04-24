@@ -242,12 +242,79 @@ def chat_message() -> Response:
     message = data.get("message")
     conversation_history = data.get("history", [])
     context = data.get("context", {})
+    user_id = context.get("userId")
     
     if not message:
         return jsonify({"error": "Message is required"}), 400
     
+    # Enhance with past entries from Supabase if available
+    if supabase_client and user_id:
+        try:
+            # Get additional context from Supabase - journal entries
+            journal_entries = []
+            try:
+                journal_response = supabase_client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(3).execute()
+                if hasattr(journal_response, 'data') and journal_response.data:
+                    journal_entries = journal_response.data
+                    logger.info(f"Retrieved {len(journal_entries)} journal entries for chat context")
+            except Exception as je:
+                logger.warning(f"Failed to get journal entries from Supabase: {je}")
+            
+            # Get additional context from Supabase - chat history
+            chat_logs = []
+            try:
+                chat_response = supabase_client.table("chat_logs").select("*").eq("user_id", user_id).order("timestamp", desc=True).limit(5).execute()
+                if hasattr(chat_response, 'data') and chat_response.data:
+                    chat_logs = chat_response.data
+                    logger.info(f"Retrieved {len(chat_logs)} chat logs for context")
+            except Exception as ce:
+                logger.warning(f"Failed to get chat logs from Supabase: {ce}")
+            
+            # Extend conversation history with Supabase chat logs if needed
+            if len(conversation_history) < 2 and chat_logs:
+                for log in chat_logs[:3]:  # Only use the most recent 3 logs
+                    # Convert Supabase chat logs to conversation history format
+                    conversation_history.extend([
+                        {"role": "user", "content": log.get("user_input", "")},
+                        {"role": "assistant", "content": log.get("ai_response", "")}
+                    ])
+                logger.info(f"Enhanced conversation history with {len(chat_logs[:3])} entries from Supabase")
+            
+            # Add journal context to the context dictionary
+            if journal_entries:
+                # Extract key health metrics from journal entries
+                journal_insights = []
+                for entry in journal_entries:
+                    entry_date = entry.get("created_at", "")
+                    sentiment = entry.get("sentiment", "")
+                    stress = entry.get("stress_score")
+                    fatigue = entry.get("fatigue_score")
+                    pain = entry.get("pain_score")
+                    
+                    journal_insights.append({
+                        "date": entry_date,
+                        "sentiment": sentiment,
+                        "metrics": {
+                            "stress": stress,
+                            "fatigue": fatigue,
+                            "pain": pain
+                        }
+                    })
+                
+                # Add to context
+                context["journalInsights"] = journal_insights
+                context["hasJournalContext"] = True
+                logger.info("Added journal insights to chat context")
+        
+        except Exception as e:
+            logger.warning(f"Error enhancing context from Supabase: {e}")
+    
     # Process chat message with fallback mechanisms
     chat_response = process_chat_message(message, conversation_history, context)
+    
+    # Add indication that the response was context-enhanced
+    if context.get("hasJournalContext"):
+        chat_response["contextEnhanced"] = True
     
     return jsonify(chat_response)
 
@@ -588,16 +655,39 @@ def process_chat_message(message: str, conversation_history: List[Dict[str, str]
                     unique_concerns = list(set(user_concerns))
                     concerns_text = f"\nThe user has previously mentioned concerns about: {', '.join(unique_concerns)}."
                 
+                # Check if we have journal insights in context
+                journal_insights_text = ""
+                if context.get("journalInsights"):
+                    journal_insights = context.get("journalInsights", [])
+                    if journal_insights:
+                        journal_insights_text = "\nThe user has shared the following health metrics in their journal:\n"
+                        for entry in journal_insights:
+                            entry_date = entry.get("date", "")
+                            metrics = entry.get("metrics", {})
+                            sentiment = entry.get("sentiment", "")
+                            date_str = entry_date[:10] if entry_date else "Recent entry"
+                            
+                            stress = metrics.get("stress", "N/A")
+                            fatigue = metrics.get("fatigue", "N/A")
+                            pain = metrics.get("pain", "N/A")
+                            
+                            journal_insights_text += f"- {date_str}: Stress ({stress}), Fatigue ({fatigue}), Pain ({pain}), Sentiment: {sentiment}\n"
+                        
+                        # Add analysis of trends
+                        if len(journal_insights) > 1:
+                            journal_insights_text += "\nNote any trends in these metrics when responding to their current message."
+                
                 gemini_prompt = f"""
-                You are a kidney health assistant for the Nephra app with access to previous conversation context.
+                You are a kidney health assistant for the Nephra app with access to previous conversation context and journal data.
                 
                 {history_text}
                 {concerns_text}
+                {journal_insights_text}
                 
                 Now the user has sent this new message:
                 "{message}"
                 
-                Provide a helpful, empathetic response with accurate medical information that references relevant context from previous messages if appropriate.
+                Provide a helpful, empathetic response with accurate medical information that references relevant context from previous messages and journal data if appropriate.
                 If you're unsure about something medical, be transparent about the limits of your knowledge.
                 """
             else:
@@ -620,25 +710,27 @@ def process_chat_message(message: str, conversation_history: List[Dict[str, str]
             # Log to Supabase if available
             if supabase_client:
                 try:
-                    # Add the example chat log to Supabase
-                    supabase_client.table("chat_logs").insert({
-                        "user_id": context.get("userId", "cherice_user"),  # or dynamic from auth/session
-                        "user_input": "I'm so tired after dialysis",
-                        "ai_response": "I'm really sorry you're feeling this way, Cherice. It's totally okay to rest. Your body is doing a lot. Maybe try a warm tea or gentle music if that helps.",
-                        "model_used": "gemini",
-                        "emotional_score": 7,
-                        "tags": ["fatigue", "self-care", "support"]
-                    }).execute()
+                    # Extract keywords and emotional score from the conversation
+                    keywords = extract_keywords(message + " " + ai_response)
                     
-                    # Also log the actual interaction
-                    supabase_client.table("chat_logs").insert({
-                        "user_id": context.get("userId", "anonymous_user"), 
-                        "user_input": message,
-                        "ai_response": ai_response,
-                        "model_used": "gemini",
-                        "timestamp": datetime.now().isoformat(),
-                        "tags": extract_keywords(message + " " + ai_response)
-                    }).execute()
+                    # Estimate emotional score based on content
+                    emotional_score = None
+                    if any(keyword.lower() in ["tired", "exhausted", "fatigue"] for keyword in keywords):
+                        emotional_score = 7
+                    elif any(keyword.lower() in ["pain", "hurt", "ache"] for keyword in keywords):
+                        emotional_score = 8
+                    elif any(keyword.lower() in ["stress", "anxiety", "worried"] for keyword in keywords):
+                        emotional_score = 6
+                    
+                    # Log the actual interaction with the enhanced context flag
+                    log_chat_to_supabase(
+                        user_id=context.get("userId", "anonymous_user"),
+                        user_input=message,
+                        ai_response=ai_response,
+                        model_used="gemini" + ("-context" if context.get("hasJournalContext") else ""),
+                        tags=keywords,
+                        emotional_score=emotional_score
+                    )
                     
                     logger.info(f"Saved chat log to Supabase for user {context.get('userId', 'anonymous_user')}")
                 except Exception as e:
