@@ -190,16 +190,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
+      // Enhanced logging of user profile data for GFR calculation
+      console.log("User data retrieved for GFR calculation:", {
+        id: user.id,
+        hasAge: user.age !== null && user.age !== undefined,
+        hasGender: user.gender !== null && user.gender !== undefined,
+        hasRace: user.race !== null && user.race !== undefined,
+        hasWeight: user.weight !== null && user.weight !== undefined,
+        hasDiseaseStage: user.kidneyDiseaseStage !== null && user.kidneyDiseaseStage !== undefined,
+        ageValue: user.age,
+        genderValue: user.gender,
+        genderType: typeof user.gender
+      });
+      
       // Calculate GFR if we have enough data
       if (data.systolicBP && data.painLevel !== undefined && data.stressLevel !== undefined && data.hydration !== undefined) {
-        // Only estimate GFR if we have the necessary user data
-        if (user.age && user.gender && user.race && user.weight && user.kidneyDiseaseStage) {
+        // More forgiving GFR estimation with proper null/undefined handling
+        // Still require the minimum needed data, but with better validation
+        if (user.age && user.gender && user.race && user.weight) {
+          // Normalize gender value to handle potential case issues
+          const normalizedGender = user.gender ? String(user.gender).toLowerCase() : '';
+          
           console.log("Estimating GFR with user data", {
             age: user.age,
-            gender: user.gender,
+            rawGender: user.gender,
+            normalizedGender: normalizedGender,
             race: user.race,
             weight: user.weight,
-            diseaseStage: user.kidneyDiseaseStage,
+            diseaseStage: user.kidneyDiseaseStage || 1, // Default stage if missing
             systolicBP: data.systolicBP,
             diastolicBP: data.diastolicBP || 80,
             hydration: data.hydration,
@@ -209,7 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const gfr = estimateGFR(
             user.age,
-            user.gender,
+            normalizedGender, // Use normalized gender
             user.race,
             user.weight,
             data.systolicBP,
@@ -217,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             data.hydration,
             data.stressLevel,
             data.painLevel,
-            user.kidneyDiseaseStage
+            user.kidneyDiseaseStage || 1 // Default stage if missing
           );
           
           data.estimatedGFR = gfr;

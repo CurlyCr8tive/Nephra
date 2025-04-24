@@ -65,6 +65,27 @@ export function UserProvider({ children, value }: UserProviderProps) {
           if (response.ok) {
             const userData = await response.json();
             console.log("User data fetched successfully in UserContext:", userData.username);
+            
+            // Ensure gender information is preserved - log for debugging
+            console.log("User gender from API:", {
+              hasGender: userData.gender !== null && userData.gender !== undefined,
+              genderValue: userData.gender,
+              genderType: typeof userData.gender
+            });
+            
+            // If we already have a user and gender is missing in the new data, preserve it
+            if (user && (!userData.gender || userData.gender === '') && user.gender) {
+              console.log("Preserving gender information from previous user state:", user.gender);
+              userData.gender = user.gender;
+            }
+            
+            // Extra validation for gender to make sure it's never empty
+            if (!userData.gender && userData.gender !== '') {
+              console.log("Setting default gender as API returned empty value");
+              // Don't set a default gender - we want to debug the issue properly
+              // Just log the warning for now
+            }
+            
             setUser(userData);
             setError(null);
           } else if (response.status === 401) {
