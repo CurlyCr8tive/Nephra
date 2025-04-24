@@ -335,11 +335,9 @@ export default function AuthPage() {
               </Tabs>
 
               <div className="space-y-4 text-center text-sm">
-                <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-                  <p className="font-medium text-blue-800 mb-1">Demo Login Credentials:</p>
-                  <p className="text-blue-700">Username: <strong>demouser</strong> | Password: <strong>demopass</strong></p>
+                <div className="grid grid-cols-1 gap-2 mb-3">
                   <Button 
-                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white w-full"
+                    className="bg-blue-600 hover:bg-blue-700 text-white w-full"
                     onClick={() => {
                       loginForm.setValue('username', 'ChericeHeron');
                       loginForm.setValue('password', 'mypassword');
@@ -351,18 +349,78 @@ export default function AuthPage() {
                   >
                     Quick Login as ChericeHeron
                   </Button>
-                </div>
-                <div className="flex flex-col mb-2">
+                  
+                  <Button 
+                    className="bg-red-600 hover:bg-red-700 text-white w-full"
+                    onClick={async () => {
+                      try {
+                        // Direct fetch logout - avoids any cached user data issues
+                        await fetch("/api/logout", {
+                          method: "POST",
+                          credentials: "include",
+                          headers: {
+                            "Cache-Control": "no-cache"
+                          }
+                        });
+                        
+                        // Force a hard reload of the page
+                        window.location.href = "/auth";
+                        
+                        toast({
+                          title: "Logged out",
+                          description: "You have been logged out successfully"
+                        });
+                      } catch (err) {
+                        console.error("Direct logout error:", err);
+                        toast({
+                          title: "Logout failed",
+                          description: "Please try again or refresh the page",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    Force Logout (fixes stuck session)
+                  </Button>
+                  
                   <Button
                     variant="outline"
                     onClick={() => {
-                      window.location.href = "/auth";
+                      // Clear all storage and reload
+                      try {
+                        if (typeof window !== 'undefined') {
+                          // Don't clear gender data
+                          const gender = window.localStorage.getItem('nephra_user_gender');
+                          
+                          // Clear session storage
+                          window.sessionStorage.clear();
+                          
+                          // Clear specific localStorage items
+                          window.localStorage.removeItem('nephra_user_id');
+                          
+                          // Restore gender if it existed
+                          if (gender) {
+                            window.localStorage.setItem('nephra_user_gender', gender);
+                            window.sessionStorage.setItem('nephra_user_gender', gender);
+                          }
+                          
+                          // Force a hard reload
+                          window.location.href = "/auth";
+                        }
+                      } catch (e) {
+                        console.error("Storage clearing error:", e);
+                      }
                     }}
-                    className="mb-2"
                   >
-                    Hard Refresh Auth Page
+                    Reset Session & Reload Page
                   </Button>
                 </div>
+                
+                <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                  <p className="font-medium text-blue-800 mb-1">Demo Login Credentials:</p>
+                  <p className="text-blue-700">Username: <strong>demouser</strong> | Password: <strong>demopass</strong></p>
+                </div>
+                
                 <p className="flex items-center justify-center gap-1 text-muted-foreground">
                   <AlertCircle className="w-4 h-4" />
                   Your information is securely stored and private

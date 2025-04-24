@@ -15,7 +15,38 @@ export function Header({ title }: HeaderProps) {
   
   const handleLogout = async () => {
     try {
-      await logoutMutation.mutateAsync();
+      // Use direct fetch instead of the mutation to avoid any issues
+      const res = await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Cache-Control": "no-cache"
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error("Logout request failed");
+      }
+      
+      // Clear local storage but preserve gender data
+      try {
+        if (typeof window !== 'undefined') {
+          // Save gender before clearing
+          const gender = window.localStorage.getItem('nephra_user_gender');
+          
+          // Clear user ID
+          window.sessionStorage.removeItem('nephra_user_id');
+          window.localStorage.removeItem('nephra_user_id');
+          
+          // Restore gender if it existed
+          if (gender) {
+            window.localStorage.setItem('nephra_user_gender', gender);
+            window.sessionStorage.setItem('nephra_user_gender', gender);
+          }
+        }
+      } catch (e) {
+        console.error("Error managing storage during logout:", e);
+      }
       
       // Force a hard navigation to auth page
       window.location.href = '/auth';
