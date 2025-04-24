@@ -141,14 +141,53 @@ export default function HealthLogging(props: HealthLoggingProps) {
   
   // Local function to estimate GFR (simplified version of server calculation)
   const calculateGFR = (): number | null => {
-    if (!user || !user.age || !user.gender || !user.race || !user.weight || 
-        !user.kidneyDiseaseStage || systolicBP === "" || !painLevel || !stressLevel) {
+    // Check if we have all the necessary data for the calculation
+    if (!user) {
+      console.warn("Cannot calculate GFR: No user data available");
+      return null;
+    }
+    
+    // Ensure all necessary user profile data is available
+    const missingUserData = [];
+    if (!user.age) missingUserData.push("age");
+    if (!user.gender) missingUserData.push("gender");
+    if (!user.race) missingUserData.push("race");
+    if (!user.weight) missingUserData.push("weight");
+    if (!user.kidneyDiseaseStage) missingUserData.push("kidney disease stage");
+    
+    if (missingUserData.length > 0) {
+      console.warn(`Cannot calculate GFR: Missing user profile data: ${missingUserData.join(", ")}`);
+      return null;
+    }
+    
+    // Ensure all necessary health metrics are entered
+    if (systolicBP === "") {
+      console.warn("Cannot calculate GFR: Missing systolic blood pressure");
+      return null;
+    }
+    
+    if (diastolicBP === "") {
+      console.warn("Cannot calculate GFR: Missing diastolic blood pressure");
+      return null;
+    }
+    
+    if (painLevel === null || stressLevel === null || fatigueLevel === null) {
+      console.warn("Cannot calculate GFR: Missing pain, stress, or fatigue level");
+      return null;
+    }
+    
+    // Convert string inputs to numbers
+    const systolicValue = typeof systolicBP === 'string' ? parseInt(systolicBP) : systolicBP;
+    const diastolicValue = typeof diastolicBP === 'string' ? parseInt(diastolicBP) : diastolicBP;
+    
+    if (isNaN(systolicValue) || isNaN(diastolicValue)) {
+      console.warn("Cannot calculate GFR: Invalid blood pressure values");
       return null;
     }
     
     // Base GFR range based on kidney disease stage (simplified)
-    let baseGFR = 90;
     const diseaseStage = user.kidneyDiseaseStage;
+    let baseGFR = 90;
     
     if (diseaseStage === 1) baseGFR = 90;
     else if (diseaseStage === 2) baseGFR = 75;
@@ -650,7 +689,38 @@ export default function HealthLogging(props: HealthLoggingProps) {
                   <Button 
                     variant="outline" 
                     className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
-                    onClick={() => setEstimatedGFR(calculateGFR())}
+                    onClick={() => {
+                      // Make sure we have all required data before calculation
+                      if (systolicBP === "" || diastolicBP === "") {
+                        toast({
+                          title: "Missing blood pressure values",
+                          description: "Please enter both systolic and diastolic blood pressure readings.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      
+                      // Calculate GFR
+                      const gfr = calculateGFR();
+                      
+                      if (gfr === null) {
+                        toast({
+                          title: "Cannot calculate GFR",
+                          description: "Missing required health or profile data. Please complete your profile and enter all health metrics.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      
+                      // Update the state with calculated GFR
+                      setEstimatedGFR(gfr);
+                      
+                      toast({
+                        title: "GFR Calculated",
+                        description: `Your estimated GFR is ${gfr.toFixed(1)} mL/min/1.73m².`,
+                        duration: 3000
+                      });
+                    }}
                   >
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
