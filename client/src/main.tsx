@@ -86,19 +86,9 @@ const setupDemoUser = async () => {
 
 // Run these checks before mounting the app
 async function initializeApp() {
-  // Force logout to ensure we always start at the login page
-  try {
-    console.log("Performing force logout to start at login page");
-    await fetch("/api/logout", {
-      method: "POST",
-      credentials: "include"
-    });
-  } catch (e) {
-    console.log("Logout error (expected if not logged in):", e);
-  }
-  
+  // Check API connection without logging out the user
   const apiStatus = await checkApiConnection();
-  console.log("API connection status after logout:", apiStatus);
+  console.log("API connection status:", apiStatus);
   
   // Create a root-level provider that fixes the circular dependency with UserContext
   function AppWithProviders() {
