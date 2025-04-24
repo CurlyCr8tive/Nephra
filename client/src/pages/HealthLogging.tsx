@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 // No FileUpload component yet
-import { Upload, PlusCircle, CalendarDays, Clock, Pill } from "lucide-react";
+import { Upload, PlusCircle, CalendarDays, Clock, Pill, Calculator as CalculatorIcon } from "lucide-react";
+import { InfoCircledIcon } from "@radix-ui/react-icons";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/hooks/use-toast";
@@ -139,7 +140,19 @@ export default function HealthLogging(props: HealthLoggingProps) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [estimatedGFR, setEstimatedGFR] = useState<number | null>(null);
   
-  // Local function to estimate GFR (simplified version of server calculation)
+  // State for serum creatinine input (for CKD-EPI formula)
+  const [serumCreatinine, setSerumCreatinine] = useState<number | "">("");
+
+  /**
+   * Calculate eGFR using the CKD-EPI 2021 equation (without race as a factor)
+   * eGFR = 142 × min(SCr/K, 1)^α × max(SCr/K, 1)^–1.200 × 0.9938^Age × 1.012 [if female]
+   * 
+   * Where:
+   * SCr: Serum creatinine in mg/dL
+   * K: 0.7 for females, 0.9 for males
+   * α: –0.241 for females, –0.302 for males
+   * Age: Age in years
+   */
   const calculateGFR = (): number | null => {
     // Check if we have all the necessary data for the calculation
     if (!user) {
@@ -151,16 +164,47 @@ export default function HealthLogging(props: HealthLoggingProps) {
     const missingUserData = [];
     if (!user.age) missingUserData.push("age");
     if (!user.gender) missingUserData.push("gender");
-    if (!user.race) missingUserData.push("race");
-    if (!user.weight) missingUserData.push("weight");
-    if (!user.kidneyDiseaseStage) missingUserData.push("kidney disease stage");
     
     if (missingUserData.length > 0) {
       console.warn(`Cannot calculate GFR: Missing user profile data: ${missingUserData.join(", ")}`);
       return null;
     }
     
-    // Ensure all necessary health metrics are entered
+    // Method 1: Calculation based on CKD-EPI 2021 equation if serum creatinine is available
+    if (serumCreatinine && serumCreatinine !== "") {
+      // Convert to number if needed
+      const scr = typeof serumCreatinine === 'string' ? parseFloat(serumCreatinine as string) : serumCreatinine;
+      
+      if (isNaN(scr) || scr <= 0) {
+        console.warn("Cannot calculate GFR: Invalid serum creatinine value");
+        return null;
+      }
+      
+      // Constants based on gender
+      const isFemale = user.gender.toLowerCase() === 'female';
+      const K = isFemale ? 0.7 : 0.9;
+      const alpha = isFemale ? -0.241 : -0.302;
+      const femaleMultiplier = isFemale ? 1.012 : 1.0;
+      
+      // Calculate min and max terms
+      const minTerm = Math.min(scr/K, 1);
+      const maxTerm = Math.max(scr/K, 1);
+      
+      // Calculate eGFR
+      const eGFR = 142 * 
+                   Math.pow(minTerm, alpha) * 
+                   Math.pow(maxTerm, -1.200) * 
+                   Math.pow(0.9938, user.age) * 
+                   femaleMultiplier;
+      
+      console.log(`CKD-EPI eGFR calculation: ${eGFR.toFixed(1)} mL/min/1.73m²`);
+      return Math.round(eGFR);
+    }
+    
+    // Method 2: Estimation based on disease stage and health metrics (simplified)
+    console.log("Using simplified GFR estimation based on disease stage and metrics");
+    
+    // Ensure all necessary health metrics are entered for the simplified method
     if (systolicBP === "") {
       console.warn("Cannot calculate GFR: Missing systolic blood pressure");
       return null;
@@ -185,6 +229,12 @@ export default function HealthLogging(props: HealthLoggingProps) {
       return null;
     }
     
+    // Check for kidney disease stage
+    if (!user.kidneyDiseaseStage) {
+      console.warn("Cannot calculate simplified GFR: Missing kidney disease stage");
+      return null;
+    }
+    
     // Base GFR range based on kidney disease stage (simplified)
     const diseaseStage = user.kidneyDiseaseStage;
     let baseGFR = 90;
@@ -198,7 +248,6 @@ export default function HealthLogging(props: HealthLoggingProps) {
     // Adjustment factors (simplified for demo)
     const ageAdjustment = Math.max(0, (40 - user.age) / 100);
     const genderFactor = user.gender.toLowerCase() === 'female' ? 0.85 : 1.0;
-    const raceFactor = user.race.toLowerCase() === 'black' ? 1.2 : 1.0;
     
     // Health metric adjustments (simplified for demo)
     const bpFactor = 1 - Math.max(0, (Number(systolicBP) - 120) / 400);
@@ -206,15 +255,16 @@ export default function HealthLogging(props: HealthLoggingProps) {
     const stressFactor = 1 - (stressLevel / 20);
     const painFactor = 1 - (painLevel / 20);
     
-    // Calculate adjusted GFR
+    // Calculate adjusted GFR (without race factor - aligned with CKD-EPI 2021)
     let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor * 
-                      raceFactor * bpFactor * hydrationFactor * 
+                      bpFactor * hydrationFactor * 
                       stressFactor * painFactor;
     
     // Ensure result is within reasonable bounds for the disease stage
     adjustedGFR = Math.min(adjustedGFR, 120);
     adjustedGFR = Math.max(adjustedGFR, 5);
     
+    console.log(`Simplified eGFR calculation: ${adjustedGFR.toFixed(1)} mL/min/1.73m²`);
     return Math.round(adjustedGFR);
   };
   
@@ -684,6 +734,38 @@ export default function HealthLogging(props: HealthLoggingProps) {
                   />
                 </div>
                 
+                {/* Serum Creatinine Input for CKD-EPI Formula */}
+                <div className="mb-4">
+                  <div className="flex flex-col mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <InfoCircledIcon className="h-4 w-4 text-blue-500" />
+                      <Label htmlFor="creatinine" className="font-medium text-sm">
+                        Serum Creatinine (for CKD-EPI 2021 formula)
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="creatinine"
+                        type="number"
+                        placeholder="e.g. 1.2"
+                        min="0.1"
+                        max="15"
+                        step="0.1"
+                        value={serumCreatinine === "" ? "" : serumCreatinine}
+                        onChange={(e) => {
+                          const value = e.target.value === "" ? "" : parseFloat(e.target.value);
+                          setSerumCreatinine(value);
+                        }}
+                        className="flex-1"
+                      />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">mg/dL</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Optional: Enter your latest serum creatinine value for more accurate calculation.
+                    </p>
+                  </div>
+                </div>
+                
                 {/* GFR Calculation Button */}
                 <div className="mb-4">
                   <Button 
@@ -691,13 +773,16 @@ export default function HealthLogging(props: HealthLoggingProps) {
                     className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
                     onClick={() => {
                       // Make sure we have all required data before calculation
-                      if (systolicBP === "" || diastolicBP === "") {
-                        toast({
-                          title: "Missing blood pressure values",
-                          description: "Please enter both systolic and diastolic blood pressure readings.",
-                          variant: "destructive"
-                        });
-                        return;
+                      if (serumCreatinine === "") {
+                        // If no creatinine, check if we have blood pressure for simplified estimation
+                        if (systolicBP === "" || diastolicBP === "") {
+                          toast({
+                            title: "Missing required data",
+                            description: "Please enter either serum creatinine for CKD-EPI calculation or blood pressure values for simplified estimation.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
                       }
                       
                       // Calculate GFR
@@ -706,7 +791,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
                       if (gfr === null) {
                         toast({
                           title: "Cannot calculate GFR",
-                          description: "Missing required health or profile data. Please complete your profile and enter all health metrics.",
+                          description: "Missing required health or profile data. Please ensure your profile includes age and gender information.",
                           variant: "destructive"
                         });
                         return;
@@ -715,30 +800,22 @@ export default function HealthLogging(props: HealthLoggingProps) {
                       // Update the state with calculated GFR
                       setEstimatedGFR(gfr);
                       
+                      // Determine which method was used
+                      const method = serumCreatinine !== "" ? "CKD-EPI 2021 equation" : "simplified estimation";
+                      
                       toast({
                         title: "GFR Calculated",
-                        description: `Your estimated GFR is ${gfr.toFixed(1)} mL/min/1.73m².`,
-                        duration: 3000
+                        description: `Your estimated GFR is ${gfr.toFixed(1)} mL/min/1.73m² using ${method}.`,
+                        duration: 4000
                       });
                     }}
                   >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width="16" 
-                      height="16" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      className="mr-2"
-                    >
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
+                    <CalculatorIcon className="mr-2 h-4 w-4" />
                     Calculate Estimated GFR
                   </Button>
+                  <p className="mt-1 text-xs text-gray-500 px-1">
+                    Using CKD-EPI 2021 equation: eGFR = 142 × min(SCr/K, 1)^α × max(SCr/K, 1)^–1.200 × 0.9938^Age × 1.012 [if female]
+                  </p>
                 </div>
                 
                 {/* Estimated GFR Display */}
