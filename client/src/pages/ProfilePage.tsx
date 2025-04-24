@@ -331,9 +331,8 @@ export default function ProfilePage() {
     // Always refresh user data in both contexts
     refreshUserData();
     
-    // Refresh the user data through context instead of directly accessing properties
-    // that might not exist on the authUser object
-    refreshUserFromContext();
+    // Refresh the user data through the query client
+    queryClient.invalidateQueries({ queryKey: ['/api/user'] });
   };
 
   // Handle adding other health condition

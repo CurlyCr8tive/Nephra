@@ -29,13 +29,14 @@ function App() {
     <TooltipProvider>
       <AuthProvider>
         <Switch>
-          {/* Public routes */}
+          {/* Public routes - Make auth page the main route */}
+          <Route path="/" component={AuthPage} />
           <Route path="/auth" component={AuthPage} />
           <Route path="/health-tracking" component={HealthLogging} />
           <Route path="/chat" component={AIChatView} />
           
           {/* Protected routes */}
-          <ProtectedRoute path="/" component={Dashboard} />
+          <ProtectedRoute path="/dashboard" component={Dashboard} />
           <ProtectedRoute path="/log" component={HealthLogging} />
           <ProtectedRoute path="/track" component={HealthLogging} />
           <ProtectedRoute path="/journal" component={JournalPage} />
