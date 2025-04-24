@@ -177,7 +177,12 @@ export default function HealthLogging(props: HealthLoggingProps) {
     setEstimatedGFR(calculateGFR());
   }, [user, hydration, systolicBP, diastolicBP, painLevel, stressLevel]);
   
-  const handleSave = async () => {
+  /**
+   * Dedicated function to prepare and submit health data
+   * This handles all the validation, data preparation, and API submission in one place
+   * Now includes direct Supabase integration as a parallel path for saving
+   */
+  const handleSubmitHealthData = async () => {
     try {
       // Reset save success state
       setSaveSuccess(false);
@@ -186,40 +191,95 @@ export default function HealthLogging(props: HealthLoggingProps) {
       const gfr = calculateGFR();
       setEstimatedGFR(gfr);
       
-      // Check if we have a user, otherwise use userId from state
-      if (!user && userId !== 1) {
-        console.error("No user data available for saving health metrics");
-        throw new Error("User data is missing");
+      // Verify we have a user ID to work with
+      if (!userId) {
+        console.error("No valid user ID available for saving health metrics");
+        throw new Error("Valid user ID is required");
       }
       
-      console.log("Saving health metrics with userId:", userId);
+      console.log("📤 Preparing health metrics submission for userId:", userId);
       
-      // Prepare the health metrics data to save
+      // Validate required fields
+      if (systolicBP === "" || diastolicBP === "") {
+        toast({
+          title: "Missing blood pressure values",
+          description: "Please enter both systolic and diastolic blood pressure readings.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Prepare the health metrics data to save for our API
       const metricsData = {
-        userId: user?.id || userId,
+        userId,
         date: new Date(),
         hydration,
-        systolicBP: systolicBP !== "" ? Number(systolicBP) : undefined,
-        diastolicBP: diastolicBP !== "" ? Number(diastolicBP) : undefined,
+        systolicBP: Number(systolicBP),
+        diastolicBP: Number(diastolicBP),
         painLevel,
         stressLevel,
         fatigueLevel,
         estimatedGFR: gfr || undefined
       };
       
-      console.log("Health metrics data to save:", metricsData);
+      console.log("Health metrics data to submit:", metricsData);
       
-      // Save the health metrics
-      const result = await logHealthMetrics(metricsData);
-      console.log("Health metrics saved successfully:", result);
+      // Create Supabase-specific data format for direct saving
+      const supabaseData = {
+        user_id: userId,
+        created_at: new Date().toISOString(), 
+        bp_systolic: Number(systolicBP),
+        bp_diastolic: Number(diastolicBP),
+        hydration_level: hydration,
+        pain_level: painLevel,
+        stress_level: stressLevel,
+        fatigue_level: fatigueLevel,
+        estimated_gfr: gfr || null
+      };
       
-      // Show success state
+      // Try saving to Supabase directly as a backup path
+      try {
+        // Dynamically import Supabase on-demand
+        const { supabase } = await import("@/lib/supabaseClient");
+        console.log("📤 Submitting health data to Supabase:", supabaseData);
+        
+        const { data, error } = await supabase
+          .from("health_logs")
+          .insert([supabaseData]);
+          
+        if (error) {
+          console.error("❌ Supabase insert error:", error.message);
+        } else {
+          console.log("✅ Health data saved to Supabase!", data);
+        }
+      } catch (supabaseError) {
+        console.error("Failed to save to Supabase:", supabaseError);
+      }
+        
+      // Standard API call approach for primary data path
+      const response = await fetch("/api/health-metrics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(metricsData),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Health metrics API error response:", errorText);
+        throw new Error(errorText || "Failed to save health data");
+      }
+      
+      const result = await response.json();
+      console.log("✅ Health metrics saved successfully with ID:", result.id);
+      
+      // Show success state and notification
       setSaveSuccess(true);
-      
-      // Show a toast confirmation
       toast({
-        title: "Data saved successfully",
-        description: "Your health metrics have been recorded and GFR estimated.",
+        title: "Health data saved",
+        description: "Your health metrics have been recorded and GFR calculated.",
         duration: 3000
       });
       
@@ -227,17 +287,24 @@ export default function HealthLogging(props: HealthLoggingProps) {
       setTimeout(() => setSaveSuccess(false), 3000);
       
       if (onClose) onClose();
+      return result;
     } catch (error) {
-      console.error("Error logging health data:", error);
+      console.error("Error submitting health data:", error);
       
-      // Show an error toast
       toast({
-        title: "Unable to save data",
-        description: "There was a problem saving your health metrics. Please try again.",
+        title: "Unable to save health data",
+        description: "Please try again or check your connection.",
         variant: "destructive",
         duration: 5000
       });
+      
+      return null;
     }
+  };
+  
+  // Keep the original handleSave as a wrapper for backward compatibility
+  const handleSave = () => {
+    handleSubmitHealthData();
   };
 
   const handleMedicationToggle = (index: number) => {

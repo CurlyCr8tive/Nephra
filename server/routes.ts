@@ -121,6 +121,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const data = validationResult.data;
       
+      // For demo purposes: if user is authenticated via session, use their ID
+      // This ensures the health metrics are associated with the logged-in user
+      if (req.isAuthenticated() && req.user) {
+        console.log("User is authenticated, using session user ID:", req.user.id);
+        data.userId = req.user.id;
+      } else {
+        console.log("User not authenticated via session, using provided userId:", data.userId);
+      }
+      
       // If user exists, retrieve user data for GFR estimation
       const user = await storage.getUser(data.userId);
       if (!user) {
