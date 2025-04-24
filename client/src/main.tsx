@@ -66,7 +66,7 @@ const setupDemoUser = async () => {
         credentials: 'include',
         body: JSON.stringify({ 
           username: 'demouser', 
-          password: 'demopassword' 
+          password: 'demopass' 
         })
       });
       

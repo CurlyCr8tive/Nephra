@@ -65,10 +65,13 @@ export default function AuthPage() {
 
   // We're using the loginMutation and registerMutation from useAuth() directly
 
-  // Add a useEffect to redirect when authenticated
+  // CRITICAL: Add a useEffect to redirect immediately when authenticated
   useEffect(() => {
     if (user) {
+      console.log("User authenticated, redirecting to dashboard");
       setLocation("/dashboard");
+    } else {
+      console.log("No user detected, staying on auth page");
     }
   }, [user, setLocation]);
 

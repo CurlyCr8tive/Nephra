@@ -25,30 +25,32 @@ const AppRoutes = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
   
-  // If user is logged in, redirect from auth page to dashboard
+  // Simpler routing to avoid circular redirects
   return (
     <Switch>
-      {/* Public routes */}
+      {/* Auth page - accessible when logged out */}
       <Route path="/auth">
         {user ? <Redirect to="/dashboard" /> : <AuthPage />}
       </Route>
-      
-      {/* Protected routes */}
+
+      {/* Fixed landing page route */}
       <Route path="/">
         {!user ? <Redirect to="/auth" /> : <Redirect to="/dashboard" />}
       </Route>
+      
+      {/* Protected routes */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/log" component={HealthLogging} />
       <ProtectedRoute path="/track" component={HealthLogging} />
       <ProtectedRoute path="/journal" component={JournalPage} />
-      <ProtectedRoute path="/roadmap" component={TransplantRoadmap} />
+      <ProtectedRoute path="/transplant" component={TransplantRoadmap} /> {/* fixed path */}
       <ProtectedRoute path="/trends" component={HealthTrends} />
       <ProtectedRoute path="/documents" component={MedicalDocuments} />
       <ProtectedRoute path="/education" component={EducationHub} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/chat" component={AIChatView} />
       
-      {/* 404 page */}
+      {/* 404 page - this should be last */}
       <Route component={NotFound} />
     </Switch>
   );
