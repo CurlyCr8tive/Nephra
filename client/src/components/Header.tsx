@@ -16,7 +16,10 @@ export function Header({ title }: HeaderProps) {
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      // The ProtectedRoute will automatically redirect to /auth
+      
+      // Force a hard navigation to auth page
+      window.location.href = '/auth';
+      
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account",

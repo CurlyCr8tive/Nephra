@@ -334,10 +334,34 @@ export default function AuthPage() {
                 </TabsContent>
               </Tabs>
 
-              <div className="space-y-2 text-center text-sm">
+              <div className="space-y-4 text-center text-sm">
                 <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
                   <p className="font-medium text-blue-800 mb-1">Demo Login Credentials:</p>
                   <p className="text-blue-700">Username: <strong>demouser</strong> | Password: <strong>demopass</strong></p>
+                  <Button 
+                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white w-full"
+                    onClick={() => {
+                      loginForm.setValue('username', 'ChericeHeron');
+                      loginForm.setValue('password', 'mypassword');
+                      setActiveTab('login');
+                      setTimeout(() => {
+                        loginForm.handleSubmit(onLoginSubmit)();
+                      }, 100);
+                    }}
+                  >
+                    Quick Login as ChericeHeron
+                  </Button>
+                </div>
+                <div className="flex flex-col mb-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      window.location.href = "/auth";
+                    }}
+                    className="mb-2"
+                  >
+                    Hard Refresh Auth Page
+                  </Button>
                 </div>
                 <p className="flex items-center justify-center gap-1 text-muted-foreground">
                   <AlertCircle className="w-4 h-4" />
