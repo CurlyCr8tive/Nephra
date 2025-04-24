@@ -270,9 +270,19 @@ export default function HealthLogging(props: HealthLoggingProps) {
   
   // Update estimated GFR when health metrics change
   useEffect(() => {
-    setEstimatedGFR(calculateGFR());
+    // Calculate GFR only when user data and required inputs are available
+    if (user && user.age && user.gender) {
+      // If user data is available, try to calculate GFR
+      const gfr = calculateGFR();
+      
+      // Only update state if we got a valid result
+      if (gfr !== null) {
+        setEstimatedGFR(gfr);
+        console.log("Auto-updated GFR estimate:", gfr);
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.age, user?.gender, user?.race, user?.weight, user?.kidneyDiseaseStage, 
+  }, [user?.age, user?.gender, user?.kidneyDiseaseStage, 
       hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel]);
   
   /**
@@ -785,13 +795,54 @@ export default function HealthLogging(props: HealthLoggingProps) {
                         }
                       }
                       
-                      // Calculate GFR
-                      const gfr = calculateGFR();
+                      // Calculate GFR with detailed error handling
+                      let gfr: number | null = null;
                       
-                      if (gfr === null) {
+                      try {
+                        gfr = calculateGFR();
+                        
+                        if (gfr === null) {
+                          // Check specific reasons for failure
+                          if (!user) {
+                            toast({
+                              title: "Cannot calculate GFR",
+                              description: "User profile data is not available. Please try logging out and back in.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          if (!user.age || !user.gender) {
+                            toast({
+                              title: "Cannot calculate GFR",
+                              description: "Missing profile data. Please update your profile with age and gender information.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          if (serumCreatinine === "" && (systolicBP === "" || diastolicBP === "")) {
+                            toast({
+                              title: "Cannot calculate GFR",
+                              description: "Please enter either serum creatinine or blood pressure values.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          // General fallback message
+                          toast({
+                            title: "Cannot calculate GFR",
+                            description: "Missing data needed for calculation. Check all required fields.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                      } catch (err) {
+                        console.error("Error calculating GFR:", err);
                         toast({
-                          title: "Cannot calculate GFR",
-                          description: "Missing required health or profile data. Please ensure your profile includes age and gender information.",
+                          title: "Error calculating GFR",
+                          description: "An unexpected error occurred. Please try again.",
                           variant: "destructive"
                         });
                         return;
