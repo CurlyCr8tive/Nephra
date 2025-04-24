@@ -219,15 +219,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       console.log(`Updating user ${id} with data:`, req.body);
       
-      const user = await storage.updateUser(id, req.body);
-      console.log("Updated user result:", user);
-      
-      if (!user) {
+      // Ensure the user exists
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        console.log(`User ${id} not found`);
         return res.status(404).json({ error: "User not found" });
       }
       
+      // Validate user data without password (we don't want to update password here)
+      const { password, ...updateData } = req.body;
+      
+      // Handle special fields
+      // Convert string dates to Date objects
+      if (updateData.diagnosisDate && typeof updateData.diagnosisDate === 'string') {
+        updateData.diagnosisDate = new Date(updateData.diagnosisDate);
+      }
+      
+      // Ensure arrays are properly handled
+      if (updateData.otherHealthConditions && !Array.isArray(updateData.otherHealthConditions)) {
+        if (typeof updateData.otherHealthConditions === 'string') {
+          updateData.otherHealthConditions = updateData.otherHealthConditions
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+        } else {
+          updateData.otherHealthConditions = [];
+        }
+      }
+      
+      console.log("Sanitized update data:", updateData);
+      
+      // Update the user
+      const user = await storage.updateUser(id, updateData);
+      console.log("Updated user result:", user);
+      
+      if (!user) {
+        return res.status(404).json({ error: "Failed to update user" });
+      }
+      
       // Don't send the password in the response
-      const { password, ...userWithoutPassword } = user;
+      const { password: pwd, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error updating user:", error);

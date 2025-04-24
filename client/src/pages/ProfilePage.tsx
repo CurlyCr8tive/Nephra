@@ -207,16 +207,30 @@ export default function ProfilePage() {
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
     mutationFn: async (data: any) => {
       console.log("Updating profile with data:", data);
+      console.log("User ID:", userId);
       
       try {
-        // Try PUT method instead of PATCH since that's defined in routes.ts
-        const response = await apiRequest("PUT", `/api/users/${userId}`, data);
+        // Try using fetch directly with more logging
+        const url = `/api/users/${userId}`;
+        console.log("Making request to:", url);
+        
+        const response = await fetch(url, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+        
+        console.log("Response status:", response.status);
+        const responseData = await response.text();
+        console.log("Response body:", responseData);
+        
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error response:", errorText);
-          throw new Error(`API returned status ${response.status}: ${errorText}`);
+          throw new Error(`API returned status ${response.status}: ${responseData}`);
         }
-        return await response.json();
+        
+        return responseData ? JSON.parse(responseData) : {};
       } catch (err) {
         console.error("Profile update error:", err);
         throw err;

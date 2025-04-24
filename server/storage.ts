@@ -219,7 +219,49 @@ export class MemStorage implements IStorage {
     const user = this.users.get(id);
     if (!user) return undefined;
 
-    const updatedUser = { ...user, ...userData };
+    // Process the update data to ensure fields have proper format
+    const sanitizedData: Partial<User> = { ...userData };
+    
+    // Handle special field transformations
+    
+    // Make sure dates are Date objects
+    if (sanitizedData.diagnosisDate && !(sanitizedData.diagnosisDate instanceof Date)) {
+      try {
+        sanitizedData.diagnosisDate = new Date(sanitizedData.diagnosisDate);
+      } catch (e) {
+        console.error("Invalid date format for diagnosisDate:", sanitizedData.diagnosisDate);
+        sanitizedData.diagnosisDate = null;
+      }
+    }
+    
+    // Ensure arrays are handled properly
+    if (sanitizedData.otherHealthConditions !== undefined && 
+        !Array.isArray(sanitizedData.otherHealthConditions)) {
+      sanitizedData.otherHealthConditions = [];
+    }
+    
+    // Handle specialists array properly
+    if (sanitizedData.otherSpecialists !== undefined && 
+        !Array.isArray(sanitizedData.otherSpecialists)) {
+      sanitizedData.otherSpecialists = [];
+    }
+
+    console.log("Sanitized update data:", sanitizedData);
+    
+    // Create updated user with proper defaults for null values
+    const updatedUser = { 
+      ...user,
+      ...sanitizedData,
+      // Ensure these fields never become undefined
+      otherHealthConditions: sanitizedData.otherHealthConditions !== undefined
+        ? sanitizedData.otherHealthConditions 
+        : (user.otherHealthConditions || []),
+      otherSpecialists: sanitizedData.otherSpecialists !== undefined
+        ? sanitizedData.otherSpecialists
+        : (user.otherSpecialists || [])
+    };
+    
+    console.log("Final updated user:", updatedUser);
     this.users.set(id, updatedUser);
     return updatedUser;
   }
