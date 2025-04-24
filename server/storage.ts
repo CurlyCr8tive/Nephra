@@ -250,11 +250,30 @@ export class MemStorage implements IStorage {
 
     console.log("Sanitized update data:", sanitizedData);
     
+    // Special handling for gender to ensure it's never lost
+    // This explicitly preserves the gender even if it would be overwritten as null/undefined
+    if (sanitizedData.gender === null || sanitizedData.gender === undefined) {
+      sanitizedData.gender = user.gender;
+    }
+    
+    // If gender is provided but empty, keep the existing value
+    if (sanitizedData.gender === '') {
+      sanitizedData.gender = user.gender;
+    }
+    
+    // Log the gender state for debugging
+    console.log("Gender update state:", {
+      originalGender: user.gender,
+      updatedGender: sanitizedData.gender,
+      genderInUpdateData: userData.gender
+    });
+    
     // Create updated user with proper defaults for null values
     const updatedUser = { 
       ...user,
       ...sanitizedData,
       // Ensure these fields never become undefined
+      gender: sanitizedData.gender || user.gender, // Extra protection for gender
       otherHealthConditions: sanitizedData.otherHealthConditions !== undefined
         ? sanitizedData.otherHealthConditions 
         : (user.otherHealthConditions || []),
@@ -541,11 +560,41 @@ class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userUpdate: Partial<InsertUser>): Promise<User | undefined> {
+    // First, get the existing user to preserve gender if not specified
+    const existingUser = await this.getUser(id);
+    if (!existingUser) {
+      console.error(`Cannot update non-existent user with id ${id}`);
+      return undefined;
+    }
+    
+    // Special handling for gender to make sure it's never lost
+    if (userUpdate.gender === null || userUpdate.gender === undefined || userUpdate.gender === '') {
+      // Preserve the existing gender value
+      userUpdate.gender = existingUser.gender;
+      
+      // Log for debugging
+      console.log(`Preserved gender "${existingUser.gender}" for user ${id} during update`);
+    }
+    
+    // Log the gender state for debugging
+    console.log("Database update - Gender state:", {
+      userId: id,
+      originalGender: existingUser.gender,
+      updatedGender: userUpdate.gender
+    });
+    
+    // Proceed with the update
     const [updatedUser] = await db
       .update(users)
       .set(userUpdate)
       .where(eq(users.id, id))
       .returning();
+    
+    // Additional verification of the result
+    if (updatedUser) {
+      console.log(`User ${id} updated successfully. Gender: ${updatedUser.gender}`);
+    }
+    
     return updatedUser;
   }
 
