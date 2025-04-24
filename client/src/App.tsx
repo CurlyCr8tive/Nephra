@@ -10,7 +10,7 @@ import MedicalDocuments from "@/pages/MedicalDocuments";
 import JournalPage from "@/pages/JournalPage";
 import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
-import AuthPage from "@/pages/auth-page";
+import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -25,32 +25,32 @@ const AppRoutes = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
   
-  // Simpler routing to avoid circular redirects
+  // FIXED: Completely restructured routing for proper auth flow
   return (
     <Switch>
-      {/* Auth page - accessible when logged out */}
+      {/* Auth page - must come BEFORE the root route */}
       <Route path="/auth">
         {user ? <Redirect to="/dashboard" /> : <AuthPage />}
       </Route>
-
-      {/* Fixed landing page route */}
-      <Route path="/">
-        {!user ? <Redirect to="/auth" /> : <Redirect to="/dashboard" />}
-      </Route>
       
-      {/* Protected routes */}
+      {/* Protected routes - specific routes first */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/log" component={HealthLogging} />
       <ProtectedRoute path="/track" component={HealthLogging} />
       <ProtectedRoute path="/journal" component={JournalPage} />
-      <ProtectedRoute path="/transplant" component={TransplantRoadmap} /> {/* fixed path */}
+      <ProtectedRoute path="/transplant" component={TransplantRoadmap} />
       <ProtectedRoute path="/trends" component={HealthTrends} />
       <ProtectedRoute path="/documents" component={MedicalDocuments} />
       <ProtectedRoute path="/education" component={EducationHub} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/chat" component={AIChatView} />
       
-      {/* 404 page - this should be last */}
+      {/* Root route - must come AFTER specific routes but BEFORE 404 */}
+      <Route path="/">
+        {!user ? <Redirect to="/auth" /> : <Redirect to="/dashboard" />}
+      </Route>
+      
+      {/* 404 page - always last */}
       <Route component={NotFound} />
     </Switch>
   );
