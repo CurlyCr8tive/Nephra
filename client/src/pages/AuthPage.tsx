@@ -334,8 +334,12 @@ export default function AuthPage() {
                 </TabsContent>
               </Tabs>
 
-              <div className="text-center text-sm text-muted-foreground">
-                <p className="flex items-center justify-center gap-1">
+              <div className="space-y-2 text-center text-sm">
+                <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                  <p className="font-medium text-blue-800 mb-1">Demo Login Credentials:</p>
+                  <p className="text-blue-700">Username: <strong>demouser</strong> | Password: <strong>demopass</strong></p>
+                </div>
+                <p className="flex items-center justify-center gap-1 text-muted-foreground">
                   <AlertCircle className="w-4 h-4" />
                   Your information is securely stored and private
                 </p>
