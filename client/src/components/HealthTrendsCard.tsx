@@ -2,26 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import Chart from "chart.js/auto";
-
-// Mock weekly metrics data
-const mockWeeklyMetrics = [
-  { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), hydration: 1.5, systolicBP: 120, diastolicBP: 80, estimatedGFR: 45 },
-  { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), hydration: 2.0, systolicBP: 122, diastolicBP: 82, estimatedGFR: 47 },
-  { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), hydration: 1.8, systolicBP: 125, diastolicBP: 83, estimatedGFR: 46 },
-  { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), hydration: 1.2, systolicBP: 118, diastolicBP: 78, estimatedGFR: 44 },
-  { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), hydration: 2.2, systolicBP: 124, diastolicBP: 82, estimatedGFR: 48 },
-  { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), hydration: 1.5, systolicBP: 121, diastolicBP: 79, estimatedGFR: 46 },
-  { date: new Date(), hydration: 2.0, systolicBP: 123, diastolicBP: 81, estimatedGFR: 47 }
-];
+import { useHealthData } from "@/hooks/useHealthData";
+import { useUser } from "@/contexts/UserContext";
 
 export function HealthTrendsCard() {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
   const [activeTab, setActiveTab] = useState<"hydration" | "bp" | "gfr">("hydration");
   
-  // Using mock data since we don't have the user context yet
-  const weeklyMetrics = mockWeeklyMetrics;
-  const isLoadingWeekly = false;
+  // Get the real user data and health metrics
+  const { user } = useUser();
+  const userId = user?.id || 1; // Fallback to default user ID if not logged in
+  
+  // Fetch real health data from the API
+  const { 
+    weeklyMetrics, 
+    isLoadingWeekly 
+  } = useHealthData({ userId });
 
   useEffect(() => {
     if (chartRef.current && weeklyMetrics && !isLoadingWeekly) {
