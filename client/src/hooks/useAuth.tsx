@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 // Define the user schema
 const userSchema = z.object({
@@ -15,6 +16,13 @@ const userSchema = z.object({
   email: z.string().email().nullable(),
   firstName: z.string().nullable(),
   lastName: z.string().nullable(),
+  gender: z.string().nullable(),
+  age: z.number().nullable(),
+  weight: z.number().nullable(),
+  race: z.string().nullable(),
+  kidneyDiseaseType: z.string().nullable(),
+  kidneyDiseaseStage: z.number().nullable(),
+  diagnosisDate: z.string().or(z.date()).nullable(),
   createdAt: z.string().or(z.date()).nullable(),
   // Add other user fields as needed
 });
@@ -46,6 +54,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [location] = useLocation(); // Add location monitoring
+
+  // Add a force refresh state
+  const [forceRefresh, setForceRefresh] = useState(0);
+  
+  // Check for gender in storage on route change or component mount
+  useEffect(() => {
+    // Get saved gender from storage
+    const tryGetGender = () => {
+      try {
+        if (typeof window !== 'undefined') {
+          const sessionGender = window.sessionStorage.getItem('nephra_user_gender');
+          if (sessionGender) return sessionGender;
+          
+          return window.localStorage.getItem('nephra_user_gender');
+        }
+      } catch (e) {
+        console.error("Error reading gender from storage:", e);
+      }
+      return null;
+    };
+    
+    const savedGender = tryGetGender();
+    if (savedGender) {
+      console.log("Route changed - Found saved gender in storage:", savedGender);
+    }
+  }, [location]);
 
   const {
     data: user,
@@ -53,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     refetch: refetchUser,
   } = useQuery({
-    queryKey: ["/api/user"],
+    queryKey: ["/api/user", forceRefresh], // Add forceRefresh to the key
     queryFn: async () => {
       try {
         console.log("Fetching user data...");
@@ -78,6 +113,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         const userData = await res.json();
         console.log("User data retrieved:", userData?.username);
+        
+        // Check if we have gender in userData
+        if (userData && (!userData.gender || userData.gender === '')) {
+          // Try to get saved gender from storage
+          const tryGetGender = () => {
+            try {
+              if (typeof window !== 'undefined') {
+                const sessionGender = window.sessionStorage.getItem('nephra_user_gender');
+                if (sessionGender) return sessionGender;
+                
+                return window.localStorage.getItem('nephra_user_gender');
+              }
+            } catch (e) {
+              console.error("Error reading gender from storage:", e);
+            }
+            return null;
+          };
+          
+          const savedGender = tryGetGender();
+          if (savedGender) {
+            console.log("Restoring gender from storage:", savedGender);
+            userData.gender = savedGender;
+          }
+        }
+        
+        // If we have gender in userData, save it to storage
+        if (userData && userData.gender && userData.gender !== '') {
+          try {
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.setItem('nephra_user_gender', userData.gender);
+              window.localStorage.setItem('nephra_user_gender', userData.gender);
+              console.log("Saved gender to storage:", userData.gender);
+            }
+          } catch (e) {
+            console.error("Error saving gender to storage:", e);
+          }
+        }
+        
         return userData;
       } catch (err) {
         console.error("Error fetching user:", err);
@@ -218,6 +291,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUserData = async () => {
     console.log("Manually refreshing user data from API");
     try {
+      // Save any existing gender information to storage before refresh
+      if (user?.gender) {
+        try {
+          // Use the same storage functions from UserContext
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('nephra_user_gender', user.gender);
+            window.localStorage.setItem('nephra_user_gender', user.gender);
+            console.log("Saved gender to storage before refresh:", user.gender);
+          }
+        } catch (e) {
+          console.error("Error saving gender to storage:", e);
+        }
+      }
+      
+      // Increment the force refresh counter to trigger a new query
+      setForceRefresh(prev => prev + 1);
+      
+      // Also call the refetch function directly
       await refetchUser();
     } catch (err) {
       console.error("Error refreshing user data:", err);

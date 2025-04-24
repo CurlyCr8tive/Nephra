@@ -1,26 +1,33 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react";
 import { User } from "@shared/schema";
+import { useLocation } from "wouter";
 
-type StorageKey = 'nephra_user_gender' | 'nephra_user_id';
+type StorageKey = 'nephra_user_gender' | 'nephra_user_id' | 'nephra_last_refresh';
 
 // Helper functions for session storage to maintain critical data between page loads
 const saveToStorage = (key: StorageKey, value: string) => {
   try {
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem(key, value);
+      window.localStorage.setItem(key, value); // Also save to localStorage for persistence
     }
   } catch (e) {
-    console.error(`Error saving ${key} to sessionStorage:`, e);
+    console.error(`Error saving ${key} to storage:`, e);
   }
 };
 
 const getFromStorage = (key: StorageKey): string | null => {
   try {
     if (typeof window !== 'undefined') {
-      return window.sessionStorage.getItem(key);
+      // Try session first, fall back to local
+      const sessionValue = window.sessionStorage.getItem(key);
+      if (sessionValue) return sessionValue;
+      
+      // Check localStorage as backup
+      return window.localStorage.getItem(key);
     }
   } catch (e) {
-    console.error(`Error getting ${key} from sessionStorage:`, e);
+    console.error(`Error getting ${key} from storage:`, e);
   }
   return null;
 };
@@ -31,7 +38,7 @@ interface UserContextType {
   isLoading: boolean;
   error: Error | null;
   refreshUserData: () => void;
-  forceUpdateGender: (gender: string) => void; // New function to explicitly set gender
+  forceUpdateGender: (gender: string) => void; // Function to explicitly set gender
 }
 
 // Create context with default values to avoid undefined checks
@@ -56,84 +63,125 @@ interface UserProviderProps {
 }
 
 export function UserProvider({ children, value }: UserProviderProps) {
+  // Track current location to refresh data on route changes
+  const [location] = useLocation();
+  
   // Internal state management if not provided
-  const [user, setUser] = useState<User | null>(value?.user || null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Try to use value from props first
+    if (value?.user !== undefined) return value.user;
+    
+    // Otherwise check if we have a user ID in storage
+    const savedUserId = getFromStorage('nephra_user_id');
+    if (savedUserId) {
+      console.log("Found saved user ID in storage:", savedUserId);
+    }
+    
+    return null;
+  });
+  
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   
   // Fetch user data on mount and when forcedRefresh changes
   const [forcedRefresh, setForcedRefresh] = useState<number>(0);
   
+  // Refresh on route changes if we have a user ID but no user data
+  useEffect(() => {
+    if (!user && getFromStorage('nephra_user_id')) {
+      console.log("Route changed, refreshing user data due to missing user object");
+      setForcedRefresh(prev => prev + 1);
+    }
+  }, [location, user]);
+  
   // Expose the refresh function through context
-  const refreshUserData = () => {
+  const refreshUserData = useCallback(() => {
     console.log("Forcing user data refresh in UserContext");
+    
+    // Track last refresh time
+    saveToStorage('nephra_last_refresh', Date.now().toString());
+    
+    // Trigger refresh
     setForcedRefresh(prev => prev + 1);
-  };
+  }, []);
+  
+  // Memoize the fetch user data function to avoid recreation on each render
+  const fetchUserData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log("Fetching user from API in UserContext...");
+      
+      const timestamp = Date.now(); // Add timestamp to prevent caching
+      
+      const response = await fetch(`/api/user?t=${timestamp}`, {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log("User data fetched successfully in UserContext:", userData.username);
+        
+        // Save user ID to storage for persistence
+        if (userData.id) {
+          saveToStorage('nephra_user_id', userData.id.toString());
+        }
+        
+        // Ensure gender information is preserved - log for debugging
+        console.log("User gender from API:", {
+          hasGender: userData.gender !== null && userData.gender !== undefined,
+          genderValue: userData.gender,
+          genderType: typeof userData.gender
+        });
+        
+        // Check storage for a saved gender value
+        const savedGender = getFromStorage('nephra_user_gender');
+        
+        // If API returned no gender but we have one saved, use the saved value
+        if ((!userData.gender || userData.gender === '') && savedGender) {
+          console.log("Restoring missing gender from storage:", savedGender);
+          userData.gender = savedGender;
+        }
+        // If we already have a user and gender is missing in the new data, preserve it
+        else if (user && (!userData.gender || userData.gender === '') && user.gender) {
+          console.log("Preserving gender information from previous user state:", user.gender);
+          userData.gender = user.gender;
+        }
+        
+        // If we have a gender value now, make sure to save it
+        if (userData.gender && userData.gender !== '') {
+          console.log("Saving gender to storage:", userData.gender);
+          saveToStorage('nephra_user_gender', userData.gender);
+        }
+        
+        setUser(userData);
+        setError(null);
+      } else if (response.status === 401) {
+        // Not authenticated - expected case
+        console.log("User not authenticated (401 response)");
+        setUser(null);
+      } else {
+        throw new Error(`Error fetching user: ${response.statusText}`);
+      }
+    } catch (err) {
+      console.error("Error in UserContext:", err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
   
   // Fetch user data on mount if not provided externally
   useEffect(() => {
-    // Only attempt to fetch if not already provided
+    // Only attempt to fetch if not already provided externally
     if (value?.user === undefined) {
-      const fetchUserData = async () => {
-        try {
-          setIsLoading(true);
-          console.log("Fetching user from API in UserContext...");
-          
-          const timestamp = Date.now(); // Add timestamp to prevent caching
-          
-          const response = await fetch(`/api/user?t=${timestamp}`, {
-            credentials: 'include',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            console.log("User data fetched successfully in UserContext:", userData.username);
-            
-            // Ensure gender information is preserved - log for debugging
-            console.log("User gender from API:", {
-              hasGender: userData.gender !== null && userData.gender !== undefined,
-              genderValue: userData.gender,
-              genderType: typeof userData.gender
-            });
-            
-            // If we already have a user and gender is missing in the new data, preserve it
-            if (user && (!userData.gender || userData.gender === '') && user.gender) {
-              console.log("Preserving gender information from previous user state:", user.gender);
-              userData.gender = user.gender;
-            }
-            
-            // Extra validation for gender to make sure it's never empty
-            if (!userData.gender && userData.gender !== '') {
-              console.log("Setting default gender as API returned empty value");
-              // Don't set a default gender - we want to debug the issue properly
-              // Just log the warning for now
-            }
-            
-            setUser(userData);
-            setError(null);
-          } else if (response.status === 401) {
-            // Not authenticated - expected case
-            console.log("User not authenticated (401 response)");
-            setUser(null);
-          } else {
-            throw new Error(`Error fetching user: ${response.statusText}`);
-          }
-        } catch (err) {
-          console.error("Error in UserContext:", err);
-          setError(err instanceof Error ? err : new Error(String(err)));
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
       fetchUserData();
     }
-  }, [value?.user, forcedRefresh]);
+  }, [value?.user, forcedRefresh, fetchUserData]);
   
   // Combine provided values with internal state
   // Implement the force update gender function

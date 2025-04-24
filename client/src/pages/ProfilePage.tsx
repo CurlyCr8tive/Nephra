@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/contexts/UserContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,6 +73,9 @@ export default function ProfilePage() {
   
   // Get real user data from auth context
   const { user: authUser } = useAuth();
+  
+  // Also get user data from UserContext for gender operations
+  const { user: userContext, forceUpdateGender, refreshUserData } = useUser();
   
   // Update userId and user state when authUser changes
   useEffect(() => {
@@ -316,19 +320,20 @@ export default function ProfilePage() {
     updateProfile(dataToSave);
     
     // Force a global user context refresh and explicitly update the gender
-    if (authUser) {
-      console.log("Forcing user context refresh after profile update");
-      
-      // First try to use our new forceUpdateGender function
-      if (authUser.forceUpdateGender) {
-        console.log("Explicitly forcing gender update to:", dataToSave.gender);
-        authUser.forceUpdateGender(dataToSave.gender);
-      }
-      
-      // Always refresh user data as well
-      if (authUser.refreshUserData) {
-        authUser.refreshUserData();
-      }
+    console.log("Forcing user context refresh after profile update");
+    
+    // First explicitly update gender in our UserContext
+    if (dataToSave.gender) {
+      console.log("Explicitly forcing gender update to:", dataToSave.gender);
+      forceUpdateGender(dataToSave.gender);
+    }
+    
+    // Always refresh user data in both contexts
+    refreshUserData();
+    
+    // Also refresh auth context if available
+    if (authUser?.refreshUserData) {
+      authUser.refreshUserData();
     }
   };
 
