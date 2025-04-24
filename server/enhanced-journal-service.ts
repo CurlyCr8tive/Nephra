@@ -85,8 +85,8 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
  */
 async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
   try {
-    // Use the standard "gemini-pro" model which has wider availability
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // Use the current 1.5 model which replaced gemini-pro
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     
     const prompt = `
       As a wellness assistant for kidney patients, estimate stress and fatigue levels from 1–10.
