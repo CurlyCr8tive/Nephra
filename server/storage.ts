@@ -24,6 +24,8 @@ export interface IStorage {
   getHealthMetrics(userId: number, limit?: number): Promise<HealthMetrics[]>;
   getHealthMetricsByDate(userId: number, startDate: Date, endDate: Date): Promise<HealthMetrics[]>;
   createHealthMetrics(metrics: InsertHealthMetrics): Promise<HealthMetrics>;
+  getHealthMetricsForUser(userId: number, limit?: number): Promise<HealthMetrics[]>;
+  saveHealthMetrics(metrics: InsertHealthMetrics): Promise<HealthMetrics>;
 
   // Emotional check-in methods
   getEmotionalCheckIns(userId: number, limit?: number): Promise<EmotionalCheckIn[]>;
@@ -295,6 +297,25 @@ export class MemStorage implements IStorage {
     const id = this.healthMetricsId++;
     const healthMetric: HealthMetrics = { ...metrics, id };
     this.healthMetrics.set(id, healthMetric);
+    console.log(`Created health metrics with ID ${id} for user ${metrics.userId}`);
+    return healthMetric;
+  }
+  
+  async getHealthMetricsForUser(userId: number, limit?: number): Promise<HealthMetrics[]> {
+    console.log(`Getting health metrics for user ${userId} with limit ${limit || 'unlimited'}`);
+    // This is functionally the same as getHealthMetrics, but added for consistency 
+    // with the health-log-router expected interface
+    return this.getHealthMetrics(userId, limit);
+  }
+  
+  async saveHealthMetrics(metrics: InsertHealthMetrics): Promise<HealthMetrics> {
+    console.log(`Saving health metrics for user ${metrics.userId}`);
+    // This is functionally the same as createHealthMetrics, but added for consistency
+    // with the health-log-router expected interface
+    const id = this.healthMetricsId++;
+    const healthMetric: HealthMetrics = { ...metrics, id };
+    this.healthMetrics.set(id, healthMetric);
+    console.log(`Saved health metrics with ID ${id}`);
     return healthMetric;
   }
 
