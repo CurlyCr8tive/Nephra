@@ -180,7 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-            }
+            },
+            credentials: "include" // Important: include cookies
           });
           
           if (demoRes.ok) {
@@ -198,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Important: include cookies
         body: JSON.stringify(credentials),
       });
 
@@ -210,7 +212,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await res.json();
     },
     onSuccess: (userData: User) => {
+      // Save the user data to the query cache
       queryClient.setQueryData(["/api/user"], userData);
+      
+      // Also save user ID to session/local storage for persistence
+      try {
+        if (typeof window !== 'undefined' && userData.id) {
+          window.sessionStorage.setItem('nephra_user_id', userData.id.toString());
+          window.localStorage.setItem('nephra_user_id', userData.id.toString());
+          console.log("Saved user ID to storage:", userData.id);
+          
+          // If gender is available, also save it
+          if (userData.gender) {
+            window.sessionStorage.setItem('nephra_user_gender', userData.gender);
+            window.localStorage.setItem('nephra_user_gender', userData.gender);
+            console.log("Saved gender to storage:", userData.gender);
+          }
+        }
+      } catch (e) {
+        console.error("Error saving user data to storage:", e);
+      }
+      
+      // Force a refresh of all user-related data
+      setForceRefresh(prev => prev + 1);
+      
+      // Show success toast
       toast({
         title: "Login successful",
         description: `Welcome back, ${userData.username}!`,
@@ -263,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       const res = await fetch("/api/logout", {
         method: "POST",
+        credentials: "include", // Include cookies for auth
       });
 
       if (!res.ok) {
@@ -271,7 +298,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: () => {
+      // Clear user data from query cache
       queryClient.setQueryData(["/api/user"], null);
+      
+      // Do NOT clear the gender from storage - we want to preserve it
+      // for accurate GFR calculations even after logout
+      // Just clear the user ID to prevent auto-login
+      try {
+        if (typeof window !== 'undefined') {
+          // Get gender before clearing if needed
+          const gender = window.localStorage.getItem('nephra_user_gender');
+          console.log("Preserved gender during logout:", gender);
+          
+          // Clear user ID but NOT gender
+          window.sessionStorage.removeItem('nephra_user_id');
+          window.localStorage.removeItem('nephra_user_id');
+        }
+      } catch (e) {
+        console.error("Error managing storage during logout:", e);
+      }
+      
       toast({
         title: "Logged out",
         description: "You have been successfully logged out",
