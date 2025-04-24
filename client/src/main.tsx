@@ -35,63 +35,40 @@ const checkApiConnection = async () => {
 // Create a demo user if none exists for testing purposes
 const setupDemoUser = async () => {
   try {
-    // First check if we can login
-    const loginResp = await fetch('/api/login', {
+    console.log("🔑 Using login-demo endpoint for one-click auth...");
+    const demoLoginResp = await fetch('/api/login-demo', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ 
-        username: 'demouser', 
-        password: 'demopassword' 
-      })
+      headers: { 'Content-Type': 'application/json' }
     });
     
-    if (loginResp.ok) {
-      console.log("💚 Demo user login successful");
-      return true;
-    }
-    
-    // If login fails, try to register
-    console.log("Demo login failed, attempting to register...");
-    const registerResp = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        username: 'demouser',
-        password: 'demopassword',
-        email: 'demo@example.com',
-        firstName: 'Demo',
-        lastName: 'User',
-        age: 45,
-        gender: 'Female',
-        race: 'Caucasian',
-        weight: 65,
-        height: 170,
-        kidneyDiseaseStage: 3,
-        diagnosisDate: new Date().toISOString(),
-        primaryNephrologistName: 'Dr. Smith',
-        primaryNephrologistContact: '555-123-4567',
-        transplantCandidate: true,
-        transplantStatus: 'Waiting',
-        dialysisType: 'Hemodialysis',
-        dialysisSchedule: 'MWF',
-        medications: ['Medication 1', 'Medication 2'],
-        otherHealthConditions: ['Hypertension', 'Diabetes'],
-        otherSpecialists: [{
-          name: 'Dr. Johnson',
-          specialty: 'Cardiology',
-          contact: '555-987-6543'
-        }]
-      })
-    });
-    
-    if (registerResp.ok) {
-      console.log("💚 Demo user registration successful");
+    if (demoLoginResp.ok) {
+      const userData = await demoLoginResp.json();
+      console.log("💚 Demo login successful:", userData.username);
       return true;
     } else {
-      console.warn("⚠️ Demo user setup failed:", await registerResp.text());
-      return false;
+      const errorText = await demoLoginResp.text();
+      console.warn("⚠️ Demo login failed:", errorText);
+      
+      // Try the regular login path as fallback
+      console.log("Trying regular login path as fallback...");
+      const loginResp = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          username: 'demouser', 
+          password: 'demopassword' 
+        })
+      });
+      
+      if (loginResp.ok) {
+        console.log("💚 Regular demo login successful");
+        return true;
+      } else {
+        console.warn("❌ All login attempts failed for demo user");
+        return false;
+      }
     }
   } catch (err) {
     console.error("Error setting up demo user:", err);

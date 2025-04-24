@@ -140,6 +140,126 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Demo login function for quick testing
+  app.post("/api/login-demo", async (req, res) => {
+    try {
+      // For demo purposes, we'll look up the demo user or create one if it doesn't exist
+      const demoUsername = "demouser";
+      const demoPassword = "demopassword";
+      
+      console.log(`Attempting demo login for: ${demoUsername}`);
+      
+      // First check if user is already logged in
+      if (req.isAuthenticated() && req.user && req.user.username === demoUsername) {
+        console.log(`Demo user already logged in as ${demoUsername}`);
+        return res.status(200).json(req.user);
+      }
+      
+      // Get user directly from storage
+      let user = await storage.getUserByUsername(demoUsername);
+      
+      if (!user) {
+        console.log(`Demo user not found, creating: ${demoUsername}`);
+        
+        // Create a demo user if needed for testing
+        try {
+          user = await storage.createUser({
+            username: demoUsername,
+            password: await hashPassword(demoPassword),
+            email: "demo@example.com",
+            firstName: "Demo",
+            lastName: "User",
+            age: 45,
+            gender: "Female",
+            race: "Caucasian",
+            weight: 65,
+            kidneyDiseaseStage: 3,
+            diagnosisDate: new Date(),
+            primaryNephrologistName: "Dr. Smith",
+            primaryNephrologistContact: "555-123-4567",
+            transplantCandidate: true,
+            transplantStatus: "Waiting",
+            dialysisType: "Hemodialysis",
+            dialysisSchedule: "MWF",
+            medications: ["Medication 1", "Medication 2"],
+            otherHealthConditions: ["Hypertension", "Diabetes"],
+            otherSpecialists: {
+              name: "Dr. Johnson",
+              specialty: "Cardiology",
+              contact: "555-987-6543"
+            }
+          });
+          
+          console.log(`Demo user created with ID: ${user.id}`);
+        } catch (createError) {
+          console.error("Failed to create demo user:", createError);
+          throw createError;
+        }
+      } else {
+        // Option: Update password to match our hashing algorithm if needed
+        const currentHashFormat = user.password.includes('.');
+        
+        if (!currentHashFormat) {
+          console.log(`Updating hash format for demo user: ${demoUsername}`);
+          try {
+            const newPassword = await hashPassword(demoPassword);
+            user = await storage.updateUser(user.id, { password: newPassword });
+          } catch (updateError) {
+            console.error("Failed to update demo user password:", updateError);
+          }
+        }
+      }
+      
+      if (!user) {
+        throw new Error("Failed to get or create demo user");
+      }
+      
+      // Log user details (excluding password)
+      const userDetails = { ...user, password: "[REDACTED]" };
+      console.log("Demo user found:", JSON.stringify(userDetails, null, 2));
+      
+      // Destroy any existing session to ensure a clean state
+      if (req.session) {
+        await new Promise<void>((resolve) => {
+          req.session.destroy((err) => {
+            if (err) console.error("Error destroying session:", err);
+            resolve();
+          });
+        });
+      }
+      
+      // Generate a new session
+      await new Promise<void>((resolve) => {
+        req.session.regenerate((err) => {
+          if (err) console.error("Error regenerating session:", err);
+          resolve();
+        });
+      });
+      
+      // Manually log in with the new session
+      await new Promise<void>((resolve, reject) => {
+        req.login(user, (err) => {
+          if (err) {
+            console.error("Demo login session error:", err);
+            reject(err);
+          } else {
+            console.log(`Demo login successful for: ${demoUsername}`);
+            resolve();
+          }
+        });
+      });
+      
+      // Return success response
+      return res.status(200).json(user);
+    } catch (error) {
+      console.error("Demo login error:", error);
+      return res.status(500).json({ 
+        error: "Demo login failed", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Add test login function for debugging
   app.post("/api/login-test", async (req, res) => {
     try {
