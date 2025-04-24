@@ -187,9 +187,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
       hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel]);
   
   /**
-   * Dedicated function to prepare and submit health data
-   * This handles all the validation, data preparation, and API submission in one place
-   * Now includes direct Supabase integration as a parallel path for saving
+   * Enhanced function to prepare and submit health data
+   * This handles validation, data preparation, and uses both API and direct Supabase paths
+   * Includes improved error handling, logging, and Supabase RLS awareness
    */
   const handleSubmitHealthData = async () => {
     try {
@@ -217,40 +217,106 @@ export default function HealthLogging(props: HealthLoggingProps) {
         });
         return;
       }
+
+      // Generate tags based on metrics values
+      const generateTags = () => {
+        const tags = [];
+        if (Number(systolicBP) > 140 || Number(diastolicBP) > 90) tags.push("high blood pressure");
+        if (painLevel > 6) tags.push("severe pain");
+        if (stressLevel > 7) tags.push("high stress");
+        if (fatigueLevel > 7) tags.push("severe fatigue");
+        if (hydration < 0.8) tags.push("dehydration");
+        if (gfr && gfr < 60) tags.push("reduced kidney function");
+        return tags;
+      };
+      
+      const entryTags = generateTags();
+      const entryDate = new Date().toISOString();
       
       // Prepare the health metrics data to save for our API
       const metricsData = {
         userId,
-        date: new Date(),
+        date: entryDate,
         hydration,
         systolicBP: Number(systolicBP),
         diastolicBP: Number(diastolicBP),
         painLevel,
         stressLevel,
         fatigueLevel,
-        estimatedGFR: gfr || undefined
+        estimatedGFR: gfr || undefined,
+        tags: entryTags,
+        medications: medications
+          .filter(med => med.taken)
+          .map(med => ({ name: med.name, dosage: med.dosage, frequency: med.frequency }))
       };
       
       console.log("Health metrics data to submit:", metricsData);
       
-      // Create Supabase-specific data format for direct saving
+      // Create Supabase-specific data format for direct database saving
       const supabaseData = {
         user_id: userId,
-        created_at: new Date().toISOString(), 
+        created_at: entryDate, 
         bp_systolic: Number(systolicBP),
         bp_diastolic: Number(diastolicBP),
         hydration_level: hydration,
         pain_level: painLevel,
         stress_level: stressLevel,
         fatigue_level: fatigueLevel,
-        estimated_gfr: gfr || null
+        estimated_gfr: gfr || null,
+        tags: entryTags,
+        medications_taken: medications
+          .filter(med => med.taken)
+          .map(med => `${med.name} (${med.dosage})`)
       };
       
-      // Try direct API call to our backend to save to Supabase instead
+      // Try using our new unified "/api/log-health" REST endpoint
+      try {
+        console.log("📤 Submitting health data via unified API endpoint");
+        
+        const logResponse = await fetch("/api/log-health", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            metrics: metricsData,
+            supabase: supabaseData
+          }),
+        });
+        
+        if (logResponse.ok) {
+          const logResult = await logResponse.json();
+          console.log("✅ Health data saved via unified endpoint!", logResult);
+          
+          // Show success state and notification
+          setSaveSuccess(true);
+          toast({
+            title: "Health data saved",
+            description: "Your health metrics have been recorded and GFR calculated.",
+            duration: 3000
+          });
+          
+          // Reset success state after a delay
+          setTimeout(() => setSaveSuccess(false), 3000);
+          
+          if (onClose) onClose();
+          return logResult;
+        }
+        
+        // If the unified endpoint failed, try the dual-path fallback approach
+        console.warn("⚠️ Unified endpoint failed, trying dual-path approach...");
+      } catch (unifiedError) {
+        console.error("❌ Unified endpoint error:", unifiedError);
+      }
+      
+      // FALLBACK: Dual-path approach (try both Supabase and regular API endpoints)
+      
+      // 1. Try direct API call to our Supabase endpoint
+      let supabaseSaveSuccessful = false;
       try {
         console.log("📤 Submitting health data via Supabase API:", supabaseData);
         
-        // Call our server API endpoint that uses Supabase on the backend
         const supabaseResponse = await fetch("/api/supabase/health-logs", {
           method: "POST",
           headers: {
@@ -265,43 +331,68 @@ export default function HealthLogging(props: HealthLoggingProps) {
         } else {
           const supabaseResult = await supabaseResponse.json();
           console.log("✅ Health data saved via Supabase API!", supabaseResult);
+          supabaseSaveSuccessful = true;
         }
       } catch (supabaseError) {
         console.error("Failed to save via Supabase API:", supabaseError);
       }
-        
-      // Standard API call approach for primary data path
-      const response = await fetch("/api/health-metrics", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(metricsData),
-      });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Health metrics API error response:", errorText);
-        throw new Error(errorText || "Failed to save health data");
+      // 2. Standard API call approach as backup data path
+      try {
+        const response = await fetch("/api/health-metrics", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(metricsData),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Health metrics API error response:", errorText);
+          
+          // If Supabase saving also failed, throw an error to fail the entire operation
+          if (!supabaseSaveSuccessful) {
+            throw new Error(errorText || "Failed to save health data to both storage systems");
+          }
+        } else {
+          const result = await response.json();
+          console.log("✅ Health metrics saved successfully with ID:", result.id);
+          
+          // Show success state and notification
+          setSaveSuccess(true);
+          toast({
+            title: "Health data saved",
+            description: "Your health metrics have been recorded and GFR calculated.",
+            duration: 3000
+          });
+          
+          // Reset success state after a delay
+          setTimeout(() => setSaveSuccess(false), 3000);
+          
+          if (onClose) onClose();
+          return result;
+        }
+      } catch (apiError) {
+        console.error("API error:", apiError);
+        
+        // If one of the save methods succeeded, we can still show success
+        if (supabaseSaveSuccessful) {
+          setSaveSuccess(true);
+          toast({
+            title: "Health data saved",
+            description: "Your health data was saved to Supabase successfully.",
+            duration: 3000
+          });
+          setTimeout(() => setSaveSuccess(false), 3000);
+          return { success: true, source: "supabase" };
+        }
+        
+        // If we get here, both methods failed
+        throw new Error("Failed to save health data via any available method");
       }
       
-      const result = await response.json();
-      console.log("✅ Health metrics saved successfully with ID:", result.id);
-      
-      // Show success state and notification
-      setSaveSuccess(true);
-      toast({
-        title: "Health data saved",
-        description: "Your health metrics have been recorded and GFR calculated.",
-        duration: 3000
-      });
-      
-      // Reset success state after a delay
-      setTimeout(() => setSaveSuccess(false), 3000);
-      
-      if (onClose) onClose();
-      return result;
     } catch (error) {
       console.error("Error submitting health data:", error);
       

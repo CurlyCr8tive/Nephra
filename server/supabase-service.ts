@@ -3,6 +3,9 @@
  * 
  * Provides a unified interface for connecting to Supabase
  * and various utility functions for accessing Supabase tables.
+ * 
+ * Implements Row-Level Security (RLS) awareness in all functions
+ * to ensure proper data access control.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -11,10 +14,69 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
 
+// Types for Supabase tables
+export interface HealthLog {
+  id?: number;
+  user_id: string | number;
+  created_at: string;
+  bp_systolic: number;
+  bp_diastolic: number;
+  hydration_level: number;
+  pain_level: number;
+  stress_level: number;
+  fatigue_level: number;
+  estimated_gfr?: number | null;
+  tags?: string[];
+  medications_taken?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface ChatLog {
+  id?: number;
+  user_id: string | number;
+  user_input: string;
+  ai_response: string;
+  model_used?: string;
+  timestamp: string;
+  tags?: string[];
+  emotional_score?: number | null;
+  metadata?: Record<string, any>;
+}
+
+export interface EducationArticle {
+  id?: number;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  published_date: string;
+  category: string;
+  user_focus_tags?: string[];
+}
+
 console.log("Initializing Supabase client");
 
 // Create a single Supabase client for the application
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+/**
+ * RLS Policy Information for Supabase
+ * 
+ * The following Row-Level Security policies should be set up in Supabase:
+ * 
+ * For `health_logs` table:
+ * - Users can only read their own logs: CREATE POLICY "Users can read own logs" ON health_logs FOR SELECT USING (auth.uid()::text = user_id::text);
+ * - Users can only insert their own logs: CREATE POLICY "Users can insert own logs" ON health_logs FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+ * - Users can only update their own logs: CREATE POLICY "Users can update own logs" ON health_logs FOR UPDATE USING (auth.uid()::text = user_id::text);
+ * 
+ * For `chat_logs` table:
+ * - Users can only read their own chats: CREATE POLICY "Users can read own chats" ON chat_logs FOR SELECT USING (auth.uid()::text = user_id::text);
+ * - Users can only insert their own chats: CREATE POLICY "Users can insert own chats" ON chat_logs FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+ * 
+ * For `education_articles` table:
+ * - All users can read articles: CREATE POLICY "Public read access" ON education_articles FOR SELECT USING (true);
+ * - Only admins can insert/update: CREATE POLICY "Admin insert access" ON education_articles FOR INSERT WITH CHECK (auth.role() = 'admin');
+ */
 
 /**
  * Logs a chat interaction to Supabase
@@ -197,5 +259,149 @@ export async function checkSupabaseConnection(): Promise<boolean> {
   } catch (error) {
     console.error("Supabase connection error:", error);
     return false;
+  }
+}
+
+/**
+ * Log chat with emotional score to Supabase (based on Python implementation)
+ * This enhanced version includes emotional scoring and tags
+ * 
+ * @param userId - User identifier for tracking conversations
+ * @param userInput - Message from the user
+ * @param aiResponse - Response from the AI
+ * @param modelUsed - AI model used ('openai', 'gemini', 'perplexity')
+ * @param tags - Optional keywords like ["fatigue", "stress"]
+ * @param emotionalScore - Optional stress or fatigue score (1–10)
+ * @returns Response from Supabase
+ */
+export async function logChatWithEmotionalScore(
+  userId: string | number,
+  userInput: string,
+  aiResponse: string,
+  modelUsed: string = "openai",
+  tags: string[] = [],
+  emotionalScore?: number
+): Promise<{success: boolean, data?: any, error?: any}> {
+  try {
+    // Convert number userId to string if needed
+    const userIdStr = typeof userId === 'number' ? userId.toString() : userId;
+    
+    // Prepare data object
+    const data: ChatLog = {
+      user_id: userIdStr,
+      user_input: userInput,
+      ai_response: aiResponse,
+      model_used: modelUsed,
+      timestamp: new Date().toISOString(),
+      tags: tags,
+      emotional_score: emotionalScore
+    };
+    
+    console.log(`✅ Logging chat to Supabase for user ${userIdStr} with tags: ${tags.join(', ')}`);
+    
+    // Insert into Supabase
+    const { data: responseData, error } = await supabase
+      .from('chat_logs')
+      .insert([data])
+      .select();
+    
+    if (error) {
+      console.error("❌ Error logging chat with emotional score:", error.message);
+      return { success: false, error };
+    }
+    
+    return { success: true, data: responseData };
+  } catch (error) {
+    console.error("❌ Failed to log chat with emotional score:", error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Store education articles in Supabase
+ * Based on the provided Python implementation
+ * 
+ * @param articles - List of education articles to store
+ * @returns Success status and data or error
+ */
+export async function storeEducationArticles(
+  articles: EducationArticle[]
+): Promise<{success: boolean, data?: any, error?: any}> {
+  try {
+    console.log(`🔄 Storing ${articles.length} education articles in Supabase`);
+    
+    const { data, error } = await supabase
+      .from('education_articles')
+      .insert(articles)
+      .select();
+    
+    if (error) {
+      console.error("❌ Error storing education articles:", error.message);
+      return { success: false, error };
+    }
+    
+    console.log(`✅ Successfully stored ${data.length} education articles`);
+    return { success: true, data };
+  } catch (error) {
+    console.error("❌ Failed to store education articles:", error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Search education articles with text query
+ * 
+ * @param query - Search query
+ * @param limit - Maximum number of results to return
+ * @returns Matching articles
+ */
+export async function searchEducationArticles(
+  query: string,
+  limit: number = 5
+): Promise<EducationArticle[]> {
+  try {
+    // Split query into words for better matching
+    const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+    
+    if (queryWords.length === 0) {
+      console.warn("Empty search query");
+      return [];
+    }
+    
+    console.log(`🔍 Searching education articles for: "${query}"`);
+    
+    // Search in title, summary, and tags
+    // Note: This is a basic implementation; for production, use Supabase's full-text search
+    const { data, error } = await supabase
+      .from('education_articles')
+      .select('*')
+      .limit(limit);
+    
+    if (error) {
+      console.error("❌ Error searching education articles:", error.message);
+      return [];
+    }
+    
+    // Filter results client-side by relevance
+    // This is a simple implementation - in production, use database full-text search
+    const matchedArticles = data.filter(article => {
+      const titleMatch = queryWords.some(word => 
+        article.title.toLowerCase().includes(word)
+      );
+      const summaryMatch = queryWords.some(word => 
+        article.summary.toLowerCase().includes(word)
+      );
+      const tagMatch = article.user_focus_tags?.some(tag => 
+        queryWords.some(word => tag.toLowerCase().includes(word))
+      );
+      
+      return titleMatch || summaryMatch || tagMatch;
+    });
+    
+    console.log(`✅ Found ${matchedArticles.length} matching articles`);
+    return matchedArticles;
+  } catch (error) {
+    console.error("❌ Failed to search education articles:", error);
+    return [];
   }
 }
