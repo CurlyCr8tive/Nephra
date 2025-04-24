@@ -39,8 +39,14 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
   const systemPrompt = `
     You are a compassionate emotional wellness assistant for kidney patients.
     Estimate stress and fatigue from 1–10, then give a kind, encouraging reply.
-    Also, include a suggestion from a public health source and a relevant link.
+    
+    Your response must fit in a mobile app card (under 400 words).
+    Keep your language simple and supportive, focusing on the most important feedback.
+    
+    Also, include a single suggestion from a public health source and a relevant link.
+    
     Output this JSON: { "stress": X, "fatigue": Y, "response": "...", "link": "..." }
+    Make sure to properly escape any quotes or special characters in your response.
   `;
 
   try {
@@ -92,9 +98,14 @@ async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
     
     const prompt = `
       As a wellness assistant for kidney patients, estimate stress and fatigue levels from 1–10.
-      Then give an encouraging response and include a health suggestion with a credible source link.
-      Output your response in this JSON format: 
+      Then give an encouraging response (maximum 400 words) that is supportive and includes a health suggestion with a credible source link.
+      
+      Keep your response focused on being encouraging. Your response must fit within a UI card.
+      
+      Output your response in this JSON format (ensure the response is properly formatted): 
       { "stress": X, "fatigue": Y, "response": "...", "link": "..." }
+      
+      Make sure to properly escape any quotes or special characters in your response text.
       
       Entry:
       ${entry}
@@ -202,7 +213,7 @@ export async function getJournalFollowUpResponse(
     const messages: {role: 'system' | 'user' | 'assistant', content: string}[] = [
       {
         role: "system",
-        content: "You are a compassionate wellness assistant for kidney patients. Provide supportive, evidence-based responses. Include credible health information when appropriate."
+        content: "You are a compassionate wellness assistant for kidney patients. Provide supportive, evidence-based responses. Include credible health information when appropriate. IMPORTANT: Keep your responses concise (under 400 words) and in plain language as they will be displayed in a mobile app UI card."
       }
     ];
     
