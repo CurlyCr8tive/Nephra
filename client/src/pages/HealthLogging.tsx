@@ -30,35 +30,23 @@ export default function HealthLogging(props: HealthLoggingProps) {
   const [activeTab, setActiveTab] = useState("health");
   const { toast } = useToast();
   
-  // Wrap in try/catch to handle case where UserProvider is not available
-  let user = null;
-  let healthDataHook: any = { logHealthMetrics: null, isLogging: false };
-  let isLogging = false;
+  // Get user context - it will now always return something
+  const { user } = useUser();
   
-  try {
-    const userContext = useUser();
-    user = userContext.user;
-    
-    if (user) {
-      healthDataHook = useHealthData({ userId: user.id });
-      isLogging = healthDataHook.isLogging;
-    }
-  } catch (error) {
-    console.error("UserContext not available:", error);
-    // Don't call toast here during render - it causes React errors
-  }
-  
-  // Show toast on error using useEffect instead
+  // Log a warning if user is null
   useEffect(() => {
-    const hasError = !user;
-    if (hasError) {
-      toast({
-        title: "Error accessing user data",
-        description: "There was a problem accessing your user information. Please refresh the page and try again.",
-        variant: "destructive",
-      });
+    if (!user) {
+      console.warn("No user data available in HealthLogging component");
     }
-  }, [toast]);
+  }, [user]);
+  
+  // Use the health data hook only if we have a user ID
+  const healthDataHook = user ? useHealthData({ userId: user.id }) : { 
+    logHealthMetrics: null, 
+    isLogging: false 
+  };
+  
+  const isLogging = healthDataHook.isLogging;
   
   // Create a wrapper function for the mutation to handle the TypeScript error
   const logHealthMetrics = async (data: any) => {
