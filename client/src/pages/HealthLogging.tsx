@@ -93,10 +93,16 @@ export default function HealthLogging(props: HealthLoggingProps) {
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // State to track save success
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  
   const handleSave = async () => {
     if (!user) return;
     
     try {
+      // Reset save success state
+      setSaveSuccess(false);
+      
       await logHealthMetrics({
         userId: user.id,
         date: new Date(),
@@ -108,9 +114,30 @@ export default function HealthLogging(props: HealthLoggingProps) {
         fatigueLevel
       });
       
+      // Show success state
+      setSaveSuccess(true);
+      
+      // Show a toast confirmation
+      toast({
+        title: "Data saved successfully",
+        description: "Your health metrics have been recorded.",
+        duration: 3000
+      });
+      
+      // Reset success state after a delay
+      setTimeout(() => setSaveSuccess(false), 3000);
+      
       if (onClose) onClose();
     } catch (error) {
       console.error("Error logging health data:", error);
+      
+      // Show an error toast
+      toast({
+        title: "Unable to save data",
+        description: "There was a problem saving your health metrics. Please try again.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
   };
 
@@ -278,12 +305,22 @@ export default function HealthLogging(props: HealthLoggingProps) {
                 </div>
                 
                 <Button
-                  className="w-full"
+                  className={`w-full ${saveSuccess ? "bg-green-600 hover:bg-green-700" : ""}`}
                   onClick={handleSave}
                   disabled={isLogging}
                 >
-                  {isLogging ? "Saving..." : "Save Health Data"}
+                  {isLogging ? "Saving..." : saveSuccess ? "Data Saved Successfully! ✓" : "Save Health Data"}
                 </Button>
+                
+                {/* Success message that appears when data is saved */}
+                {saveSuccess && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-800 text-sm flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Your health data has been successfully recorded
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
