@@ -131,31 +131,45 @@ export function UserProvider({ children, value }: UserProviderProps) {
           saveToStorage('nephra_user_id', userData.id.toString());
         }
         
-        // Ensure gender information is preserved - log for debugging
+        // CRITICAL: Enhanced gender handling - log debugging info
         console.log("User gender from API:", {
           hasGender: userData.gender !== null && userData.gender !== undefined,
           genderValue: userData.gender,
           genderType: typeof userData.gender
         });
         
-        // Check storage for a saved gender value
+        // ALWAYS check storage for a saved gender value
         const savedGender = getFromStorage('nephra_user_gender');
         
-        // If API returned no gender but we have one saved, use the saved value
-        if ((!userData.gender || userData.gender === '') && savedGender) {
-          console.log("Restoring missing gender from storage:", savedGender);
-          userData.gender = savedGender;
-        }
-        // If we already have a user and gender is missing in the new data, preserve it
-        else if (user && (!userData.gender || userData.gender === '') && user.gender) {
-          console.log("Preserving gender information from previous user state:", user.gender);
+        if (savedGender) {
+          console.log("📋 Found gender in storage:", savedGender);
+          
+          // If API returned no gender but we have one saved, use the saved value
+          if (!userData.gender || userData.gender === '') {
+            console.log("✓ Restoring missing gender from storage:", savedGender);
+            userData.gender = savedGender;
+          }
+          // If API returned a different gender than what we have saved, log it
+          else if (userData.gender !== savedGender) {
+            console.log("⚠️ Gender mismatch - API:", userData.gender, "Storage:", savedGender);
+            // Trust API value in this case, but log the discrepancy
+          }
+        } 
+        // If we have no saved gender but have a user with gender already, preserve it
+        else if (user && user.gender && (!userData.gender || userData.gender === '')) {
+          console.log("✓ Preserving gender from previous user state:", user.gender);
           userData.gender = user.gender;
         }
         
-        // If we have a gender value now, make sure to save it
+        // ALWAYS save current gender to storage, even if it's the same
+        // This ensures we have the most recent value and maintains persistence
         if (userData.gender && userData.gender !== '') {
-          console.log("Saving gender to storage:", userData.gender);
+          console.log("💾 Saving gender to storage:", userData.gender);
           saveToStorage('nephra_user_gender', userData.gender);
+          
+          // Double-check by reading it back immediately
+          const verifyGender = getFromStorage('nephra_user_gender');
+          console.log("✅ Verified gender in storage:", verifyGender);
         }
         
         setUser(userData);
@@ -185,8 +199,8 @@ export function UserProvider({ children, value }: UserProviderProps) {
   
   // Combine provided values with internal state
   // Implement the force update gender function
-  const forceUpdateGender = (genderValue: string) => {
-    console.log("Forcing gender update to:", genderValue);
+  const forceUpdateGender = useCallback((genderValue: string) => {
+    console.log("🔄 Forcing gender update to:", genderValue);
     
     // First, save to session storage as backup
     if (genderValue) {
@@ -200,13 +214,38 @@ export function UserProvider({ children, value }: UserProviderProps) {
         gender: genderValue
       };
       
-      console.log("Updating user with forced gender:", updatedUser);
+      console.log("📊 Updating user with forced gender:", updatedUser);
       setUser(updatedUser);
       
-      // Optionally, we could also update this on the server
-      // But for now we'll just keep it in the client state
+      // CRITICAL: Also update gender on the server
+      if (user.id) {
+        console.log("🔼 Sending gender update to server for user ID:", user.id);
+        
+        // Fire and forget server update
+        fetch(`/api/users/${user.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ gender: genderValue }),
+        })
+        .then(response => {
+          if (response.ok) {
+            console.log("✅ Server gender update successful");
+          } else {
+            console.error("❌ Server gender update failed:", response.status);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log("📥 Server response:", data);
+        })
+        .catch(error => {
+          console.error("⚠️ Error updating gender on server:", error);
+        });
+      }
     }
-  };
+  }, [user]);
   
   // Load gender from session storage if we have a user but missing gender
   useEffect(() => {
@@ -220,7 +259,7 @@ export function UserProvider({ children, value }: UserProviderProps) {
       // We have a gender, save it to session storage
       saveToStorage('nephra_user_gender', user.gender);
     }
-  }, [user]);
+  }, [user, forceUpdateGender]);
 
   const contextValue: UserContextType = {
     user: value?.user !== undefined ? value.user : user,

@@ -172,7 +172,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginCredentials) => {
       console.log("Login attempt for:", credentials.username);
       
-      // Use the regular login endpoint without test login fallback
+      // Try demo login first for quick testing (username: demouser, password: demopass)
+      if (credentials.username === "demouser" && credentials.password === "demopass") {
+        console.log("Using demo login shortcut");
+        try {
+          const demoRes = await fetch("/api/login-demo", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            }
+          });
+          
+          if (demoRes.ok) {
+            console.log("Demo login successful");
+            return await demoRes.json();
+          }
+        } catch (e) {
+          console.error("Demo login failed:", e);
+        }
+      }
+      
+      // Regular login as fallback
       const res = await fetch("/api/login", {
         method: "POST",
         headers: {
