@@ -356,25 +356,64 @@ def analyze_journal_entry(journal_content: str, user_id: str = None, past_entrie
     # Try Anthropic next
     if anthropic_client:
         try:
+            # Prepare messages with or without context
+            messages = []
+            
+            # Add past entries context if available
+            if past_entries and len(past_entries) > 0:
+                context_message = "Here are the user's previous journal entries for context:\n\n"
+                for idx, entry in enumerate(past_entries):
+                    entry_content = entry.get('content', '')
+                    if entry_content:
+                        entry_date = entry.get('created_at', 'Unknown date')
+                        entry_stress = entry.get('stress_score', 'N/A')
+                        entry_fatigue = entry.get('fatigue_score', 'N/A')
+                        entry_pain = entry.get('pain_score', 'N/A')
+                        
+                        context_message += f"Entry {idx+1} ({entry_date}):\n"
+                        context_message += f"Content: {entry_content}\n"
+                        context_message += f"Previous scores: Stress {entry_stress}, Fatigue {entry_fatigue}, Pain {entry_pain}\n\n"
+                
+                context_message += "\nAnalyze their current journal entry with awareness of this history:\n"
+                context_message += f"Current entry: {journal_content}\n\n"
+                
+                user_message = f"""Please analyze this journal entry in context of the user's history and extract the following information:
+                1. Stress level (1-10)
+                2. Fatigue level (1-10)
+                3. Pain level (1-10)
+                4. Overall sentiment (positive, negative, neutral)
+                5. Key health concerns mentioned
+                6. A brief supportive response that acknowledges any trends or changes from previous entries
+                7. Health insights based on patterns across entries
+
+                Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
+                sentiment, keywords, supportiveResponse, healthInsights.
+                
+                {context_message}
+                """
+            else:
+                user_message = f"""Please analyze this journal entry and extract the following information:
+                1. Stress level (1-10)
+                2. Fatigue level (1-10)
+                3. Pain level (1-10)
+                4. Overall sentiment (positive, negative, neutral)
+                5. Key health concerns mentioned
+                6. A brief supportive response
+
+                Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
+                sentiment, keywords, supportiveResponse, healthInsights.
+
+                Journal entry: {journal_content}
+                """
+            
+            # Create message and call Anthropic API
             response = anthropic_client.messages.create(
                 model="claude-3-7-sonnet-20250219",  # the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
                 max_tokens=1024,
                 messages=[
                     {
                         "role": "user",
-                        "content": f"""Please analyze this journal entry and extract the following information:
-                        1. Stress level (1-10)
-                        2. Fatigue level (1-10)
-                        3. Pain level (1-10)
-                        4. Overall sentiment (positive, negative, neutral)
-                        5. Key health concerns mentioned
-                        6. A brief supportive response
-
-                        Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
-                        sentiment, keywords, supportiveResponse, healthInsights.
-
-                        Journal entry: {journal_content}
-                        """
+                        "content": user_message
                     }
                 ]
             )
@@ -522,13 +561,52 @@ def process_chat_message(message: str, conversation_history: List[Dict[str, str]
                     "parts": [{"text": msg.get("content", "")}]
                 })
             
-            # Create the prompt
-            gemini_prompt = f"""
-            You are a kidney health assistant for the Nephra app. The user has sent this message:
-            "{message}"
-            Provide a helpful, empathetic response with accurate medical information. 
-            If you're unsure about something medical, be transparent about the limits of your knowledge.
-            """
+            # Create the prompt - enhanced with conversation history if available
+            if conversation_history and len(conversation_history) > 0:
+                history_text = "Previous conversation:\n"
+                for idx, msg in enumerate(conversation_history[-3:]):  # Only use the last 3 messages for context
+                    role = msg.get("role", "")
+                    content = msg.get("content", "")
+                    if role and content:
+                        speaker = "User" if role == "user" else "Nephra AI"
+                        history_text += f"{speaker}: {content}\n"
+                
+                # Check for recurring themes
+                user_concerns = []
+                for msg in conversation_history:
+                    if msg.get("role") == "user":
+                        user_msg = msg.get("content", "").lower()
+                        if "tired" in user_msg or "fatigue" in user_msg:
+                            user_concerns.append("fatigue")
+                        if "pain" in user_msg:
+                            user_concerns.append("pain")
+                        if "stress" in user_msg or "anxious" in user_msg or "worried" in user_msg:
+                            user_concerns.append("stress/anxiety")
+                
+                concerns_text = ""
+                if user_concerns:
+                    unique_concerns = list(set(user_concerns))
+                    concerns_text = f"\nThe user has previously mentioned concerns about: {', '.join(unique_concerns)}."
+                
+                gemini_prompt = f"""
+                You are a kidney health assistant for the Nephra app with access to previous conversation context.
+                
+                {history_text}
+                {concerns_text}
+                
+                Now the user has sent this new message:
+                "{message}"
+                
+                Provide a helpful, empathetic response with accurate medical information that references relevant context from previous messages if appropriate.
+                If you're unsure about something medical, be transparent about the limits of your knowledge.
+                """
+            else:
+                gemini_prompt = f"""
+                You are a kidney health assistant for the Nephra app. The user has sent this message:
+                "{message}"
+                Provide a helpful, empathetic response with accurate medical information. 
+                If you're unsure about something medical, be transparent about the limits of your knowledge.
+                """
             
             # Call Gemini API
             gemini_response = gemini_client.generate_content(
