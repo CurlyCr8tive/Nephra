@@ -1,0 +1,92 @@
+✅ Full Fix Plan
+🔹 1. Update UserContext.tsx
+Ensure the user is fetched:
+
+Immediately when the app starts
+
+After any profile update
+
+On any route change, if user is not present in context
+
+Here’s the core of what you should include:
+
+tsx
+Copy
+Edit
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+
+const UserContext = createContext(null);
+
+export const UserProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+
+  // Load user profile on first mount
+  useEffect(() => {
+    const loadUser = async () => {
+      const sessionUser = supabase.auth.user();
+      if (!sessionUser) return;
+
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("user_id", sessionUser.id)
+        .single();
+
+      if (error) {
+        console.error("Error loading profile:", error.message);
+      } else {
+        setUser(data);
+      }
+    };
+
+    if (!user) loadUser();
+  }, []);
+
+  const refreshUser = async () => {
+    const sessionUser = supabase.auth.user();
+    if (!sessionUser) return;
+
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("user_id", sessionUser.id)
+      .single();
+
+    if (data) setUser(data);
+    else console.warn("Refresh failed:", error.message);
+  };
+
+  return (
+    <UserContext.Provider value={{ user, setUser, refreshUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+export const useUser = () => useContext(UserContext);
+🔹 2. Use refreshUser() After Profile Updates
+Anywhere you update the user profile (e.g., on the profile page):
+
+tsx
+Copy
+Edit
+const { refreshUser } = useUser();
+
+await updateUserProfile(data); // Your form submit
+await refreshUser(); // 🧠 Refresh with latest info
+🔹 3. Use Gender Safely in HealthLogging.tsx
+tsx
+Copy
+Edit
+const { user } = useUser();
+
+useEffect(() => {
+  console.log("User gender loaded:", user?.gender);
+}, [user]);
+And ensure gender is used conditionally:
+
+tsx
+Copy
+Edit
+if (!user?.gender) return <p>Loading gender info...</p>;

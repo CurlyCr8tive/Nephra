@@ -204,6 +204,31 @@ export default function ProfilePage() {
   }, [profileData, form]);
 
   // Update profile mutation
+  // Function to manually fetch user profile data after an update
+  const fetchUserProfile = async () => {
+    console.log("Manually fetching fresh user profile data...");
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: "GET",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user profile: ${response.statusText}`);
+      }
+      
+      const freshUserData = await response.json();
+      console.log("Fresh user profile data retrieved:", freshUserData);
+      return freshUserData;
+    } catch (err) {
+      console.error("Error fetching fresh user profile:", err);
+      return null;
+    }
+  };
+
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
     mutationFn: async (data: any) => {
       console.log("Updating profile with data:", data);
@@ -236,11 +261,28 @@ export default function ProfilePage() {
         throw err;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log("Profile update success:", data);
+      
+      // Immediately fetch fresh user data after update
+      const freshUserData = await fetchUserProfile();
+      
+      if (freshUserData) {
+        // Update query cache
+        queryClient.setQueryData(["/api/user"], freshUserData);
+        queryClient.setQueryData([`/api/users/${userId}`], freshUserData);
+        
+        console.log("User cache updated with fresh profile data:", freshUserData);
+      }
+      
+      // Always invalidate queries to ensure consistency
       queryClient.invalidateQueries({
         queryKey: [`/api/users/${userId}`]
       });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/user"]
+      });
+      
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
@@ -273,10 +315,20 @@ export default function ProfilePage() {
     console.log("Submitting profile data with gender:", dataToSave.gender);
     updateProfile(dataToSave);
     
-    // Force a global user context refresh
-    if (authUser && authUser.refreshUserData) {
+    // Force a global user context refresh and explicitly update the gender
+    if (authUser) {
       console.log("Forcing user context refresh after profile update");
-      authUser.refreshUserData();
+      
+      // First try to use our new forceUpdateGender function
+      if (authUser.forceUpdateGender) {
+        console.log("Explicitly forcing gender update to:", dataToSave.gender);
+        authUser.forceUpdateGender(dataToSave.gender);
+      }
+      
+      // Always refresh user data as well
+      if (authUser.refreshUserData) {
+        authUser.refreshUserData();
+      }
     }
   };
 
