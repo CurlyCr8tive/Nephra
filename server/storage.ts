@@ -183,7 +183,34 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userId++;
-    const user: User = { ...insertUser, id, createdAt: new Date() };
+    
+    // Create user with default values for null fields
+    const user: User = {
+      id,
+      username: insertUser.username,
+      password: insertUser.password,
+      email: insertUser.email || null,
+      firstName: insertUser.firstName || null,
+      lastName: insertUser.lastName || null,
+      age: insertUser.age || null,
+      gender: insertUser.gender || null,
+      weight: insertUser.weight || null,
+      race: insertUser.race || null,
+      kidneyDiseaseType: insertUser.kidneyDiseaseType || null,
+      kidneyDiseaseStage: insertUser.kidneyDiseaseStage || null,
+      diagnosisDate: insertUser.diagnosisDate || null,
+      otherHealthConditions: insertUser.otherHealthConditions || [],
+      primaryCareProvider: insertUser.primaryCareProvider || null,
+      nephrologist: insertUser.nephrologist || null,
+      otherSpecialists: insertUser.otherSpecialists || null,
+      insuranceProvider: insertUser.insuranceProvider || null,
+      insurancePolicyNumber: insertUser.insurancePolicyNumber || null,
+      transplantCenter: insertUser.transplantCenter || null,
+      transplantCoordinator: insertUser.transplantCoordinator || null,
+      transplantCoordinatorPhone: insertUser.transplantCoordinatorPhone || null,
+      createdAt: new Date()
+    };
+    
     this.users.set(id, user);
     return user;
   }

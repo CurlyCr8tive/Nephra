@@ -109,7 +109,45 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Add test login function for debugging
+  app.post("/api/login-test", async (req, res) => {
+    try {
+      const { username } = req.body;
+      console.log("Attempting test login for:", username);
+      
+      // Get user directly from storage
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        console.log("Test login - User not found:", username);
+        return res.status(401).json({ error: "User not found" });
+      }
+      
+      // Log user details (excluding password)
+      const userDetails = { ...user, password: "[REDACTED]" };
+      console.log("User found:", JSON.stringify(userDetails, null, 2));
+      
+      // Manually log in
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Test login session error:", err);
+          return res.status(500).json({ error: "Session error" });
+        }
+        
+        console.log("Test login successful for:", username);
+        return res.status(200).json(user);
+      });
+    } catch (error) {
+      console.error("Test login error:", error);
+      res.status(500).json({ error: "Test login failed" });
+    }
+  });
+  
+  // Regular login endpoint
   app.post("/api/login", (req, res, next) => {
+    const { username, password } = req.body;
+    console.log(`Login attempt for: ${username}`);
+    
     passport.authenticate("local", (err, user, info) => {
       if (err) {
         console.error("Login error:", err);
