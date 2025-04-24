@@ -982,6 +982,249 @@ export default function ProfilePage() {
                           />
                         </div>
                       </TabsContent>
+                      
+                      {/* Health Preferences Tab */}
+                      <TabsContent value="preferences" className="space-y-4">
+                        <div className="space-y-6">
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Water Intake Goals</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="recommendedDailyHydration"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Daily Water Intake Goal</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.1"
+                                        placeholder="Water intake" 
+                                        {...field} 
+                                        disabled={!isEditing}
+                                        value={field.value || ""}
+                                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={form.control}
+                                name="preferredHydrationUnit"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Preferred Unit</FormLabel>
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value}
+                                      disabled={!isEditing}
+                                      value={field.value || undefined}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select unit" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="liters">Liters</SelectItem>
+                                        <SelectItem value="cups">Cups</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            
+                            <div className="mt-2 text-sm text-gray-500">
+                              {form.watch("recommendedDailyHydration") && form.watch("preferredHydrationUnit") && (
+                                <p>
+                                  {form.watch("preferredHydrationUnit") === "liters" ? (
+                                    <>Your goal: {form.watch("recommendedDailyHydration")} liters (~{Math.round(form.watch("recommendedDailyHydration") * 4.2)} cups) per day</>
+                                  ) : (
+                                    <>Your goal: {form.watch("recommendedDailyHydration")} cups (~{(form.watch("recommendedDailyHydration") / 4.2).toFixed(1)} liters) per day</>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Blood Pressure Goals</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="targetBloodPressureSystolic"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Target Systolic</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        placeholder="Target systolic" 
+                                        {...field} 
+                                        disabled={!isEditing}
+                                        value={field.value || ""}
+                                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              <FormField
+                                control={form.control}
+                                name="targetBloodPressureDiastolic"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Target Diastolic</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        placeholder="Target diastolic" 
+                                        {...field} 
+                                        disabled={!isEditing}
+                                        value={field.value || ""}
+                                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            
+                            <div className="mt-2 text-sm text-gray-500">
+                              {form.watch("targetBloodPressureSystolic") && form.watch("targetBloodPressureDiastolic") && (
+                                <p>Your target blood pressure: {form.watch("targetBloodPressureSystolic")}/{form.watch("targetBloodPressureDiastolic")} mmHg</p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Medications Section */}
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Medications</h3>
+                            
+                            {isEditing && (
+                              <div className="space-y-4 mb-4 p-4 border rounded-md">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Medication Name</label>
+                                    <Input 
+                                      placeholder="Medication name"
+                                      value={medication.name}
+                                      onChange={(e) => setMedication({...medication, name: e.target.value})}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Dosage</label>
+                                    <Input 
+                                      placeholder="e.g., 50mg"
+                                      value={medication.dosage}
+                                      onChange={(e) => setMedication({...medication, dosage: e.target.value})}
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Frequency</label>
+                                    <Select
+                                      value={medication.frequency}
+                                      onValueChange={(value) => setMedication({...medication, frequency: value})}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select frequency" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="once_daily">Once daily</SelectItem>
+                                        <SelectItem value="twice_daily">Twice daily</SelectItem>
+                                        <SelectItem value="three_times_daily">Three times daily</SelectItem>
+                                        <SelectItem value="four_times_daily">Four times daily</SelectItem>
+                                        <SelectItem value="every_other_day">Every other day</SelectItem>
+                                        <SelectItem value="weekly">Weekly</SelectItem>
+                                        <SelectItem value="as_needed">As needed</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Time of Day</label>
+                                    <Select
+                                      value={medication.time}
+                                      onValueChange={(value) => setMedication({...medication, time: value})}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select time" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="morning">Morning</SelectItem>
+                                        <SelectItem value="afternoon">Afternoon</SelectItem>
+                                        <SelectItem value="evening">Evening</SelectItem>
+                                        <SelectItem value="bedtime">Bedtime</SelectItem>
+                                        <SelectItem value="with_meals">With meals</SelectItem>
+                                        <SelectItem value="before_meals">Before meals</SelectItem>
+                                        <SelectItem value="after_meals">After meals</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-sm font-medium mb-1">Notes</label>
+                                  <Input 
+                                    placeholder="Additional notes"
+                                    value={medication.notes}
+                                    onChange={(e) => setMedication({...medication, notes: e.target.value})}
+                                  />
+                                </div>
+                                
+                                <Button 
+                                  type="button" 
+                                  onClick={addMedication}
+                                  disabled={!medication.name || !medication.dosage || !medication.frequency}
+                                  className="w-full"
+                                >
+                                  <PlusCircle className="h-4 w-4 mr-2" />
+                                  Add Medication
+                                </Button>
+                              </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                              {getMedications().length > 0 ? (
+                                getMedications().map((med, idx) => (
+                                  <div key={idx} className="flex items-center justify-between p-3 border rounded-md">
+                                    <div className="flex-1">
+                                      <p className="font-medium">{med.name} ({med.dosage})</p>
+                                      <p className="text-sm text-gray-500">
+                                        {med.frequency.replace(/_/g, ' ')} 
+                                        {med.time && ` • ${med.time.replace(/_/g, ' ')}`}
+                                      </p>
+                                      {med.notes && <p className="text-sm text-gray-500 mt-1">{med.notes}</p>}
+                                    </div>
+                                    {isEditing && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeMedication(med)}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-sm text-gray-500 italic">No medications added</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
                     </Tabs>
                     
                     {isEditing && (
