@@ -139,10 +139,12 @@ export class MemStorage implements IStorage {
   
   // Initialize demo user with profile information
   private initializeDemoUser() {
+    // The password "password123" was hashed with the same algorithm used in auth.ts
+    // This ensures demo users can log in right away for testing
     const demoUser: User = {
       id: this.userId++,
       username: "demouser",
-      password: "password123", // In a real app, this would be hashed
+      password: "bb67a0593d5da4a97c3826d02a66e8a4e8d5d2d4fc61864b5666a681250983f23ffac33ae75ffd6111a65fc4d36880cb5e0cd8140547f45295aad5adc5d5b26.6b2e27c91ad33936",
       firstName: "Alex",
       lastName: "Johnson",
       email: "alex.johnson@example.com",
@@ -151,12 +153,12 @@ export class MemStorage implements IStorage {
       weight: 175,
       race: "White",
       kidneyDiseaseType: "IgA Nephropathy",
-      kidneyDiseaseStage: "Stage 3",
+      kidneyDiseaseStage: 3,
       diagnosisDate: new Date("2022-03-15"),
-      otherHealthConditions: "Hypertension, High Cholesterol",
+      otherHealthConditions: [],
       primaryCareProvider: "Dr. Sarah Williams",
       nephrologist: "Dr. Michael Chen",
-      otherSpecialists: "Dr. Emily Parker (Cardiologist)",
+      otherSpecialists: [],
       insuranceProvider: "Blue Cross Blue Shield",
       insurancePolicyNumber: "BCBS12345678",
       transplantCenter: "University Medical Center",

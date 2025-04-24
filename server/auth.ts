@@ -10,30 +10,10 @@ import { User } from "@shared/schema";
 declare global {
   namespace Express {
     // Define Express.User to be the same as our User type
-    interface User {
-      id: number;
-      username: string;
-      password: string;
-      email: string | null;
-      firstName: string | null;
-      lastName: string | null;
-      age: number | null;
-      gender: string | null;
-      weight: number | null;
-      race: string | null;
-      kidneyDiseaseType: string | null;
-      kidneyDiseaseStage: number | null;
-      diagnosisDate: Date | null;
-      otherHealthConditions: string | null;
-      primaryCareProvider: string | null;
-      nephrologist: string | null;
-      otherSpecialists: string | null;
-      insuranceProvider: string | null;
-      insurancePolicyNumber: string | null;
-      transplantCenter: string | null;
-      transplantCoordinator: string | null;
-      transplantCoordinatorPhone: string | null;
-      createdAt: Date | null;
+    interface User extends Omit<User, 'otherHealthConditions' | 'otherSpecialists'> {
+      // These fields need special handling to match the schema definition
+      otherHealthConditions: string[] | null;
+      otherSpecialists: any | null; // Using 'any' for jsonb type
     }
   }
 }
@@ -74,13 +54,24 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        console.log(`Attempting login for username: ${username}`);
         const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
-          return done(null, user);
+        if (!user) {
+          console.log(`User not found: ${username}`);
+          return done(null, false, { message: "Invalid username or password" });
         }
+        
+        const passwordMatch = await comparePasswords(password, user.password);
+        console.log(`Password match result for ${username}: ${passwordMatch}`);
+        
+        if (!passwordMatch) {
+          return done(null, false, { message: "Invalid username or password" });
+        }
+        
+        console.log(`Login successful for ${username}`);
+        return done(null, user);
       } catch (err) {
+        console.error("Authentication error:", err);
         return done(err);
       }
     }),
@@ -118,8 +109,28 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) {
+        console.error("Login error:", err);
+        return next(err);
+      }
+      
+      if (!user) {
+        console.log("Login failed:", info?.message || "Authentication failed");
+        return res.status(401).json({ error: info?.message || "Invalid username or password" });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Session error:", loginErr);
+          return next(loginErr);
+        }
+        
+        console.log(`User logged in successfully: ${user.username}`);
+        return res.status(200).json(user);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
