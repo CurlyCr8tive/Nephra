@@ -285,7 +285,7 @@ export async function processAndSaveJournalEntry(
       painScore: contextAnalysis.painScore
     };
   } else {
-    journalData = await processJournalEntry(userId, content);
+    journalData = await processJournalEntry(userId, content, undefined);
   }
   
   // Save to database
