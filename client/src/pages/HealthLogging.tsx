@@ -181,7 +181,15 @@ export default function HealthLogging(props: HealthLoggingProps) {
       }
       
       // Constants based on gender
-      const isFemale = user.gender.toLowerCase() === 'female';
+      // Safely access gender with null checks and proper case normalization
+      const genderStr = user.gender ? String(user.gender).toLowerCase() : '';
+      console.log("GFR calculation - gender info:", {
+        rawGender: user.gender,
+        normalizedGender: genderStr,
+        isFemaleCheck: genderStr === 'female'
+      });
+      
+      const isFemale = genderStr === 'female';
       const K = isFemale ? 0.7 : 0.9;
       const alpha = isFemale ? -0.241 : -0.302;
       const femaleMultiplier = isFemale ? 1.012 : 1.0;
@@ -246,8 +254,17 @@ export default function HealthLogging(props: HealthLoggingProps) {
     else if (diseaseStage === 5) baseGFR = 15;
     
     // Adjustment factors (simplified for demo)
-    const ageAdjustment = Math.max(0, (40 - user.age) / 100);
-    const genderFactor = user.gender.toLowerCase() === 'female' ? 0.85 : 1.0;
+    const ageAdjustment = Math.max(0, (40 - (user.age || 40)) / 100);
+    
+    // Safely access gender with null checks and proper case normalization
+    const genderStr = user.gender ? String(user.gender).toLowerCase() : '';
+    console.log("GFR calculation (simplified method) - gender info:", {
+      rawGender: user.gender,
+      normalizedGender: genderStr,
+      isFemaleCheck: genderStr === 'female'
+    });
+    
+    const genderFactor = genderStr === 'female' ? 0.85 : 1.0;
     
     // Health metric adjustments (simplified for demo)
     const bpFactor = 1 - Math.max(0, (Number(systolicBP) - 120) / 400);
@@ -270,8 +287,17 @@ export default function HealthLogging(props: HealthLoggingProps) {
   
   // Update estimated GFR when health metrics change
   useEffect(() => {
-    // Calculate GFR only when user data and required inputs are available
-    if (user && user.age && user.gender) {
+    // Calculate GFR with more relaxed requirements to handle corner cases
+    if (user) {
+      // Log information to debug gender issues
+      console.log("User data for GFR calculation:", {
+        hasAge: user.age !== null && user.age !== undefined,
+        hasGender: user.gender !== null && user.gender !== undefined,
+        ageValue: user.age,
+        genderValue: user.gender,
+        genderType: typeof user.gender
+      });
+      
       // If user data is available, try to calculate GFR
       const gfr = calculateGFR();
       
