@@ -14,7 +14,7 @@ import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/hooks/use-toast";
 
-interface HealthLoggingProps extends RouteComponentProps {
+interface HealthLoggingProps extends Partial<RouteComponentProps> {
   onClose?: () => void;
 }
 
@@ -66,6 +66,13 @@ export default function HealthLogging(props: HealthLoggingProps) {
   // Use the health data hook only if we have a user ID
   // Default to ID 1 for demo purposes if user is null (for testing only)
   const userId = user?.id || 1;
+  
+  // Log the current user context info
+  useEffect(() => {
+    console.log("HealthLogging component - User context:", 
+      user ? `Logged in as ${user.username} (ID: ${user.id})` : "Not authenticated, using default ID 1");
+  }, [user]);
+  
   const healthDataHook = useHealthData({ userId });
   
   const isLogging = healthDataHook.isLogging;
@@ -175,7 +182,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
   // Update estimated GFR when health metrics change
   useEffect(() => {
     setEstimatedGFR(calculateGFR());
-  }, [user, hydration, systolicBP, diastolicBP, painLevel, stressLevel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.age, user?.gender, user?.race, user?.weight, user?.kidneyDiseaseStage, 
+      hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel]);
   
   /**
    * Dedicated function to prepare and submit health data

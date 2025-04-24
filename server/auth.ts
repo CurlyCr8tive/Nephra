@@ -218,35 +218,18 @@ export function setupAuth(app: Express) {
       const userDetails = { ...user, password: "[REDACTED]" };
       console.log("Demo user found:", JSON.stringify(userDetails, null, 2));
       
-      // Destroy any existing session to ensure a clean state
-      if (req.session) {
-        await new Promise<void>((resolve) => {
-          req.session.destroy((err) => {
-            if (err) console.error("Error destroying session:", err);
-            resolve();
-          });
-        });
-      }
+      // Directly log in the user with the current session
+      // No session regeneration needed
+      console.log("Using direct login for demo user");
       
-      // Generate a new session
-      await new Promise<void>((resolve) => {
-        req.session.regenerate((err) => {
-          if (err) console.error("Error regenerating session:", err);
-          resolve();
-        });
-      });
-      
-      // Manually log in with the new session
-      await new Promise<void>((resolve, reject) => {
-        req.login(user, (err) => {
-          if (err) {
-            console.error("Demo login session error:", err);
-            reject(err);
-          } else {
-            console.log(`Demo login successful for: ${demoUsername}`);
-            resolve();
-          }
-        });
+      // Simple direct login without any session manipulation
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Demo login session error:", err);
+          throw err;
+        }
+        
+        console.log(`Demo login successful for: ${demoUsername}`);
       });
       
       // Return success response
