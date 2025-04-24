@@ -29,10 +29,36 @@ router.post("/process", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing required fields: userId, content" });
     }
     
-    // Process and save the journal entry with optional health metrics
-    const result = await journalService.processAndSaveJournalEntry(userId, content);
+    // Get past entries from Supabase if available for enhanced context
+    let pastEntries = [];
+    let contextEnriched = false;
+    try {
+      if (typeof supabaseService.checkSupabaseConnection === 'function') {
+        const isConnected = await supabaseService.checkSupabaseConnection();
+        
+        if (isConnected && typeof supabaseService.getJournalEntries === 'function') {
+          // Get recent journal entries for context
+          pastEntries = await supabaseService.getJournalEntries(userId, 3);
+          if (pastEntries && pastEntries.length > 0) {
+            contextEnriched = true;
+            console.log(`Retrieved ${pastEntries.length} past journal entries for context`);
+          }
+        }
+      }
+    } catch (contextError) {
+      console.warn("Error retrieving past entries for context:", contextError);
+      // Continue with processing even if context retrieval fails
+    }
     
-    // If Supabase is configured, also save to Supabase
+    // Process and save the journal entry with optional health metrics
+    // Pass past entries for context-aware analysis
+    const result = await journalService.processAndSaveJournalEntry(
+      userId, 
+      content,
+      contextEnriched ? pastEntries : undefined
+    );
+    
+    // If Supabase is configured, also save to Supabase with enhanced metadata
     let supabaseResult = { success: false, message: "Supabase not configured" };
     
     try {
@@ -41,17 +67,40 @@ router.post("/process", async (req: Request, res: Response) => {
         const isConnected = await supabaseService.checkSupabaseConnection();
         
         if (isConnected) {
-          // Log the journal entry in Supabase
-          await supabaseService.logChatInteraction(
-            userId,
-            content,
-            result.entry.aiResponse || "No AI response generated",
-            true
-          );
+          // Enhanced logging with emotional scores and tags
+          if (typeof supabaseService.logChatToSupabase === 'function') {
+            // Get emotional scores and tags from the result
+            const tags = result.entry.tags || [];
+            const emotionalScore = Math.max(
+              result.entry.stressScore || 0, 
+              result.entry.fatigueScore || 0, 
+              result.entry.painScore || 0
+            );
+            
+            // Enhanced logging with emotional score and tags
+            await supabaseService.logChatToSupabase(
+              userId,
+              content,
+              result.entry.aiResponse || "No AI response generated",
+              'openai',
+              tags,
+              emotionalScore > 0 ? emotionalScore : undefined
+            );
+          } else {
+            // Fallback to basic logging
+            await supabaseService.logChatInteraction(
+              userId,
+              content,
+              result.entry.aiResponse || "No AI response generated",
+              true
+            );
+          }
           
           supabaseResult = {
             success: true,
-            message: "Successfully exported to Supabase"
+            message: contextEnriched 
+              ? "Successfully exported to Supabase with enhanced metadata and used past entries for context"
+              : "Successfully exported to Supabase with enhanced metadata"
           };
         }
       }
@@ -59,14 +108,15 @@ router.post("/process", async (req: Request, res: Response) => {
       console.error("Supabase integration error:", supabaseError);
       supabaseResult = {
         success: false,
-        message: `Supabase error: ${supabaseError.message}`
+        message: `Supabase error: ${supabaseError}`
       };
     }
     
     res.json({
       journalEntry: result.entry,
       metrics: result.metrics,
-      supabase: supabaseResult
+      supabase: supabaseResult,
+      contextAware: contextEnriched
     });
   } catch (error) {
     console.error("Error processing journal entry:", error);
@@ -100,6 +150,156 @@ router.post("/analyze-nlp", async (req: Request, res: Response) => {
  * Analyze a journal entry with Perplexity
  * POST /api/journal/analyze-perplexity
  */
+/**
+ * Analyze a journal entry with Google Gemini
+ * POST /api/journal/analyze-gemini
+ */
+router.post("/analyze-gemini", async (req: Request, res: Response) => {
+  try {
+    const { content, userId } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: "Missing required field: content" });
+    }
+    
+    // Check if Gemini API key is available
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ 
+        error: "Gemini API key is not configured",
+        message: "Please set the GEMINI_API_KEY environment variable"
+      });
+    }
+    
+    // Check for past journal entries in Supabase if userId provided
+    let pastEntriesContext = "";
+    if (userId && typeof supabaseService.getJournalEntries === 'function') {
+      try {
+        const isConnected = await supabaseService.checkSupabaseConnection();
+        if (isConnected) {
+          const pastEntries = await supabaseService.getJournalEntries(userId, 3);
+          
+          if (pastEntries && pastEntries.length > 0) {
+            pastEntriesContext = "Recent journal entries for context:\n\n";
+            
+            for (const entry of pastEntries) {
+              const date = new Date(entry.timestamp || entry.created_at).toLocaleDateString();
+              pastEntriesContext += `Entry (${date}): ${entry.user_input || entry.content}\n`;
+              if (entry.emotional_score) {
+                pastEntriesContext += `Emotional score: ${entry.emotional_score}/10\n`;
+              }
+              if (entry.tags && entry.tags.length > 0) {
+                pastEntriesContext += `Tags: ${entry.tags.join(", ")}\n`;
+              }
+              pastEntriesContext += "\n";
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Error retrieving past journal entries from Supabase:", error);
+      }
+    }
+    
+    // Using the fetch API for Google Gemini
+    const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are a health assistant specialized in analyzing journal entries from kidney disease patients.
+                ${pastEntriesContext ? pastEntriesContext : ""}
+                
+                Analyze the following journal entry:
+                "${content}"
+                
+                Provide these insights:
+                1. Stress level (1-10)
+                2. Fatigue level (1-10)
+                3. Pain level (1-10)
+                4. Overall sentiment (positive, negative, neutral)
+                5. Key health concerns or symptoms mentioned
+                6. A brief supportive response (1-2 sentences)
+                
+                Format your response as JSON with these keys: stressScore, fatigueScore, painScore, sentiment, keywords, supportiveResponse, healthInsights.
+                `
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1024
+        }
+      })
+    });
+    
+    // Process the response
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    }
+    
+    const geminiData = await response.json();
+    const assistantMessage = geminiData.candidates[0]?.content?.parts[0]?.text || "";
+    
+    // Extract JSON from response
+    let analysisResult;
+    try {
+      // Find JSON in response (sometimes Gemini adds explanatory text)
+      const jsonMatch = assistantMessage.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : assistantMessage;
+      analysisResult = JSON.parse(jsonString);
+    } catch (parseError) {
+      // If not valid JSON, extract key information using regex
+      analysisResult = {
+        stressScore: extractNumberFromText(assistantMessage, /stress(\s+level)?(\s*):?\s*(\d+)/i, 3, 5),
+        fatigueScore: extractNumberFromText(assistantMessage, /fatigue(\s+level)?(\s*):?\s*(\d+)/i, 3, 5),
+        painScore: extractNumberFromText(assistantMessage, /pain(\s+level)?(\s*):?\s*(\d+)/i, 3, 5),
+        sentiment: extractSentiment(assistantMessage),
+        keywords: extractKeywords(assistantMessage),
+        healthInsights: assistantMessage,
+        supportiveResponse: extractSupportiveResponse(assistantMessage)
+      };
+    }
+    
+    // Log the analysis to Supabase if userId is provided
+    if (userId && typeof supabaseService.logChatToSupabase === 'function') {
+      try {
+        const isConnected = await supabaseService.checkSupabaseConnection();
+        if (isConnected) {
+          await supabaseService.logChatToSupabase(
+            userId,
+            content,
+            analysisResult.supportiveResponse || "",
+            "gemini",
+            analysisResult.keywords || [],
+            Math.max(
+              analysisResult.stressScore || 0,
+              analysisResult.fatigueScore || 0,
+              analysisResult.painScore || 0
+            ) || 5
+          );
+        }
+      } catch (error) {
+        console.warn("Error logging analysis to Supabase:", error);
+      }
+    }
+    
+    res.json({
+      analysis: analysisResult,
+      rawResponse: assistantMessage
+    });
+  } catch (error) {
+    console.error("Error analyzing journal with Gemini:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/analyze-perplexity", async (req: Request, res: Response) => {
   try {
     const { content } = req.body;
@@ -261,6 +461,27 @@ function extractSentiment(text: string): string {
     }
   }
   return "neutral";
+}
+
+function extractKeywords(text: string): string[] {
+  // Look for keywords or tags section
+  const keywordRegex = /keywords|tags|key concerns|health concerns|symptoms(?:\s*):?\s*\[?([^\]]*)\]?/i;
+  const match = text.match(keywordRegex);
+  
+  if (match && match[1]) {
+    // Split by commas or other separators
+    return match[1].split(/,|;/).map(keyword => keyword.trim()).filter(k => k.length > 0);
+  }
+  
+  // If no keywords section found, extract potential keywords
+  // Look for capitalized words that might be medical terms
+  const medicalTerms = text.match(/\b[A-Z][a-z]{2,}\b/g);
+  if (medicalTerms && medicalTerms.length > 0) {
+    return [...new Set(medicalTerms)].slice(0, 5); // Deduplicate and take top 5
+  }
+  
+  // Fallback to common kidney health keywords
+  return ["health", "kidney", "nephrology"];
 }
 
 function extractSupportiveResponse(text: string): string {

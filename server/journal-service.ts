@@ -122,22 +122,29 @@ export async function analyzeJournalEntry(
 }
 
 /**
- * Processes and saves a journal entry with AI analysis
+ * Processes a journal entry with AI analysis
  * 
  * @param userId The user's ID
  * @param content The journal entry content
- * @returns The saved journal entry with analysis
+ * @param pastEntries Optional past journal entries for context
+ * @returns The journal entry data with analysis
  */
 export async function processJournalEntry(
   userId: number,
-  content: string
+  content: string,
+  pastEntries?: any[]
 ): Promise<InsertJournalEntry> {
   // Get user info for personalization
   const user = await storage.getUser(userId);
   const userName = user?.firstName || "User";
   
-  // Analyze the journal entry
-  const analysis = await analyzeJournalEntry(content, userName);
+  // Analyze the journal entry with context if available
+  let analysis: JournalAnalysisResult;
+  if (pastEntries && pastEntries.length > 0) {
+    analysis = await analyzeJournalEntryWithContext(content, userName, pastEntries);
+  } else {
+    analysis = await analyzeJournalEntry(content, userName);
+  }
   
   // Create journal entry data
   const journalData: InsertJournalEntry = {
@@ -156,13 +163,130 @@ export async function processJournalEntry(
 }
 
 /**
+ * Process journal entry using context from past entries for more personalized analysis
+ * 
+ * @param userId The user's ID
+ * @param content The journal entry content
+ * @param pastEntries Optional past journal entries for context
+ * @returns Analysis results with context-aware insights
+ */
+export async function analyzeJournalEntryWithContext(
+  journalEntry: string,
+  userName: string = "User",
+  pastEntries?: any[]
+): Promise<JournalAnalysisResult> {
+  try {
+    // If no past entries, use the regular analysis
+    if (!pastEntries || pastEntries.length === 0) {
+      return analyzeJournalEntry(journalEntry, userName);
+    }
+    
+    // Format past entries for context
+    const pastEntriesContext = pastEntries.map((entry, index) => {
+      const date = entry.date || entry.timestamp || 'previous entry';
+      const content = entry.content || entry.user_input || '';
+      const sentiment = entry.sentiment || '';
+      const scores = [];
+      if (entry.stressScore) scores.push(`stress: ${entry.stressScore}`);
+      if (entry.fatigueScore) scores.push(`fatigue: ${entry.fatigueScore}`);
+      if (entry.painScore) scores.push(`pain: ${entry.painScore}`);
+      
+      return `Previous Entry ${index + 1} (${date}): "${content}"
+${sentiment ? `Sentiment: ${sentiment}` : ''}
+${scores.length > 0 ? `Scores: ${scores.join(', ')}` : ''}`;
+    }).join("\n\n");
+    
+    // Use OpenAI with context for enhanced analysis
+    const prompt = `
+    You're analyzing a journal entry from ${userName}, who has kidney disease. 
+    
+    Here's some context from previous journal entries:
+    
+    ${pastEntriesContext}
+    
+    Current journal entry: "${journalEntry}"
+    
+    Based on this entry AND the context from previous entries, please provide:
+    1. A stress score from 1-10 (with 10 being most stressed)
+    2. A fatigue score from 1-10 (with 10 being most fatigued) 
+    3. A pain score from 1-10 (with 10 being most pain)
+    4. The overall sentiment (positive, negative, neutral, mixed)
+    5. 1-5 relevant tags that represent themes or emotions in the entry
+    6. A supportive, empathetic response that references trends or changes compared to previous entries
+    
+    Respond with JSON in this exact format:
+    {
+      "stressScore": number,
+      "fatigueScore": number,
+      "painScore": number,
+      "sentiment": "string",
+      "tags": ["string", "string"],
+      "supportiveResponse": "string",
+      "healthInsights": "string with observations about trends"
+    }`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are an empathetic health assistant specializing in kidney disease. Your purpose is to analyze journal entries with context awareness to identify health trends and provide personalized supportive feedback."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    // Parse the JSON response
+    const messageContent = response.choices[0].message.content || '{}';
+    const result = JSON.parse(messageContent) as JournalAnalysisResult;
+    
+    // Ensure scores are within bounds
+    result.stressScore = Math.min(10, Math.max(1, result.stressScore));
+    result.fatigueScore = Math.min(10, Math.max(1, result.fatigueScore));
+    result.painScore = Math.min(10, Math.max(1, result.painScore));
+    
+    return result;
+  } catch (error) {
+    console.error("Context-aware analysis failed, falling back to standard analysis:", error);
+    // Fall back to standard analysis without context
+    return analyzeJournalEntry(journalEntry, userName);
+  }
+}
+
+/**
  * Alternative implementation to automatically save the entry
  */
 export async function processAndSaveJournalEntry(
   userId: number,
-  content: string
+  content: string,
+  pastEntries?: any[]
 ): Promise<{ entry: InsertJournalEntry, metrics?: any }> {
-  const journalData = await processJournalEntry(userId, content);
+  // Get user info for personalization
+  const user = await storage.getUser(userId);
+  const userName = user?.firstName || "User";
+  
+  // Do context-aware analysis if past entries are provided
+  let journalData: InsertJournalEntry;
+  if (pastEntries && pastEntries.length > 0) {
+    const contextAnalysis = await analyzeJournalEntryWithContext(content, userName, pastEntries);
+    journalData = {
+      userId,
+      content,
+      date: new Date(),
+      aiResponse: contextAnalysis.supportiveResponse,
+      sentiment: contextAnalysis.sentiment,
+      tags: contextAnalysis.tags,
+      stressScore: contextAnalysis.stressScore,
+      fatigueScore: contextAnalysis.fatigueScore,
+      painScore: contextAnalysis.painScore
+    };
+  } else {
+    journalData = await processJournalEntry(userId, content);
+  }
   
   // Save to database
   const savedEntry = await storage.createJournalEntry(journalData);
@@ -176,6 +300,7 @@ export async function processAndSaveJournalEntry(
       date: new Date(),
       stressLevel: journalData.stressScore,
       painLevel: journalData.painScore,
+      fatigueLevel: journalData.fatigueScore || null
       // Other fields would be null/undefined
     });
   }
