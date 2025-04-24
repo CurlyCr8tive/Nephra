@@ -182,8 +182,35 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Constants based on gender
       // Safely access gender with null checks and proper case normalization
-      const genderStr = user.gender ? String(user.gender).toLowerCase() : '';
-      console.log("GFR calculation - gender info:", {
+      console.log("🔍 Starting GFR calculation with user:", {
+        id: user.id,
+        age: user.age,
+        gender: user.gender,
+        hasGender: user.gender !== null && user.gender !== undefined,
+        typeofGender: typeof user.gender
+      });
+      
+      // Try to get gender from session storage as backup
+      let genderStr = '';
+      
+      // First try from user object
+      if (user.gender) {
+        genderStr = String(user.gender).toLowerCase();
+      } 
+      // Fallback to session storage
+      else {
+        try {
+          const savedGender = window.sessionStorage.getItem('nephra_user_gender');
+          if (savedGender) {
+            console.log("🔄 Using gender from session storage:", savedGender);
+            genderStr = savedGender.toLowerCase();
+          }
+        } catch (e) {
+          console.error("Error reading gender from storage:", e);
+        }
+      }
+      
+      console.log("🧪 GFR calculation - gender info:", {
         rawGender: user.gender,
         normalizedGender: genderStr,
         isFemaleCheck: genderStr === 'female'
@@ -257,8 +284,35 @@ export default function HealthLogging(props: HealthLoggingProps) {
     const ageAdjustment = Math.max(0, (40 - (user.age || 40)) / 100);
     
     // Safely access gender with null checks and proper case normalization
-    const genderStr = user.gender ? String(user.gender).toLowerCase() : '';
-    console.log("GFR calculation (simplified method) - gender info:", {
+    console.log("🔍 Simplified GFR calculation with user:", {
+      id: user.id,
+      age: user.age,
+      gender: user.gender,
+      hasGender: user.gender !== null && user.gender !== undefined,
+      typeofGender: typeof user.gender
+    });
+    
+    // Try to get gender from session storage as backup
+    let genderStr = '';
+    
+    // First try from user object
+    if (user.gender) {
+      genderStr = String(user.gender).toLowerCase();
+    } 
+    // Fallback to session storage
+    else {
+      try {
+        const savedGender = window.sessionStorage.getItem('nephra_user_gender');
+        if (savedGender) {
+          console.log("🔄 Using gender from session storage for simplified GFR:", savedGender);
+          genderStr = savedGender.toLowerCase();
+        }
+      } catch (e) {
+        console.error("Error reading gender from storage:", e);
+      }
+    }
+    
+    console.log("🧪 GFR calculation (simplified method) - gender info:", {
       rawGender: user.gender,
       normalizedGender: genderStr,
       isFemaleCheck: genderStr === 'female'

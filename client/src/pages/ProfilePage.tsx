@@ -492,9 +492,44 @@ export default function ProfilePage() {
                               <FormItem>
                                 <FormLabel>Gender</FormLabel>
                                 <Select
-                                  onValueChange={field.onChange}
+                                  onValueChange={(value) => {
+                                    // Regular form update
+                                    field.onChange(value);
+                                    
+                                    // CRITICAL FIX: Also immediately update gender via ProfileUpdate component
+                                    // This ensures gender is saved in multiple ways for redundancy
+                                    if (isEditing && value) {
+                                      console.log("🔄 Gender selected, immediately updating context:", value);
+                                      
+                                      // Force update in UserContext for immediate GFR calculations
+                                      forceUpdateGender(value);
+                                      
+                                      // Also immediately save to server via PATCH endpoint
+                                      // for maximum redundancy in persistence
+                                      if (userId) {
+                                        console.log("⚡ Gender immediate PATCH update:", value);
+                                        fetch(`/api/users/${userId}`, {
+                                          method: "PATCH",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({ gender: value }),
+                                        })
+                                        .then(response => {
+                                          if (response.ok) {
+                                            console.log("✅ Gender PATCH success");
+                                          } else {
+                                            console.error("❌ Gender PATCH failed");
+                                          }
+                                          return response.json();
+                                        })
+                                        .catch(err => console.error("❌ Gender PATCH error:", err));
+                                      }
+                                    }
+                                  }}
                                   defaultValue={field.value}
                                   disabled={!isEditing}
+                                  value={field.value || undefined}
                                 >
                                   <FormControl>
                                     <SelectTrigger>
