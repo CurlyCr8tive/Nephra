@@ -64,6 +64,45 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
     const content = completion.choices[0].message.content || '{}';
     try {
       const result = JSON.parse(content);
+      
+      // Check if the response appears to be incomplete (doesn't end with proper punctuation)
+      if (result.response && 
+          !result.response.trim().endsWith('.') && 
+          !result.response.trim().endsWith('?') && 
+          !result.response.trim().endsWith('!')) {
+        
+        console.log("🔎 Detected potentially incomplete OpenAI response, requesting continuation...");
+        
+        try {
+          // Request continuation
+          const continuationCompletion = await openai.chat.completions.create({
+            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+            messages: [
+              { 
+                role: "system", 
+                content: "You are continuing an incomplete response about a kidney patient's journal entry. Just continue the text, don't start with phrases like 'to continue' or 'finishing the response'."
+              },
+              {
+                role: "user",
+                content: `The following is an incomplete response. Continue the text directly:
+                "${result.response}"`
+              }
+            ],
+            max_tokens: 300
+          });
+          
+          const continuation = continuationCompletion.choices[0].message.content || "";
+          console.log(`🔎 Continuation received: ${continuation.length} characters`);
+          
+          // Update the response with the continuation
+          result.response = result.response + " " + continuation.trim();
+          console.log("🔎 Response completed with continuation");
+        } catch (contError) {
+          console.error("Failed to get continuation:", contError);
+          // Continue with original response if continuation fails
+        }
+      }
+      
       return {
         stress: Math.min(10, Math.max(1, result.stress || 5)),
         fatigue: Math.min(10, Math.max(1, result.fatigue || 5)),
@@ -94,7 +133,12 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
 async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
   try {
     // Use the current 1.5 model which replaced gemini-pro
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-pro",
+      generationConfig: {
+        maxOutputTokens: 800 // Increased token limit for more complete responses
+      }
+    });
     
     const prompt = `
       As a wellness assistant for kidney patients, analyze this journal entry:
@@ -114,6 +158,7 @@ async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
       }
       
       IMPORTANT: Do not include any text, explanations, or formatting outside of the JSON. Your entire response must be parseable as JSON.
+      MAKE SURE your response is complete and doesn't cut off mid-sentence.
     `;
     
     const result = await model.generateContent(prompt);
@@ -202,6 +247,14 @@ export async function processEnhancedJournalEntry(
   console.log("Processing journal entry with enhanced AI...");
   const aiAnalysis = await analyzeWithOpenAI(content);
   
+  // Debug prints to check response integrity
+  console.log("🔎 AI Analysis Results:");
+  console.log(`🔎 Stress score: ${aiAnalysis.stress}`);
+  console.log(`🔎 Fatigue score: ${aiAnalysis.fatigue}`);
+  console.log(`🔎 Response length: ${aiAnalysis.response.length} characters`);
+  console.log(`🔎 First 100 chars: ${aiAnalysis.response.substring(0, 100)}...`);
+  console.log(`🔎 Last 100 chars: ...${aiAnalysis.response.substring(aiAnalysis.response.length - 100)}`);
+  
   // Determine pain score (defaulting to middle value if not detected)
   // In a more sophisticated implementation, we would extract this from the journal text
   const painScore = 5;
@@ -271,7 +324,20 @@ export async function getJournalFollowUpResponse(
       max_tokens: 1000, // Limit token length to ensure responses don't get truncated
     });
     
-    return completion.choices[0].message.content || "I understand your question, but I'm having trouble formulating a response right now.";
+    const responseContent = completion.choices[0].message.content || 
+      "I understand your question, but I'm having trouble formulating a response right now.";
+    
+    // Debug logs for follow-up responses
+    console.log("🔎 Follow-up Response:");
+    console.log(`🔎 User ID: ${userId}`);
+    console.log(`🔎 Follow-up prompt: ${followUpPrompt}`);
+    console.log(`🔎 Response length: ${responseContent.length} characters`);
+    console.log(`🔎 First 100 chars: ${responseContent.substring(0, 100)}...`);
+    if (responseContent.length > 100) {
+      console.log(`🔎 Last 100 chars: ...${responseContent.substring(responseContent.length - 100)}`);
+    }
+    
+    return responseContent;
   } catch (error) {
     console.error("OpenAI follow-up failed:", error);
     

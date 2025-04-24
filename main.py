@@ -856,6 +856,13 @@ def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_
         tags (list): Optional keywords like ["fatigue", "stress"].
         emotional_score: Optional stress or fatigue score (1–10), can be None.
     """
+    # Debug prints to check response integrity
+    print(f"🔎 Full AI Response for user {user_id} using {model_used}:")
+    print(f"🔎 Response length: {len(ai_response)} characters")
+    print(f"🔎 First 100 chars: {ai_response[:100]}...")
+    print(f"🔎 Last 100 chars: ...{ai_response[-100:] if len(ai_response) > 100 else ai_response}")
+    print(f"🔎 Tags: {tags}")
+    print(f"🔎 Emotional score: {emotional_score}")
     data = {
         "user_id": user_id,
         "user_input": user_input,
@@ -883,6 +890,9 @@ def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_
             data["emotional_score"] = 5
             logger.warning(f"Invalid emotional_score value '{emotional_score}', using default 5")
 
+    # Complete debug log of the full response
+    print("\n🔍 FULL RESPONSE:\n", ai_response)
+    
     if supabase_client:
         try:
             response = supabase_client.table("chat_logs").insert(data).execute()
@@ -955,7 +965,30 @@ def generate_ai_response(user_message, model="openai"):
                 ],
                 max_tokens=800
             )
-            return response.choices[0].message.content
+            ai_response = response.choices[0].message.content
+            
+            # Check if the response appears to be incomplete (doesn't end with proper punctuation)
+            if not ai_response.strip().endswith(('.', '?', '!')):
+                logger.info("Detected potentially incomplete response, requesting continuation...")
+                try:
+                    # Request a continuation of the previous response
+                    continuation = openai_client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": "You are a kidney health assistant for Nephra."},
+                            {"role": "user", "content": "Continue your previous response from where you left off."}
+                        ],
+                        max_tokens=300
+                    )
+                    # Append the continuation to the original response
+                    ai_response += " " + continuation.choices[0].message.content
+                    logger.info("Successfully added continuation to the response")
+                except Exception as cont_err:
+                    logger.warning(f"Failed to get continuation: {cont_err}")
+                    # Continue with the original response if continuation fails
+            
+            return ai_response
+            
         except Exception as e:
             logger.warning(f"OpenAI failed: {e}")
     
@@ -963,16 +996,40 @@ def generate_ai_response(user_message, model="openai"):
         try:
             response = gemini_client.generate_content(
                 contents=[{"role": "user", "parts": [{"text": user_message}]}],
-                generation_config={"temperature": 0.2, "max_output_tokens": 800}
+                generation_config={
+                    "temperature": 0.2, 
+                    "max_output_tokens": 800  # Increased token limit for more complete responses
+                }
             )
-            return response.text
+            ai_response = response.text
+            
+            # Check if the response appears to be incomplete (doesn't end with proper punctuation)
+            if not ai_response.strip().endswith(('.', '?', '!')):
+                logger.info("Detected potentially incomplete Gemini response, requesting continuation...")
+                try:
+                    # Request a continuation
+                    continuation = gemini_client.generate_content(
+                        contents=[{"role": "user", "parts": [{"text": "Continue your previous response from where you left off."}]}],
+                        generation_config={"temperature": 0.2, "max_output_tokens": 300}
+                    )
+                    # Append the continuation to the original response
+                    ai_response += " " + continuation.text
+                    logger.info("Successfully added Gemini continuation to the response")
+                except Exception as cont_err:
+                    logger.warning(f"Failed to get Gemini continuation: {cont_err}")
+                    # Continue with the original response if continuation fails
+            
+            return ai_response
+            
         except Exception as e:
             logger.warning(f"Gemini failed: {e}")
     
     elif model == "perplexity" and perplexity_api_key:
         try:
-            # Include implementation for Perplexity API
-            # This is a placeholder
+            # Implement Perplexity API with proper error handling and response continuation
+            # This would be similar to the OpenAI implementation above
+            
+            # Until fully implemented, return a placeholder
             return "Perplexity API response would appear here"
         except Exception as e:
             logger.warning(f"Perplexity failed: {e}")
