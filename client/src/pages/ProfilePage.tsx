@@ -260,7 +260,24 @@ export default function ProfilePage() {
   // Handle form submission
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     console.log("Form submitted with values:", values);
-    updateProfile(values);
+    
+    // Explicitly log gender for debugging
+    console.log("Gender value from form:", values.gender);
+    
+    // CRITICAL: Ensure gender is explicitly saved as a string to avoid type issues
+    const dataToSave = {
+      ...values,
+      gender: values.gender || "" // Ensure gender is always a string, never null
+    };
+    
+    console.log("Submitting profile data with gender:", dataToSave.gender);
+    updateProfile(dataToSave);
+    
+    // Force a global user context refresh
+    if (authUser && authUser.refreshUserData) {
+      console.log("Forcing user context refresh after profile update");
+      authUser.refreshUserData();
+    }
   };
 
   // Handle adding other health condition
