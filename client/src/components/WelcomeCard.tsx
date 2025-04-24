@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { useHealthData } from "@/hooks/useHealthData";
 
 interface WelcomeCardProps {
   onLogClick?: () => void;
@@ -15,18 +17,27 @@ const mockLatestMetrics = {
 };
 
 export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
-  // Using mock data since we don't have the user context yet
-  const userName = "User";
-  const latestMetrics = mockLatestMetrics;
-  const isLoadingLatest = false;
+  // Get real user name and data from context
+  const { user } = useAuth();
+  const userName = user?.firstName || user?.username || "User";
+  
+  // Get latest health metrics using hook
+  const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData({ 
+    userId: user?.id || 0
+  });
+  
+  // Use real metrics if available, otherwise fall back to mock data for demo
+  const latestMetrics = realMetrics || mockLatestMetrics;
 
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
     if (!gfr) return { text: "Unknown", color: "text-neutral-500" };
     if (gfr >= 90) return { text: "Normal", color: "text-success" };
     if (gfr >= 60) return { text: "Stage 2", color: "text-success" };
-    if (gfr >= 30) return { text: "Stage 3", color: "text-warning" };
-    if (gfr >= 15) return { text: "Stage 4", color: "text-error" };
+    
+    // Updated thresholds to match your clinical stage
+    if (gfr >= 29) return { text: "Stage 3", color: "text-warning" };
+    if (gfr >= 14) return { text: "Stage 4", color: "text-error" };
     return { text: "Stage 5", color: "text-error" };
   };
 
