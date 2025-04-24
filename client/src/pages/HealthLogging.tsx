@@ -313,7 +313,67 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // FALLBACK: Dual-path approach (try both Supabase and regular API endpoints)
       
-      // 1. Try direct API call to our Supabase endpoint
+      // Create Python-style data format for the new endpoint
+      const pythonStyleData = {
+        user_id: userId,
+        pain_score: painLevel,
+        stress_score: stressLevel,
+        fatigue_score: fatigueLevel,
+        notes: document.querySelector<HTMLTextAreaElement>('#health-notes')?.value || '',
+        // Additional data in the format we need
+        bp_systolic: Number(systolicBP),
+        bp_diastolic: Number(diastolicBP),
+        hydration_level: hydration,
+        estimated_gfr: gfr || null,
+        tags: entryTags,
+        medications_taken: medications
+          .filter(med => med.taken)
+          .map(med => `${med.name} (${med.dosage})`),
+        created_at: entryDateISO
+      };
+      
+      // 1. Try Python-compatible health scores endpoint first
+      let pythonEndpointSuccessful = false;
+      try {
+        console.log("📤 Submitting health data via Python-compatible endpoint:", pythonStyleData);
+        
+        const pythonResponse = await fetch("/api/supabase/log-health-scores", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(pythonStyleData),
+        });
+        
+        if (!pythonResponse.ok) {
+          console.error("❌ Python-compatible API error:", await pythonResponse.text());
+        } else {
+          const pythonResult = await pythonResponse.json();
+          console.log("✅ Health data saved via Python-compatible endpoint!", pythonResult);
+          
+          // Set success flag for Python endpoint
+          pythonEndpointSuccessful = true;
+          
+          // Show success state and notification
+          setSaveSuccess(true);
+          toast({
+            title: "Health data saved",
+            description: "Your health metrics have been recorded using Python-compatible format.",
+            duration: 3000
+          });
+          
+          // Reset success state after a delay
+          setTimeout(() => setSaveSuccess(false), 3000);
+          
+          if (onClose) onClose();
+          return pythonResult;
+        }
+      } catch (pythonError) {
+        console.error("Failed to save via Python-compatible endpoint:", pythonError);
+      }
+      
+      // 2. Try direct API call to our Supabase endpoint as fallback
       let supabaseSaveSuccessful = false;
       try {
         console.log("📤 Submitting health data via Supabase API:", supabaseData);
@@ -353,9 +413,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
           const errorText = await response.text();
           console.error("Health metrics API error response:", errorText);
           
-          // If Supabase saving also failed, throw an error to fail the entire operation
-          if (!supabaseSaveSuccessful) {
-            throw new Error(errorText || "Failed to save health data to both storage systems");
+          // If all saving methods failed, throw an error to fail the entire operation
+          if (!supabaseSaveSuccessful && !pythonEndpointSuccessful) {
+            throw new Error(errorText || "Failed to save health data via any available method");
           }
         } else {
           const result = await response.json();
@@ -379,7 +439,16 @@ export default function HealthLogging(props: HealthLoggingProps) {
         console.error("API error:", apiError);
         
         // If one of the save methods succeeded, we can still show success
-        if (supabaseSaveSuccessful) {
+        if (pythonEndpointSuccessful) {
+          setSaveSuccess(true);
+          toast({
+            title: "Health data saved",
+            description: "Your health data was saved using the Python-compatible endpoint.",
+            duration: 3000
+          });
+          setTimeout(() => setSaveSuccess(false), 3000);
+          return { success: true, source: "python_compatible" };
+        } else if (supabaseSaveSuccessful) {
           setSaveSuccess(true);
           toast({
             title: "Health data saved",

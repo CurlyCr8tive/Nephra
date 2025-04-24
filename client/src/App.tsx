@@ -56,6 +56,7 @@ function App() {
           {/* Protected routes */}
           <ProtectedRoute path="/" component={Dashboard} />
           <ProtectedRoute path="/log" component={HealthLogging} />
+          <ProtectedRoute path="/track" component={HealthLogging} />
           <ProtectedRoute path="/journal" component={JournalPage} />
           <ProtectedRoute path="/roadmap" component={TransplantRoadmap} />
           <ProtectedRoute path="/trends" component={HealthTrends} />
