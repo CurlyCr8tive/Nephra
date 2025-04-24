@@ -20,28 +20,9 @@ import { useEffect } from "react";
 export const TEST_USER_ID = 1;
 
 function App() {
-  // Try to log in with demo account automatically when the app loads
+  // Auto-login functionality disabled temporarily to allow viewing login page
   useEffect(() => {
-    const tryDemoLogin = async () => {
-      try {
-        console.log("🔑 Attempting auto-login with demo account...");
-        const demoResponse = await fetch('/api/login-demo', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        if (demoResponse.ok) {
-          console.log("✅ Auto-login successful");
-        } else {
-          console.warn("⚠️ Auto-login failed:", await demoResponse.text());
-        }
-      } catch (error) {
-        console.error("❌ Auto-login error:", error);
-      }
-    };
-    
-    tryDemoLogin();
+    console.log("Auto-login disabled");
   }, []);
 
   return (
