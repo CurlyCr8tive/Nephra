@@ -237,23 +237,28 @@ export default function HealthLogging(props: HealthLoggingProps) {
         estimated_gfr: gfr || null
       };
       
-      // Try saving to Supabase directly as a backup path
+      // Try direct API call to our backend to save to Supabase instead
       try {
-        // Dynamically import Supabase on-demand
-        const { supabase } = await import("@/lib/supabaseClient");
-        console.log("📤 Submitting health data to Supabase:", supabaseData);
+        console.log("📤 Submitting health data via Supabase API:", supabaseData);
         
-        const { data, error } = await supabase
-          .from("health_logs")
-          .insert([supabaseData]);
-          
-        if (error) {
-          console.error("❌ Supabase insert error:", error.message);
+        // Call our server API endpoint that uses Supabase on the backend
+        const supabaseResponse = await fetch("/api/supabase/health-logs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(supabaseData),
+        });
+        
+        if (!supabaseResponse.ok) {
+          console.error("❌ Supabase API error:", await supabaseResponse.text());
         } else {
-          console.log("✅ Health data saved to Supabase!", data);
+          const supabaseResult = await supabaseResponse.json();
+          console.log("✅ Health data saved via Supabase API!", supabaseResult);
         }
       } catch (supabaseError) {
-        console.error("Failed to save to Supabase:", supabaseError);
+        console.error("Failed to save via Supabase API:", supabaseError);
       }
         
       // Standard API call approach for primary data path

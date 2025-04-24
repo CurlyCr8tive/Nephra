@@ -17,6 +17,7 @@ import {
 // AI services
 import aiRouter from "./ai-router";
 import enhancedJournalRouter from "./enhanced-journal-api-router";
+import supabaseRouter from "./supabase-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
 // Import OpenAI
@@ -98,6 +99,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount enhanced journal router with Python-converted chatbot functionality
   app.use('/api/enhanced-journal', enhancedJournalRouter);
+  
+  // Mount Supabase router for direct Supabase operations
+  app.use('/api/supabase', supabaseRouter);
   
   // User profile endpoints (REMOVED DUPLICATE DEFINITIONS)
   // The user profile endpoints are defined at the bottom of this file
