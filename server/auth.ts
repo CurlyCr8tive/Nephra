@@ -218,21 +218,24 @@ export function setupAuth(app: Express) {
       const userDetails = { ...user, password: "[REDACTED]" };
       console.log("Demo user found:", JSON.stringify(userDetails, null, 2));
       
-      // Directly log in the user without session manipulation
-      console.log("Using direct login for demo user");
+      // Actually log in the user with a proper session
+      console.log("Creating proper session for demo user");
       
-      // Just return the user info without trying to create a session
-      // This approach simulates a successful login for demo purposes
-      // without requiring a valid session
-      
-      // Simply mark demo login as successful in logs
-      console.log(`Demo login successful for: ${demoUsername}`);
-      
-      // Return success response with user data (except password)
-      const { password, ...userWithoutPassword } = user;
-      return res.status(200).json({
-        ...userWithoutPassword,
-        demoLogin: true
+      // Use the passport login method to create a session
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Demo login session error:", loginErr);
+          return res.status(500).json({ error: "Session creation failed", details: loginErr.message });
+        }
+        
+        console.log(`Demo login successful for: ${demoUsername} with session ID: ${req.sessionID}`);
+        
+        // Return success response with user data (except password)
+        const { password, ...userWithoutPassword } = user;
+        return res.status(200).json({
+          ...userWithoutPassword,
+          demoLogin: true
+        });
       });
     } catch (error) {
       console.error("Demo login error:", error);

@@ -39,7 +39,11 @@ const setupDemoUser = async () => {
     const demoLoginResp = await fetch('/api/login-demo', {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
     });
     
     if (demoLoginResp.ok) {
@@ -54,7 +58,11 @@ const setupDemoUser = async () => {
       console.log("Trying regular login path as fallback...");
       const loginResp = await fetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
         credentials: 'include',
         body: JSON.stringify({ 
           username: 'demouser', 
