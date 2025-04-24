@@ -202,15 +202,59 @@ def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_
     print(f"✅ Logged chat to Supabase: {user_input[:30]}...")
     return response
 
-# Health scoring logger for pain, stress, fatigue
-def log_health_scores(user_id: str, pain: int, stress: int, fatigue: int, notes: str = ""):
+# Health scoring logger with AI-generated self-care suggestions
+def generate_health_suggestion(pain: int, stress: int, fatigue: int) -> str:
+    """Generate a personalized health suggestion based on pain, stress, and fatigue levels"""
     try:
+        prompt = f"""
+        The user logged:
+        - Pain level: {pain}/10
+        - Stress level: {stress}/10
+        - Fatigue level: {fatigue}/10
+
+        Write a short, supportive suggestion for managing these symptoms. Include self-care tips. Respond directly to the user in a kind, empathetic tone.
+        """
+        
+        # Try the latest model first with proper error handling
+        try:
+            # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+            response = openai.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150,
+                temperature=0.7
+            )
+            suggestion = response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error with gpt-4o, trying fallback model: {e}")
+            # Fallback to older model and API
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150,
+                temperature=0.7
+            )
+            suggestion = response.choices[0].message["content"].strip()
+            
+        return suggestion
+    except Exception as e:
+        print(f"❌ Failed to generate health suggestion: {e}")
+        return "Remember to take care of yourself today. Rest when needed and stay hydrated."
+
+def log_health_scores(user_id: str, pain: int, stress: int, fatigue: int, notes: str = ""):
+    """Log health scores and provide an AI-generated self-care suggestion"""
+    try:
+        # Generate personalized suggestion
+        suggestion = generate_health_suggestion(pain, stress, fatigue)
+        
+        # Create the record
         response = supabase.table("health_logs").insert({
             "user_id": user_id,
             "pain_score": pain,
             "stress_score": stress,
             "fatigue_score": fatigue,
             "notes": notes,
+            "suggestion": suggestion,
             "timestamp": datetime.datetime.now().isoformat()
         }).execute()
 
@@ -218,7 +262,7 @@ def log_health_scores(user_id: str, pain: int, stress: int, fatigue: int, notes:
             print("❌ Supabase insert error:", response.error)
             return False
         else:
-            print("✅ Health scores saved successfully")
+            print("✅ Health scores + suggestion saved successfully")
             return True
     except Exception as e:
         print(f"❌ Error logging health scores: {e}")
