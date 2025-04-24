@@ -178,12 +178,12 @@ export async function processEnhancedJournalEntry(
     content: content,
     date: new Date(),
     userId: userId,
-    aiResponse: aiAnalysis.response,
+    aiResponse: aiAnalysis.response, // Save the full response without truncation
     sentiment: aiAnalysis.response.substring(0, 50), // Use first part of response as sentiment
     stressScore: aiAnalysis.stress,
     fatigueScore: aiAnalysis.fatigue,
     painScore: painScore,
-    tags: [] // We could extract tags from the analysis in a full implementation
+    tags: aiAnalysis.response.toLowerCase().includes("pain") ? ["pain"] : [] // Basic tag extraction
   };
   
   // Insert the entry into the database
@@ -231,10 +231,11 @@ export async function getJournalFollowUpResponse(
       content: followUpPrompt
     });
     
-    // Get response from OpenAI
+    // Get response from OpenAI with character limit to prevent truncation
     const completion = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
       messages: messages as any, // Type cast to resolve OpenAI's strict typing
+      max_tokens: 1000, // Limit token length to ensure responses don't get truncated
     });
     
     return completion.choices[0].message.content || "I understand your question, but I'm having trouble formulating a response right now.";

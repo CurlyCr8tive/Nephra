@@ -291,8 +291,8 @@ export default function JournalPage() {
                                 }
                               </AvatarFallback>
                             </Avatar>
-                            <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} max-w-full overflow-x-hidden`}>
+                              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                             </div>
                           </div>
                         </div>
@@ -374,8 +374,8 @@ export default function JournalPage() {
                               }
                             </AvatarFallback>
                           </Avatar>
-                          <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} max-w-full overflow-x-hidden`}>
+                            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                           </div>
                         </div>
                       </div>
@@ -470,9 +470,9 @@ export default function JournalPage() {
                       {entry.aiResponse && (
                         <div className="border-t pt-3 mt-3">
                           <h4 className="text-sm font-medium mb-1">AI Insights:</h4>
-                          <p className="text-sm text-muted-foreground italic">
-                            {entry.aiResponse}
-                          </p>
+                          <div className="text-sm text-muted-foreground italic max-h-96 overflow-y-auto">
+                            <p className="whitespace-pre-wrap">{entry.aiResponse}</p>
+                          </div>
                         </div>
                       )}
                       
