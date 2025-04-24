@@ -331,10 +331,9 @@ export default function ProfilePage() {
     // Always refresh user data in both contexts
     refreshUserData();
     
-    // Also refresh auth context if available
-    if (authUser?.refreshUserData) {
-      authUser.refreshUserData();
-    }
+    // Refresh the user data through context instead of directly accessing properties
+    // that might not exist on the authUser object
+    refreshUserFromContext();
   };
 
   // Handle adding other health condition
