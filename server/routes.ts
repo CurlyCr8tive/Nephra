@@ -45,39 +45,75 @@ function handleError(error: unknown): string {
 // Estimate GFR based on health metrics and user profile
 // This is a simplified estimation for demonstration purposes
 function estimateGFR(
-  age: number, 
-  gender: string, 
-  race: string, 
-  weight: number, 
-  systolicBP: number, 
-  diastolicBP: number, 
-  hydration: number, 
-  stressLevel: number, 
-  painLevel: number, 
-  diseaseStage: number
-): number {
+  age: number | null, 
+  gender: string | null, 
+  race: string | null, 
+  weight: number | null, 
+  systolicBP: number | null, 
+  diastolicBP: number | null, 
+  hydration: number | null, 
+  stressLevel: number | null, 
+  painLevel: number | null, 
+  diseaseStage: number | null
+): number | null {
+  // Validate required parameters first
+  if (age === null || gender === null) {
+    console.warn("Cannot calculate GFR: missing required age or gender data");
+    return null;
+  }
+  
+  if (!systolicBP && !diastolicBP) {
+    console.warn("Cannot calculate GFR: missing both blood pressure readings");
+    return null;
+  }
+  
   // This is a simplified formula for estimation purposes
   // In a real application, you would use established medical formulas
   // such as CKD-EPI or MDRD equations
   
+  // Provide defaults for missing non-critical values
+  const safeAge = age || 40;
+  const safeGender = gender ? gender.toLowerCase() : 'male';
+  const safeRace = race ? race.toLowerCase() : 'caucasian';
+  const safeWeight = weight || 70;
+  const safeSystolicBP = systolicBP || 120;
+  const safeDiastolicBP = diastolicBP || 80;
+  const safeHydration = hydration !== null ? hydration : 5;
+  const safeStressLevel = stressLevel !== null ? stressLevel : 5;
+  const safePainLevel = painLevel !== null ? painLevel : 3;
+  const safeDiseaseStage = diseaseStage !== null ? diseaseStage : 1;
+  
+  console.log("GFR calculation with normalized inputs:", {
+    age: safeAge,
+    gender: safeGender, 
+    race: safeRace,
+    weight: safeWeight,
+    systolicBP: safeSystolicBP,
+    diastolicBP: safeDiastolicBP,
+    hydration: safeHydration,
+    stressLevel: safeStressLevel,
+    painLevel: safePainLevel,
+    diseaseStage: safeDiseaseStage
+  });
+  
   // Base GFR range based on kidney disease stage (simplified)
   let baseGFR = 90;
-  if (diseaseStage === 1) baseGFR = 90;
-  else if (diseaseStage === 2) baseGFR = 75;
-  else if (diseaseStage === 3) baseGFR = 45;
-  else if (diseaseStage === 4) baseGFR = 25;
-  else if (diseaseStage === 5) baseGFR = 15;
+  if (safeDiseaseStage === 1) baseGFR = 90;
+  else if (safeDiseaseStage === 2) baseGFR = 75;
+  else if (safeDiseaseStage === 3) baseGFR = 45;
+  else if (safeDiseaseStage === 4) baseGFR = 25;
+  else if (safeDiseaseStage === 5) baseGFR = 15;
   
   // Adjustment factors (simplified for demo)
-  const ageAdjustment = Math.max(0, (40 - age) / 100);
-  const genderFactor = gender.toLowerCase() === 'female' ? 0.85 : 1.0;
-  const raceFactor = race.toLowerCase() === 'black' ? 1.2 : 1.0;
+  const ageAdjustment = Math.max(0, (40 - safeAge) / 100);
+  const genderFactor = safeGender === 'female' ? 0.85 : 1.0;
+  const raceFactor = safeRace === 'black' || safeRace.includes('black') ? 1.2 : 1.0;
   
   // Health metric adjustments (simplified for demo)
-  const bpFactor = 1 - Math.max(0, (systolicBP - 120) / 400);
-  const hydrationFactor = 1 + (hydration / 10);
-  const stressFactor = 1 - (stressLevel / 20);
-  const painFactor = 1 - (painLevel / 20);
+  const bpFactor = 1 - Math.max(0, (safeSystolicBP - 120) / 400);
+  const hydrationFactor = 1 + (safeHydration / 10);
+  const stressFactor = 1 - (safeStressLevel / 20);
+  const painFactor = 1 - (safePainLevel / 20);
   
   // Calculate adjusted GFR
   let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor * 

@@ -6,6 +6,7 @@ interface UserContextType {
   setUser: (user: User | null) => void;
   isLoading: boolean;
   error: Error | null;
+  refreshUserData: () => void;
 }
 
 // Create context with default values to avoid undefined checks
@@ -15,7 +16,10 @@ const UserContext = createContext<UserContextType>({
     console.warn("setUser called outside of UserProvider context. This operation won't have any effect.");
   },
   isLoading: false,
-  error: null
+  error: null,
+  refreshUserData: () => {
+    console.warn("refreshUserData called outside of UserProvider context. This operation won't have any effect.");
+  }
 });
 
 interface UserProviderProps {
@@ -29,6 +33,15 @@ export function UserProvider({ children, value }: UserProviderProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   
+  // Fetch user data on mount and when forcedRefresh changes
+  const [forcedRefresh, setForcedRefresh] = useState<number>(0);
+  
+  // Expose the refresh function through context
+  const refreshUserData = () => {
+    console.log("Forcing user data refresh in UserContext");
+    setForcedRefresh(prev => prev + 1);
+  };
+  
   // Fetch user data on mount if not provided externally
   useEffect(() => {
     // Only attempt to fetch if not already provided
@@ -38,10 +51,14 @@ export function UserProvider({ children, value }: UserProviderProps) {
           setIsLoading(true);
           console.log("Fetching user from API in UserContext...");
           
-          const response = await fetch('/api/user', {
+          const timestamp = Date.now(); // Add timestamp to prevent caching
+          
+          const response = await fetch(`/api/user?t=${timestamp}`, {
             credentials: 'include',
             headers: {
-              'Cache-Control': 'no-cache'
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
             }
           });
           
@@ -52,6 +69,7 @@ export function UserProvider({ children, value }: UserProviderProps) {
             setError(null);
           } else if (response.status === 401) {
             // Not authenticated - expected case
+            console.log("User not authenticated (401 response)");
             setUser(null);
           } else {
             throw new Error(`Error fetching user: ${response.statusText}`);
@@ -66,14 +84,15 @@ export function UserProvider({ children, value }: UserProviderProps) {
       
       fetchUserData();
     }
-  }, [value?.user]);
+  }, [value?.user, forcedRefresh]);
   
   // Combine provided values with internal state
   const contextValue: UserContextType = {
     user: value?.user !== undefined ? value.user : user,
     setUser: value?.setUser || setUser,
     isLoading,
-    error
+    error,
+    refreshUserData
   };
   
   return (
