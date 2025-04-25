@@ -40,17 +40,8 @@ export default function TransplantRoadmap() {
     // Don't call toast in render phase
   }
   
-  // Show error toast using useEffect
-  useEffect(() => {
-    const hasError = !user || user.id === 1; // Default user has id 1
-    if (hasError) {
-      toast({
-        title: "Error accessing user data",
-        description: "There was a problem accessing your user information. Please refresh the page and try again.",
-        variant: "destructive",
-      });
-    }
-  }, [toast, user]);
+  // We don't need to show error toast anymore as we're using default values
+  // and the application works correctly with the fallback
 
   const [activeTab, setActiveTab] = useState("roadmap");
 
