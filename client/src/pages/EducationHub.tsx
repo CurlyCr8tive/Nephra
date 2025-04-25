@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BottomNavigation from "@/components/BottomNavigation";
 
@@ -26,6 +28,8 @@ const EducationHub = () => {
           "How will dialysis affect my existing medications?",
           "What symptoms should I report immediately?",
         ],
+        link: "https://www.kidney.org/atoz/content/dialysis",
+        linkText: "Learn more about dialysis options",
       },
       {
         id: 2,
@@ -37,6 +41,8 @@ const EducationHub = () => {
           "What are my options if this treatment approach isn't effective?",
           "Are there any clinical trials I might be eligible for?",
         ],
+        link: "https://www.niddk.nih.gov/health-information/kidney-disease/kidney-failure/treatment",
+        linkText: "Explore treatment options guide",
       },
     ],
     treatments: [
@@ -48,24 +54,31 @@ const EducationHub = () => {
           {
             name: "ACE inhibitors & ARBs",
             purpose: "Help lower blood pressure and reduce protein in urine",
+            link: "https://www.kidney.org/atoz/content/ace-inhibitors-and-arbs-high-blood-pressure-ckd",
           },
           {
             name: "Diuretics",
             purpose: "Help reduce fluid retention and swelling",
+            link: "https://www.kidney.org/atoz/content/diuretics",
           },
           {
             name: "Phosphate binders",
             purpose: "Help reduce phosphate levels in your blood",
+            link: "https://www.kidney.org/atoz/content/phosphorus",
           },
           {
             name: "Vitamin D supplements",
             purpose: "Help maintain calcium levels and bone health",
+            link: "https://www.kidney.org/atoz/content/vitamin-d-and-chronic-kidney-disease",
           },
           {
             name: "Erythropoietin supplements",
             purpose: "Help with anemia by stimulating red blood cell production",
+            link: "https://www.kidney.org/atoz/content/what-anemia",
           },
         ],
+        resourceLink: "https://www.kidney.org/atoz/content/commonly-prescribed-medications",
+        resourceText: "View complete medication guide",
       },
       {
         id: 2,
@@ -75,16 +88,21 @@ const EducationHub = () => {
           {
             name: "Hemodialysis",
             purpose: "Blood cleaning through a machine, typically 3-4 times weekly",
+            link: "https://www.kidney.org/atoz/content/hemodialysis",
           },
           {
             name: "Peritoneal Dialysis",
             purpose: "Uses the lining of your abdomen to filter blood, can be done at home",
+            link: "https://www.kidney.org/atoz/content/peritoneal",
           },
           {
             name: "Home Hemodialysis",
             purpose: "Hemodialysis performed at home with special training",
+            link: "https://www.kidney.org/atoz/content/homehemo",
           },
         ],
+        resourceLink: "https://www.kidney.org/kidney-basics/what-dialysis",
+        resourceText: "Compare dialysis options",
       },
     ],
     news: [
@@ -102,15 +120,15 @@ const EducationHub = () => {
         date: "March 28, 2025",
         summary: "Researchers have developed a new immunosuppression medication that may reduce rejection rates while minimizing side effects in kidney transplant patients.",
         source: "American Journal of Transplantation",
-        link: "https://www.journals.transplantation.com",
+        link: "https://onlinelibrary.wiley.com/journal/16006143",
       },
       {
         id: 3,
         title: "Artificial Kidney Project Enters Human Trials",
         date: "February 10, 2025",
         summary: "After years of development, the first implantable artificial kidney device has been approved for human clinical trials, potentially offering an alternative to dialysis.",
-        source: "Kidney Innovation Foundation",
-        link: "https://www.kidneyinnovation.org",
+        source: "The Kidney Project - UCSF",
+        link: "https://pharm.ucsf.edu/kidney",
       },
     ],
     advocacy: [
@@ -127,6 +145,8 @@ const EducationHub = () => {
           "Ask for clarification if you don't understand something",
           "Discuss any concerns about treatment side effects",
         ],
+        resourceLink: "https://www.kidney.org/patients/prepare-your-doctor-visit",
+        resourceText: "Doctor visit preparation guide",
       },
       {
         id: 2,
@@ -140,6 +160,8 @@ const EducationHub = () => {
           "Learn about Medicare coverage for kidney disease",
           "Track all medical expenses for tax purposes",
         ],
+        resourceLink: "https://www.kidney.org/patients/resources_Finance",
+        resourceText: "Financial assistance resources",
       },
     ],
   };

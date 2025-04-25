@@ -6,7 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { supabase, logChatToSupabase, logHealthScores } from './supabase-service';
+import { supabase, logChatToSupabase, logHealthScores, searchEducationArticles } from './supabase-service';
 
 const router = Router();
 
@@ -232,6 +232,68 @@ router.post('/log-health-scores', async (req: Request, res: Response) => {
     console.error('Error logging health scores:', error);
     return res.status(500).json({
       error: 'Server error logging health scores',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
+ * Get education articles from Supabase
+ * GET /api/supabase/education-articles
+ * Optional query parameters:
+ * - category: Filter by category (questions, treatments, news, advocacy)
+ * - query: Search term to filter articles
+ * - limit: Maximum number of articles to return (default: 10)
+ */
+router.get('/education-articles', async (req: Request, res: Response) => {
+  try {
+    const category = req.query.category as string || undefined;
+    const searchQuery = req.query.query as string || '';
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    
+    console.log(`📚 Fetching education articles. Category: ${category || 'all'}, Query: "${searchQuery}"`);
+    
+    let query = supabase
+      .from('education_articles')
+      .select('*')
+      .limit(limit);
+    
+    // Apply category filter if provided
+    if (category) {
+      query = query.eq('category', category);
+    }
+    
+    // Execute the query
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Supabase education articles query error:', error);
+      
+      // If the table doesn't exist, return empty results
+      if (error.message?.includes('does not exist')) {
+        console.warn('education_articles table does not exist in Supabase');
+        return res.json([]);
+      }
+      
+      return res.status(500).json({ 
+        error: 'Failed to retrieve education articles',
+        details: error.message
+      });
+    }
+    
+    // If there's a search query, filter the results
+    let filteredData = data || [];
+    if (searchQuery && filteredData.length > 0) {
+      // Use the search utility function for more advanced searching
+      filteredData = await searchEducationArticles(searchQuery, limit);
+    }
+    
+    console.log(`✅ Retrieved ${filteredData.length} education articles`);
+    return res.json(filteredData);
+  } catch (error) {
+    console.error('Error retrieving education articles:', error);
+    return res.status(500).json({
+      error: 'Server error retrieving education articles',
       message: error instanceof Error ? error.message : String(error)
     });
   }
