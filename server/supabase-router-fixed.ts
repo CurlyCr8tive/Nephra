@@ -21,9 +21,6 @@ import {
 // Create a router for Supabase related routes
 const supabaseRouter = express.Router();
 
-// Note: Express.User interface is declared in auth.ts
-// No need to redeclare it here
-
 // Authentication middleware to ensure user is logged in
 function ensureAuthenticated(req: express.Request, res: express.Response, next: express.NextFunction) {
   if (req.isAuthenticated()) {
@@ -56,11 +53,11 @@ supabaseRouter.get('/education-articles', async (req, res) => {
 // Get health logs for the current user
 supabaseRouter.get('/health-logs', ensureAuthenticated, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req.user as any).id;
     const { limit = '20' } = req.query;
     const limitNum = parseInt(limit as string);
     
-    const healthLogs = await getHealthLogs(userId!, limitNum);
+    const healthLogs = await getHealthLogs(userId, limitNum);
     res.json(healthLogs);
   } catch (error) {
     console.error('Error in health logs route:', error);
@@ -84,7 +81,7 @@ supabaseRouter.post('/health-logs', ensureAuthenticated, async (req, res) => {
     // Ensure user_id matches the authenticated user
     const healthLog: SupabaseHealthLog = {
       ...req.body,
-      user_id: req.user?.id,
+      user_id: (req.user as any).id,
       created_at: req.body.created_at || new Date().toISOString()
     };
     
@@ -104,11 +101,11 @@ supabaseRouter.post('/health-logs', ensureAuthenticated, async (req, res) => {
 // Get chat history for the current user
 supabaseRouter.get('/chat-history', ensureAuthenticated, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req.user as any).id;
     const { limit = '10' } = req.query;
     const limitNum = parseInt(limit as string);
     
-    const chatHistory = await getChatHistory(userId!, limitNum);
+    const chatHistory = await getChatHistory(userId, limitNum);
     res.json(chatHistory);
   } catch (error) {
     console.error('Error in chat history route:', error);
@@ -140,7 +137,7 @@ supabaseRouter.post('/chat-logs', ensureAuthenticated, async (req, res) => {
     // Create chat log object
     const chatLog: SupabaseChatLog = {
       ...req.body,
-      user_id: req.user?.id,
+      user_id: (req.user as any).id,
       timestamp: new Date().toISOString()
     };
     
@@ -160,11 +157,11 @@ supabaseRouter.post('/chat-logs', ensureAuthenticated, async (req, res) => {
 // Get journal entries for the current user
 supabaseRouter.get('/journal-entries', ensureAuthenticated, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req.user as any).id;
     const { limit = '20' } = req.query;
     const limitNum = parseInt(limit as string);
     
-    const journalEntries = await getJournalEntries(userId!, limitNum);
+    const journalEntries = await getJournalEntries(userId, limitNum);
     res.json(journalEntries);
   } catch (error) {
     console.error('Error in journal entries route:', error);
@@ -199,7 +196,7 @@ supabaseRouter.post('/journal-entries', ensureAuthenticated, async (req, res) =>
     // Create journal entry object
     const journalEntry: SupabaseJournalEntry = {
       ...req.body,
-      user_id: req.user?.id,
+      user_id: (req.user as any).id,
       created_at: new Date().toISOString()
     };
     
