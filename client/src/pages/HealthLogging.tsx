@@ -14,6 +14,7 @@ import { InfoCircledIcon } from "@radix-ui/react-icons";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/hooks/use-toast";
+import { HealthCalendar } from "@/components/HealthCalendar";
 
 interface HealthLoggingProps extends Partial<RouteComponentProps> {
   onClose?: () => void;
