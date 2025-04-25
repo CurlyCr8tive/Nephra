@@ -203,15 +203,27 @@ const EducationHub = () => {
                     <li key={idx} className="text-sm">{item}</li>
                   ))}
                 </ul>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3"
-                  onClick={() => handleResourceClick(section.title)}
-                >
-                  <span className="material-icons text-sm mr-1">bookmark</span>
-                  Save for Appointment
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  {section.link && (
+                    <a 
+                      href={section.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary text-sm hover:underline flex items-center"
+                    >
+                      <span className="material-icons text-sm mr-1">info</span>
+                      {section.linkText || "Learn more"}
+                    </a>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleResourceClick(section.title)}
+                  >
+                    <span className="material-icons text-sm mr-1">bookmark</span>
+                    Save for Appointment
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -234,21 +246,47 @@ const EducationHub = () => {
                 <div className="space-y-3">
                   {treatment.items.map((item, idx) => (
                     <div key={idx} className="pb-2">
-                      <h4 className="font-medium">{item.name}</h4>
+                      <h4 className="font-medium">
+                        {item.link ? (
+                          <a 
+                            href={item.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center"
+                          >
+                            {item.name}
+                            <span className="material-icons text-xs ml-1">open_in_new</span>
+                          </a>
+                        ) : (
+                          item.name
+                        )}
+                      </h4>
                       <p className="text-sm text-neutral-600">{item.purpose}</p>
                       {idx < treatment.items.length - 1 && <Separator className="mt-2" />}
                     </div>
                   ))}
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3"
-                  onClick={() => handleResourceClick(treatment.title)}
-                >
-                  <span className="material-icons text-sm mr-1">bookmark</span>
-                  Save Information
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  {treatment.resourceLink && (
+                    <a 
+                      href={treatment.resourceLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary text-sm hover:underline flex items-center"
+                    >
+                      <span className="material-icons text-sm mr-1">medical_information</span>
+                      {treatment.resourceText || "More information"}
+                    </a>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleResourceClick(treatment.title)}
+                  >
+                    <span className="material-icons text-sm mr-1">bookmark</span>
+                    Save Information
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -270,10 +308,15 @@ const EducationHub = () => {
               <CardContent>
                 <p className="text-sm mb-3">{article.summary}</p>
                 <div className="flex justify-between items-center">
-                  <Button variant="link" className="p-0 h-auto text-primary flex items-center">
+                  <a 
+                    href={article.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center text-primary text-sm hover:underline"
+                  >
                     <span className="material-icons text-sm mr-1">link</span>
                     Read Full Article
-                  </Button>
+                  </a>
                   <Button 
                     variant="ghost" 
                     size="sm"
@@ -305,15 +348,27 @@ const EducationHub = () => {
                     <li key={idx} className="text-sm">{step}</li>
                   ))}
                 </ol>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3"
-                  onClick={() => handleResourceClick(resource.title)}
-                >
-                  <span className="material-icons text-sm mr-1">bookmark</span>
-                  Save Tips
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  {resource.resourceLink && (
+                    <a 
+                      href={resource.resourceLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary text-sm hover:underline flex items-center"
+                    >
+                      <span className="material-icons text-sm mr-1">help_center</span>
+                      {resource.resourceText || "Get help"}
+                    </a>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleResourceClick(resource.title)}
+                  >
+                    <span className="material-icons text-sm mr-1">bookmark</span>
+                    Save Tips
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
