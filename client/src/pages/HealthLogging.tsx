@@ -1012,6 +1012,29 @@ export default function HealthLogging(props: HealthLoggingProps) {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Health Log Calendar */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Health Log Calendar</CardTitle>
+                <CardDescription>View and track your health metrics over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {healthDataHook.weeklyMetrics && healthDataHook.weeklyMetrics.length > 0 ? (
+                  <HealthCalendar 
+                    healthData={healthDataHook.weeklyMetrics} 
+                    userId={userId}
+                  />
+                ) : (
+                  <div className="text-center p-6">
+                    <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">
+                      No health data recorded yet. Log your health metrics to see them in the calendar.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
           
           {/* Medications Tab */}
