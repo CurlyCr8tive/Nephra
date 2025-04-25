@@ -113,6 +113,14 @@ export function UserProvider({ children, value }: UserProviderProps) {
       
       const timestamp = Date.now(); // Add timestamp to prevent caching
       
+      // Check if we need to recover a session
+      const savedUserId = getFromStorage('nephra_user_id');
+      const savedGenderBeforeFetch = getFromStorage('nephra_user_gender');
+      
+      if (savedGenderBeforeFetch) {
+        console.log("Route changed - Found saved gender in storage:", savedGenderBeforeFetch);
+      }
+      
       const response = await fetch(`/api/user?t=${timestamp}`, {
         credentials: 'include',
         headers: {
@@ -177,13 +185,70 @@ export function UserProvider({ children, value }: UserProviderProps) {
       } else if (response.status === 401) {
         // Not authenticated - expected case
         console.log("User not authenticated (401 response)");
+        
+        // If we have a saved user ID, try to log in as demo user automatically
+        if (savedUserId) {
+          console.log("Lost session but have saved user ID. Attempting auto-login as demo user...");
+          try {
+            // Attempt auto-login
+            const loginResponse = await fetch('/api/login', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                username: 'demouser',
+                password: 'password123'
+              })
+            });
+            
+            if (loginResponse.ok) {
+              console.log("Auto-login successful. Fetching user data again...");
+              // If successful, re-fetch user data
+              const reloginUser = await loginResponse.json();
+              console.log("Auto-login user data:", reloginUser.username);
+              
+              // Restore gender if needed
+              if (savedGenderBeforeFetch && (!reloginUser.gender || reloginUser.gender === '')) {
+                console.log("Restoring gender after auto-login:", savedGenderBeforeFetch);
+                reloginUser.gender = savedGenderBeforeFetch;
+                saveToStorage('nephra_user_gender', savedGenderBeforeFetch);
+              }
+              
+              setUser(reloginUser);
+              setError(null);
+              return; // Exit early as we've handled the user
+            } else {
+              console.error("Auto-login failed:", loginResponse.statusText);
+            }
+          } catch (loginError) {
+            console.error("Error during auto-login:", loginError);
+          }
+        }
+        
         setUser(null);
       } else {
         throw new Error(`Error fetching user: ${response.statusText}`);
       }
     } catch (err) {
-      console.error("Error in UserContext:", err);
+      console.error("Error in UserContext:", err instanceof Error ? err.message : String(err));
       setError(err instanceof Error ? err : new Error(String(err)));
+      
+      // Check if we can still provide a partial user experience with saved data
+      const savedUserId = getFromStorage('nephra_user_id');
+      const savedGender = getFromStorage('nephra_user_gender');
+      
+      if (savedUserId && savedGender) {
+        console.log("Network error, but we have saved user data. Creating partial user object.");
+        setUser({
+          id: parseInt(savedUserId),
+          username: 'demouser',
+          gender: savedGender
+        } as User);
+      } else {
+        setUser(null);
+      }
     } finally {
       setIsLoading(false);
     }

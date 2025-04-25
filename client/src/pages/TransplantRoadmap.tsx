@@ -54,16 +54,86 @@ export default function TransplantRoadmap() {
 
   const [activeTab, setActiveTab] = useState("roadmap");
 
-  // Fetch transplant steps
-  const { data: steps, isLoading: isLoadingSteps } = useQuery({
+  // Fetch transplant steps with improved error handling
+  const { 
+    data: steps, 
+    isLoading: isLoadingSteps,
+    error: stepsError
+  } = useQuery({
     queryKey: ["/api/transplant-steps"],
+    queryFn: async () => {
+      try {
+        console.log("Fetching transplant steps...");
+        const response = await fetch("/api/transplant-steps", {
+          credentials: "include",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch transplant steps: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log("Transplant steps data:", data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching transplant steps:", error);
+        throw error;
+      }
+    },
     enabled: !!user,
+    retry: 1
   });
 
-  // Fetch user's progress
-  const { data: progress, isLoading: isLoadingProgress } = useQuery({
+  // Log the steps data or error for debugging
+  useEffect(() => {
+    if (stepsError) {
+      console.error("Transplant steps query error:", stepsError);
+      toast({
+        title: "Error loading transplant steps",
+        description: "There was a problem retrieving the transplant steps data. Please try again later.",
+        variant: "destructive",
+      });
+    } else if (steps) {
+      console.log("Successfully loaded transplant steps:", steps.length);
+    }
+  }, [steps, stepsError, toast]);
+
+  // Fetch user's progress with improved error handling
+  const { 
+    data: progress, 
+    isLoading: isLoadingProgress,
+    error: progressError
+  } = useQuery({
     queryKey: [`/api/transplant-progress/${user?.id}`],
-    enabled: !!user,
+    queryFn: async () => {
+      try {
+        console.log(`Fetching transplant progress for user ${user?.id}...`);
+        const response = await fetch(`/api/transplant-progress/${user?.id}`, {
+          credentials: "include",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch transplant progress: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log("Transplant progress data:", data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching transplant progress:", error);
+        throw error;
+      }
+    },
+    enabled: !!user && user.id > 0,
+    retry: 1
   });
 
   // Mutation for updating progress

@@ -31,12 +31,13 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month");
   
   // Function to get health data for a specific date
-  const getHealthDataForDate = (date: Date): HealthMetrics | undefined => {
+  const getHealthDataForDate = (date: Date | null): HealthMetrics | undefined => {
     if (!date) return undefined;
     
     return healthData.find(entry => {
-      const entryDate = new Date(entry.date);
-      return isSameDay(entryDate, date);
+      // Ensure we have a valid date by handling potential null/undefined
+      const entryDate = entry.date ? new Date(entry.date) : null;
+      return entryDate && isSameDay(entryDate, date);
     });
   };
   
@@ -53,6 +54,7 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
       
       // Filter health data for the selected week
       return healthData.filter(entry => {
+        if (!entry.date) return false;
         const entryDate = new Date(entry.date);
         return !isAfter(start, entryDate) && !isAfter(entryDate, end);
       });
@@ -63,6 +65,7 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
       
       // Filter health data for the current month
       return healthData.filter(entry => {
+        if (!entry.date) return false;
         const entryDate = new Date(entry.date);
         return !isAfter(start, entryDate) && !isAfter(entryDate, end);
       });
