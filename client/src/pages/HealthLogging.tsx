@@ -1022,17 +1022,19 @@ export default function HealthLogging(props: HealthLoggingProps) {
               <CardContent>
                 {/* Improved HealthCalendar rendering to handle load state and 
                     consistent display even when no data is available yet */}
-                {healthDataHook.isLoadingWeekly ? (
-                  <div className="text-center p-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-3"></div>
-                    <p className="text-muted-foreground">Loading health data...</p>
-                  </div>
-                ) : (
-                  <HealthCalendar 
-                    healthData={healthDataHook.weeklyMetrics || []} 
-                    userId={userId}
-                  />
-                )}
+                <div className="health-calendar-container">
+                  {healthDataHook.isLoadingWeekly ? (
+                    <div className="text-center p-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-3"></div>
+                      <p className="text-muted-foreground">Loading health data...</p>
+                    </div>
+                  ) : (
+                    <HealthCalendar 
+                      healthData={healthDataHook.weeklyMetrics || []} 
+                      userId={userId}
+                    />
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
