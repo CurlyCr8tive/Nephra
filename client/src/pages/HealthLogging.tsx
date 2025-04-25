@@ -7,7 +7,7 @@ import { RouteComponentProps } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 // No FileUpload component yet
 import { Upload, PlusCircle, CalendarDays, Clock, Pill, Calculator as CalculatorIcon } from "lucide-react";
 import { InfoCircledIcon } from "@radix-ui/react-icons";

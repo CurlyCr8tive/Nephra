@@ -27,11 +27,13 @@ interface HealthCalendarProps {
 
 export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month");
   
   // Function to get health data for a specific date
   const getHealthDataForDate = (date: Date): HealthMetrics | undefined => {
+    if (!date) return undefined;
+    
     return healthData.find(entry => {
       const entryDate = new Date(entry.date);
       return isSameDay(entryDate, date);
@@ -40,11 +42,11 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
   
   // Function to prepare data for charts
   const prepareChartData = () => {
-    if (viewMode === "day" && selectedDate) {
+    if (viewMode === "day") {
       // Return data just for the selected day
       const data = getHealthDataForDate(selectedDate);
       return data ? [data] : [];
-    } else if (viewMode === "week" && selectedDate) {
+    } else if (viewMode === "week") {
       // Get start and end of the week for the selected date
       const start = startOfWeek(selectedDate);
       const end = endOfWeek(selectedDate);
@@ -113,7 +115,7 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
   
   // Format weekly data for charts
   const formatWeeklyChartData = () => {
-    if (viewMode === "week" && selectedDate) {
+    if (viewMode === "week") {
       const start = startOfWeek(selectedDate);
       const end = endOfWeek(selectedDate);
       
@@ -477,7 +479,7 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
             <DayPicker
               mode="single"
               selected={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
               month={currentMonth}
               modifiers={{
                 today: (day) => isToday(day),
@@ -491,7 +493,7 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
                 Day: ({ date, displayMonth, ...props }) => {
                   const day = date;
                   const modifiers = {
-                    selected: selectedDate ? isSameDay(day, selectedDate) : false,
+                    selected: isSameDay(day, selectedDate),
                     today: isToday(day)
                   };
                   return renderDayCell(day, modifiers);
