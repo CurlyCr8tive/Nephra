@@ -2,6 +2,81 @@ import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, js
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Supabase table interfaces
+export interface SupabaseHealthLog {
+  id?: number;
+  user_id: string | number;
+  created_at: string;
+  bp_systolic?: number;
+  bp_diastolic?: number;
+  hydration_level?: number;
+  pain_level: number;
+  stress_level: number;
+  fatigue_level: number;
+  estimated_gfr?: number | null;
+  tags?: string[];
+  medications_taken?: string[];
+  notes?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface SupabaseChatLog {
+  id?: number;
+  user_id: string | number;
+  user_input: string;
+  ai_response: string;
+  model_used?: string;
+  timestamp: string;
+  tags?: string[];
+  emotional_score?: number | null;
+  metadata?: Record<string, any>;
+}
+
+export interface SupabaseEducationArticle {
+  id?: number;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  published_date: string;
+  category: string;
+  user_focus_tags?: string[];
+  image_url?: string;
+  content?: string;
+}
+
+export interface SupabaseJournalEntry {
+  id?: number;
+  user_id: string | number;
+  content: string;
+  created_at: string;
+  sentiment?: string;
+  ai_analysis?: string;
+  tags?: string[];
+  stress_level?: number;
+  fatigue_level?: number;
+  pain_level?: number;
+  metadata?: Record<string, any>;
+}
+
+// Create Zod schemas for Supabase data validation
+export const supabaseHealthLogSchema = z.object({
+  id: z.number().optional(),
+  user_id: z.union([z.string(), z.number()]),
+  created_at: z.string(),
+  bp_systolic: z.number().optional(),
+  bp_diastolic: z.number().optional(),
+  hydration_level: z.number().optional(),
+  pain_level: z.number(),
+  stress_level: z.number(),
+  fatigue_level: z.number(),
+  estimated_gfr: z.number().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  medications_taken: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
 // User profile table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
