@@ -169,6 +169,7 @@ export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
         
         // Filter health data for this week
         const weekData = healthData.filter(entry => {
+          if (!entry.date) return false;
           const entryDate = new Date(entry.date);
           return !isAfter(currentWeekStart, entryDate) && !isAfter(entryDate, currentWeekEnd);
         });

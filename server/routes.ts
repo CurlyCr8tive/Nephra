@@ -702,6 +702,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // User profile endpoints are already defined above
 
+  // Transplant Steps endpoint
+  app.get("/api/transplant-steps", async (req, res) => {
+    try {
+      // Use predefined steps from the database or create default ones if none exist
+      const transplantSteps = [
+        { 
+          id: 1, 
+          title: "Referral to Transplant Center", 
+          description: "Your doctor refers you for evaluation based on your kidney function and overall health assessment.",
+          expectedTimeframe: "1-2 months",
+          requiredTests: ["Blood tests", "Urine tests", "GFR assessment"],
+          keyContacts: ["Primary Nephrologist", "Transplant Coordinator"]
+        },
+        { 
+          id: 2, 
+          title: "Initial Evaluation", 
+          description: "Complete medical, psychological, and social evaluation to determine transplant candidacy.",
+          expectedTimeframe: "3-6 months",
+          requiredTests: ["Complete blood panel", "Cardiac testing", "Psychological evaluation", "Social work assessment"],
+          keyContacts: ["Transplant Team", "Transplant Coordinator"]
+        },
+        { 
+          id: 3, 
+          title: "Waitlist Registration", 
+          description: "After evaluation approval, you are registered on the national transplant waitlist.",
+          expectedTimeframe: "Varies by blood type, tissue matching and region",
+          requiredTests: ["HLA typing", "Antibody screening", "Crossmatching"],
+          keyContacts: ["Transplant Coordinator", "UNOS Representative"]
+        },
+        { 
+          id: 4, 
+          title: "Living Donor Search", 
+          description: "If applicable, potential living donors are evaluated for compatibility.",
+          expectedTimeframe: "2-4 months for donor evaluation",
+          requiredTests: ["Blood typing", "Tissue matching", "Donor medical evaluation"],
+          keyContacts: ["Living Donor Coordinator", "Transplant Social Worker"]
+        },
+        { 
+          id: 5, 
+          title: "Transplant Surgery", 
+          description: "When a compatible kidney becomes available, the transplant surgery is performed.",
+          expectedTimeframe: "4-6 hours for surgery",
+          requiredTests: ["Final crossmatching", "Pre-operative tests"],
+          keyContacts: ["Transplant Surgeon", "Transplant Nephrologist", "Transplant Coordinator"]
+        },
+        { 
+          id: 6, 
+          title: "Post-Transplant Recovery", 
+          description: "Hospital stay and immediate recovery period after transplantation.",
+          expectedTimeframe: "5-10 days in hospital; 4-8 weeks initial recovery",
+          requiredTests: ["Daily blood tests", "Kidney function assessments", "Medication level monitoring"],
+          keyContacts: ["Transplant Nephrologist", "Transplant Nurse", "Transplant Pharmacist"]
+        },
+        { 
+          id: 7, 
+          title: "Long-term Follow-up", 
+          description: "Ongoing care and monitoring to ensure transplant success and prevent rejection.",
+          expectedTimeframe: "Lifelong",
+          requiredTests: ["Regular blood tests", "Medication monitoring", "Annual comprehensive evaluation"],
+          keyContacts: ["Transplant Nephrologist", "Primary Care Physician"]
+        }
+      ];
+      
+      res.json(transplantSteps);
+    } catch (error) {
+      console.error("Error retrieving transplant steps:", error);
+      res.status(500).json({ 
+        error: "Error retrieving transplant steps",
+        message: "There was a problem retrieving the transplant roadmap information."
+      });
+    }
+  });
+
   // Education resources endpoints
   app.get("/api/education-resources", async (req, res) => {
     try {
