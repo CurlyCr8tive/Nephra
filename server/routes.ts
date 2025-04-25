@@ -476,14 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Transplant roadmap endpoints
-  app.get("/api/transplant-steps", async (req, res) => {
-    try {
-      const steps = await storage.getTransplantSteps();
-      res.json(steps);
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+  // Endpoint moved to avoid duplication - see the implementation below
 
   app.get("/api/transplant-progress/:userId", async (req, res) => {
     try {
