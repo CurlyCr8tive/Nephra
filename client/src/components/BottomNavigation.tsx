@@ -66,9 +66,9 @@ export function BottomNavigation() {
         
         {/* Roadmap */}
         <Link
-          href="/roadmap"
+          href="/transplant"
           className={`w-1/5 flex flex-col items-center py-3 ${
-            isActive("/roadmap") ? "text-primary" : "text-neutral-500"
+            isActive("/transplant") ? "text-primary" : "text-neutral-500"
           }`}
         >
           <span className="material-icons">map</span>

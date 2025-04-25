@@ -142,7 +142,7 @@ export function TransplantRoadmapCard() {
             })
           )}
           
-          <Link href="/roadmap">
+          <Link href="/transplant">
             <Button variant="outline" className="w-full flex items-center justify-center gap-2 text-primary border-primary mt-4">
               <span className="material-icons text-sm">timeline</span>
               View full roadmap
