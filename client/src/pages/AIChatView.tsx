@@ -217,7 +217,7 @@ function BottomNavigation() {
 
   const navItems = [
     { path: "/", icon: "home", label: "Home" },
-    { path: "/trends", icon: "monitoring", label: "Track" },
+    { path: "/track", icon: "monitoring", label: "Track" },
     { path: "/chat", icon: "chat", label: "Chat" },
     { path: "/transplant", icon: "map", label: "Roadmap" },
   ];

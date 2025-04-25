@@ -24,9 +24,9 @@ export function BottomNavigation() {
         
         {/* Track - completely different implementation */}
         <Link
-          href="/trends"
+          href="/track"
           className={`w-1/5 text-center py-3 ${
-            isActive("/trends") ? "text-primary" : "text-neutral-500"
+            isActive("/track") || isActive("/trends") ? "text-primary" : "text-neutral-500"
           }`}
         >
           <div className="flex flex-col items-center">

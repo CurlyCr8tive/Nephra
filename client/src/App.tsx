@@ -2,10 +2,9 @@ import { Switch, Route, Redirect } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
-import HealthLogging from "@/pages/HealthLogging";
+import TrackPage from "@/pages/TrackPage";
 import AIChatView from "@/pages/AIChatView";
 import TransplantRoadmap from "@/pages/TransplantRoadmap";
-import HealthTrends from "@/pages/HealthTrends";
 import MedicalDocuments from "@/pages/MedicalDocuments";
 import JournalPage from "@/pages/JournalPage";
 import EducationHub from "@/pages/EducationHub";
@@ -35,11 +34,11 @@ const AppRoutes = () => {
       
       {/* Protected routes - specific routes first */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />
-      <ProtectedRoute path="/log" component={HealthLogging} />
-      <ProtectedRoute path="/track" component={HealthLogging} />
+      <ProtectedRoute path="/log" component={TrackPage} />
+      <ProtectedRoute path="/track" component={TrackPage} />
       <ProtectedRoute path="/journal" component={JournalPage} />
       <ProtectedRoute path="/transplant" component={TransplantRoadmap} />
-      <ProtectedRoute path="/trends" component={HealthTrends} />
+      <ProtectedRoute path="/trends" component={TrackPage} />
       <ProtectedRoute path="/documents" component={MedicalDocuments} />
       <ProtectedRoute path="/education" component={EducationHub} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
