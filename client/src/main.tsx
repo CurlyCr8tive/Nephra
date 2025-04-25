@@ -91,6 +91,13 @@ async function initializeApp() {
   const apiStatus = await checkApiConnection();
   console.log("API connection status:", apiStatus);
   
+  // If not authenticated, try to login with the demo user
+  if (!apiStatus.authenticated && !apiStatus.error) {
+    console.log("User not authenticated, attempting demo login...");
+    const demoSuccess = await setupDemoUser();
+    console.log("Demo login attempt result:", demoSuccess);
+  }
+  
   // Create a root-level provider that fixes the circular dependency with UserContext
   function AppWithProviders() {
     return (
