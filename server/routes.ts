@@ -17,7 +17,7 @@ import {
 // API routers
 import aiRouter from "./ai-router";
 import enhancedJournalRouter from "./enhanced-journal-api-router";
-import supabaseRouter from "./supabase-router";
+import supabaseRouter from "./supabase-router-fixed";
 import healthLogRouter from "./health-log-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
