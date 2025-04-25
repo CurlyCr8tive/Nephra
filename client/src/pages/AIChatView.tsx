@@ -219,7 +219,7 @@ function BottomNavigation() {
     { path: "/", icon: "home", label: "Home" },
     { path: "/trends", icon: "monitoring", label: "Track" },
     { path: "/chat", icon: "chat", label: "Chat" },
-    { path: "/roadmap", icon: "map", label: "Roadmap" },
+    { path: "/transplant", icon: "map", label: "Roadmap" },
   ];
 
   return (
