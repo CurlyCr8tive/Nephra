@@ -29,6 +29,7 @@ interface Medication {
 
 export default function HealthLogging(props: HealthLoggingProps) {
   const { onClose } = props;
+  // Use state to explicitly control active tab to prevent reset issues
   const [activeTab, setActiveTab] = useState("health");
   const { toast } = useToast();
   
@@ -190,7 +191,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
     
     // Method 1: Calculation based on CKD-EPI 2021 equation if serum creatinine is available
-    if (serumCreatinine && serumCreatinine !== "") {
+    if (serumCreatinine !== undefined && serumCreatinine !== null && serumCreatinine !== "") {
       // Convert to number if needed
       const scr = typeof serumCreatinine === 'string' ? parseFloat(serumCreatinine as string) : serumCreatinine;
       
@@ -719,7 +720,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       <Header title="Health Tracking" />
       
       <main className="flex-grow pt-16 pb-20 px-4">
-        <Tabs defaultValue="health" className="w-full" onValueChange={setActiveTab}>
+        <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="health">Health Data</TabsTrigger>
             <TabsTrigger value="medications">Medications</TabsTrigger>
@@ -907,7 +908,10 @@ export default function HealthLogging(props: HealthLoggingProps) {
                             
                             // Blood pressure adjustment (if provided)
                             if (systolicBP !== "") {
-                              const systolicValue = parseInt(systolicBP);
+                              const systolicValue = typeof systolicBP === 'string' 
+                                ? parseInt(systolicBP) 
+                                : systolicBP;
+                                
                               if (!isNaN(systolicValue)) {
                                 // Adjust down if high blood pressure (simplified demo logic)
                                 if (systolicValue > 140) {
@@ -1028,11 +1032,19 @@ export default function HealthLogging(props: HealthLoggingProps) {
                       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-3"></div>
                       <p className="text-muted-foreground">Loading health data...</p>
                     </div>
-                  ) : (
+                  ) : healthDataHook.weeklyMetrics && healthDataHook.weeklyMetrics.length > 0 ? (
                     <HealthCalendar 
-                      healthData={healthDataHook.weeklyMetrics || []} 
+                      healthData={healthDataHook.weeklyMetrics} 
                       userId={userId}
                     />
+                  ) : (
+                    <div>
+                      <p className="text-muted-foreground text-center mb-4">No health data yet. Start logging to see your health calendar!</p>
+                      <HealthCalendar 
+                        healthData={[]} 
+                        userId={userId}
+                      />
+                    </div>
                   )}
                 </div>
               </CardContent>
