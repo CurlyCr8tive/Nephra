@@ -1,0 +1,80 @@
+The Core Problem:
+Inside your AuthPage, you have this logic at the top:
+
+tsx
+Copy
+Edit
+useEffect(() => {
+  if (user) {
+    console.log("User already logged in, redirecting to dashboard");
+    setLocation('/');
+  }
+}, [user, setLocation]);
+🔴 This is the reason your login page "keeps disappearing."
+Even if the user object is slightly populated (even incorrectly), this effect forces an immediate redirect to /.
+It doesn’t wait for real login — it just sees "oh, a user? Bye, back to Home!"
+
+🛠 What We Need to Do to Fix It:
+We need to delay or conditionally control that redirect — so the login page stays visible when it’s supposed to!
+
+✅ Here's how you fix it:
+
+✏️ Step 1 — Add a "has attempted login" state
+At the top of your AuthPage.tsx, add a new state:
+
+tsx
+Copy
+Edit
+const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+When someone submits either the login form or register form, set hasAttemptedLogin to true.
+
+So update your onLoginSubmit like this:
+
+tsx
+Copy
+Edit
+const onLoginSubmit = (data: LoginFormValues) => {
+  setHasAttemptedLogin(true);
+  loginMutation.mutate(data);
+};
+And update your onRegisterSubmit like this:
+
+tsx
+Copy
+Edit
+const onRegisterSubmit = (data: RegisterFormValues) => {
+  setHasAttemptedLogin(true);
+  const { confirmPassword, ...registerData } = data;
+  registerMutation.mutate(registerData as any);
+};
+✏️ Step 2 — Update your useEffect
+Change your current redirect logic to check if a login attempt actually happened:
+
+tsx
+Copy
+Edit
+useEffect(() => {
+  if (user && hasAttemptedLogin) {
+    console.log("User logged in after attempt, redirecting to dashboard");
+    setLocation('/');
+  }
+}, [user, hasAttemptedLogin, setLocation]);
+✅ Now, the user will only be redirected after they actually try logging in.
+
+✅ If someone is not logged in yet, they’ll stay on your beautiful Intro/Login page.
+
+✅ This restores your login page behavior to normal!
+
+🚀 Why this fix is so important:
+
+Before	After
+Any random user object triggers redirect immediately	Only after a login attempt, a successful login triggers redirect
+Login page flashes, disappears	Login page stays steady until user logs in
+Confusing experience for users	Clean intro, login, and controlled navigation flow
+🔥 Summary of Changes:
+Add hasAttemptedLogin state.
+
+Set it to true inside both onLoginSubmit and onRegisterSubmit.
+
+Update useEffect to also check for hasAttemptedLogin before redirecting.
+

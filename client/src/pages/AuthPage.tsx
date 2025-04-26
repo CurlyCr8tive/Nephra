@@ -35,17 +35,18 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user, loginMutation, registerMutation } = useAuth();
   
-  // Redirect to dashboard if already logged in
+  // Only redirect to dashboard if user has attempted login and is logged in
   useEffect(() => {
-    if (user) {
-      console.log("User already logged in, redirecting to dashboard");
+    if (user && hasAttemptedLogin) {
+      console.log("User logged in after attempt, redirecting to dashboard");
       setLocation('/');
     }
-  }, [user, setLocation]);
+  }, [user, hasAttemptedLogin, setLocation]);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -72,10 +73,12 @@ export default function AuthPage() {
 
   // Handle form submissions
   const onLoginSubmit = (data: LoginFormValues) => {
+    setHasAttemptedLogin(true);
     loginMutation.mutate(data);
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
+    setHasAttemptedLogin(true);
     const { confirmPassword, ...registerData } = data;
     registerMutation.mutate(registerData as any);
   };
