@@ -147,11 +147,41 @@ export default function JournalPage() {
   }, []);
 
   // Query to fetch journal entries
-  const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery<JournalEntry[]>({
-    queryKey: [user && user.id ? `/api/journal-entries/${user.id}` : null],
-    enabled: !!user && !!user.id,
+  const { 
+    data: journalEntries = [], 
+    isLoading: isLoadingJournalEntries,
+    isError: isJournalError,
+    refetch: refetchJournalEntries,
+    error: journalError
+  } = useQuery<JournalEntry[]>({
+    queryKey: ['/api/journal-entries', user?.id],
+    enabled: !!user?.id,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    retry: 3,
     initialData: [],
   });
+  
+  // Fetch journal entries whenever the component mounts or user changes
+  useEffect(() => {
+    if (user?.id) {
+      console.log('🔄 Fetching journal entries for user:', user.id);
+      refetchJournalEntries();
+    }
+  }, [user?.id, refetchJournalEntries]);
+
+  // Log any journal loading errors
+  useEffect(() => {
+    if (isJournalError && journalError) {
+      console.error('Error loading journal entries:', journalError);
+      toast({
+        title: "Error loading journal entries",
+        description: "Please try again later.",
+        variant: "destructive"
+      });
+    }
+  }, [isJournalError, journalError, toast]);
 
   // Mutation to submit journal entry
   const { mutate: submitJournal, isPending: isSubmitting } = useMutation({
