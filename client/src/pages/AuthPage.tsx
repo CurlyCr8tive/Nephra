@@ -382,12 +382,14 @@ export default function AuthPage() {
                 <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg flex items-start">
                   <div className="bg-white/20 p-2 rounded-full mr-4 flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Supportive Community</h3>
-                    <p className="opacity-80">Connect with healthcare providers and fellow patients for support</p>
+                    <h3 className="font-semibold text-lg">AI-Powered Health Assistant</h3>
+                    <p className="opacity-80">Get personalized health insights and emotional support from our advanced AI</p>
                   </div>
                 </div>
               </div>
