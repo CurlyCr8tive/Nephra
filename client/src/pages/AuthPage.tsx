@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { AlertCircle, Mail, User, Lock, EyeIcon, EyeOffIcon, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Redirect } from "wouter";
 
 // Define schemas
 const loginSchema = z.object({
@@ -100,12 +101,10 @@ export default function AuthPage() {
     }
   }, [user, isLoading, shouldRedirect]);
   
-  // Handle the actual redirect after state change
-  useEffect(() => {
-    if (shouldRedirect) {
-      window.location.replace("/dashboard");
-    }
-  }, [shouldRedirect]);
+  // If we should redirect, use the Redirect component
+  if (shouldRedirect) {
+    return <Redirect to="/dashboard" />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
