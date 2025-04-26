@@ -1,9 +1,9 @@
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import AppV2 from "./AppV2";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { UserProvider } from "./contexts/UserContext";
+// We no longer need UserProvider - using AuthProvider in AppV2 instead
 import { SupabaseProvider } from "./hooks/useSupabase";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -85,35 +85,11 @@ const setupDemoUser = async () => {
   }
 };
 
-// Run these checks before mounting the app
-async function initializeApp() {
-  // Check API connection without logging out the user
-  const apiStatus = await checkApiConnection();
-  console.log("API connection status:", apiStatus);
-  
-  // If not authenticated, try to login with the demo user
-  if (!apiStatus.authenticated && !apiStatus.error) {
-    console.log("User not authenticated, attempting demo login...");
-    const demoSuccess = await setupDemoUser();
-    console.log("Demo login attempt result:", demoSuccess);
-  }
-  
-  // Create a root-level provider that fixes the circular dependency with UserContext
-  function AppWithProviders() {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <UserProvider>
-          <SupabaseProvider>
-            <App />
-            <Toaster />
-          </SupabaseProvider>
-        </UserProvider>
-      </QueryClientProvider>
-    );
-  }
-  
-  createRoot(document.getElementById("root")!).render(<AppWithProviders />);
-}
-
-// Start the app initialization process
-initializeApp();
+// Simplified initialization - just render our new AppV2
+createRoot(document.getElementById("root")!).render(
+  <QueryClientProvider client={queryClient}>
+    <SupabaseProvider>
+      <AppV2 />
+    </SupabaseProvider>
+  </QueryClientProvider>
+);
