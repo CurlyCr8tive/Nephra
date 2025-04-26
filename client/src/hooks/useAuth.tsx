@@ -310,6 +310,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.localStorage.setItem('nephra_user_gender', userData.gender);
             console.log("Saved gender to storage:", userData.gender);
           }
+          
+          // Save the complete user data to localStorage
+          localStorage.setItem('nephra_user_data', JSON.stringify(userData));
+          console.log("Saved complete user data to localStorage");
         }
       } catch (e) {
         console.error("Error saving user data to storage:", e);
@@ -327,7 +331,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to dashboard after successful login
       if (location === '/auth') {
         console.log("Redirecting to dashboard after login");
-        setLocation('/');
+        setLocation('/dashboard');
+        
+        // Force a window reload to ensure all auth state is refreshed
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 100);
       }
     },
     onError: (error: Error) => {
@@ -359,6 +368,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (userData: User) => {
       queryClient.setQueryData(["/api/user"], userData);
+      
+      // Also save user ID to session/local storage for persistence
+      try {
+        if (typeof window !== 'undefined' && userData.id) {
+          window.sessionStorage.setItem('nephra_user_id', userData.id.toString());
+          window.localStorage.setItem('nephra_user_id', userData.id.toString());
+          console.log("Saved user ID to storage:", userData.id);
+          
+          // If gender is available, also save it
+          if (userData.gender) {
+            window.sessionStorage.setItem('nephra_user_gender', userData.gender);
+            window.localStorage.setItem('nephra_user_gender', userData.gender);
+            console.log("Saved gender to storage:", userData.gender);
+          }
+          
+          // Save the complete user data to localStorage
+          localStorage.setItem('nephra_user_data', JSON.stringify(userData));
+          console.log("Saved complete user data to localStorage");
+        }
+      } catch (e) {
+        console.error("Error saving user data to storage:", e);
+      }
+      
       toast({
         title: "Registration successful",
         description: "Your account has been created",
@@ -367,7 +399,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to dashboard after successful registration
       if (location === '/auth') {
         console.log("Redirecting to dashboard after registration");
-        setLocation('/');
+        setLocation('/dashboard');
+        
+        // Force a window reload to ensure all auth state is refreshed
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 100);
       }
     },
     onError: (error: Error) => {
