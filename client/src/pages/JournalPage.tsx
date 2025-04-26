@@ -200,7 +200,9 @@ export default function JournalPage() {
     },
     onSuccess: (data) => {
       if (user && user.id) {
-        queryClient.invalidateQueries({ queryKey: [`/api/journal-entries/${user.id}`] });
+        // Invalidate using the same query key format as our useQuery
+        queryClient.invalidateQueries({ queryKey: ['/api/journal-entries', user.id] });
+        console.log('✅ Successfully saved journal entry, refreshing entries');
       }
       
       // Save AI response for conversation

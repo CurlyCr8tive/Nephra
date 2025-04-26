@@ -17,21 +17,33 @@ export default function AIChatView() {
   
   // Load chat history on component mount
   useEffect(() => {
-    if (user) {
-      getChatHistory(user.id, 10)
-        .then(history => {
-          setChatHistory(history.reverse());
-        })
-        .catch(error => {
-          console.error("Error fetching chat history:", error);
-          toast({
-            title: "Error loading chat history",
-            description: "Could not load your previous conversations.",
-            variant: "destructive"
-          });
+    async function loadChatHistory() {
+      if (!user || !user.id) return;
+      
+      try {
+        console.log('🔄 Fetching chat history for user:', user.id);
+        const history = await getChatHistory(user.id, 10);
+        console.log(`📥 Received ${history.length} chat messages from history`);
+        setChatHistory(history.reverse());
+      } catch (error) {
+        console.error("Error fetching chat history:", error);
+        toast({
+          title: "Error loading chat history",
+          description: "Could not load your previous conversations.",
+          variant: "destructive"
         });
+      }
     }
-  }, [user]);
+    
+    // Call immediately when component mounts
+    loadChatHistory();
+    
+    // Set up an interval to refresh chat history every 30 seconds
+    const intervalId = setInterval(loadChatHistory, 30000);
+    
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, [user, toast]);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
