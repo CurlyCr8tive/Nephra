@@ -145,61 +145,76 @@ export function EmotionalCheckInCard() {
         <span className="text-xs text-neutral-500">Today at {currentTime}</span>
       </div>
       
-      <p className="text-sm text-neutral-600 mb-4">How are you feeling right now?</p>
-      
-      <div className="grid grid-cols-5 gap-2 mb-4">
-        {emotionOptions.map((emotion) => (
-          <button
-            key={emotion.value}
-            className={`flex flex-col items-center p-2 hover:bg-neutral-100 rounded-lg transition ${
-              selectedEmotion === emotion.value ? "bg-neutral-100" : ""
-            }`}
-            onClick={() => handleEmotionSelect(emotion.value)}
-          >
-            <span className="text-2xl mb-1">{emotion.emoji}</span>
-            <span className="text-xs">{emotion.label}</span>
-          </button>
-        ))}
-      </div>
-      
-      <div className="flex gap-2 flex-wrap mb-4">
-        {emotionTags.map((tag) => (
-          <button
-            key={tag.value}
-            className={`text-sm px-3 py-1 rounded-full transition ${
-              selectedTags.includes(tag.value)
-                ? tag.color === "primary" 
-                  ? "bg-primary-light bg-opacity-20 text-primary-dark"
-                  : tag.color === "accent" 
-                    ? "bg-accent-light bg-opacity-20 text-accent-dark"
+      {user && user.id ? (
+        <>
+          <p className="text-sm text-neutral-600 mb-4">How are you feeling right now?</p>
+          
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            {emotionOptions.map((emotion) => (
+              <button
+                key={emotion.value}
+                className={`flex flex-col items-center p-2 hover:bg-neutral-100 rounded-lg transition ${
+                  selectedEmotion === emotion.value ? "bg-neutral-100" : ""
+                }`}
+                onClick={() => handleEmotionSelect(emotion.value)}
+              >
+                <span className="text-2xl mb-1">{emotion.emoji}</span>
+                <span className="text-xs">{emotion.label}</span>
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex gap-2 flex-wrap mb-4">
+            {emotionTags.map((tag) => (
+              <button
+                key={tag.value}
+                className={`text-sm px-3 py-1 rounded-full transition ${
+                  selectedTags.includes(tag.value)
+                    ? tag.color === "primary" 
+                      ? "bg-primary-light bg-opacity-20 text-primary-dark"
+                      : tag.color === "accent" 
+                        ? "bg-accent-light bg-opacity-20 text-accent-dark"
+                        : "bg-neutral-100 text-neutral-700"
                     : "bg-neutral-100 text-neutral-700"
-                : "bg-neutral-100 text-neutral-700"
-            }`}
-            onClick={() => handleTagToggle(tag.value)}
+                }`}
+                onClick={() => handleTagToggle(tag.value)}
+              >
+                {tag.label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="relative">
+            <Textarea
+              className="w-full p-3 border border-neutral-300 rounded-lg text-sm"
+              placeholder="Add more details about how you're feeling... (optional)"
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="absolute bottom-3 right-3 text-primary"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !selectedEmotion}
+            >
+              <span className="material-icons">send</span>
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-neutral-600 mb-4">Track your emotions and well-being</p>
+          <Button 
+            variant="outline" 
+            className="w-full text-primary border-primary"
+            onClick={() => setLocation("/auth")}
           >
-            {tag.label}
-          </button>
-        ))}
-      </div>
-      
-      <div className="relative">
-        <Textarea
-          className="w-full p-3 border border-neutral-300 rounded-lg text-sm"
-          placeholder="Add more details about how you're feeling... (optional)"
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="absolute bottom-3 right-3 text-primary"
-          onClick={handleSubmit}
-          disabled={isSubmitting || !selectedEmotion}
-        >
-          <span className="material-icons">send</span>
-        </Button>
-      </div>
+            Log in to use Emotional Check-In
+          </Button>
+        </>
+      )}
     </div>
   );
 }
