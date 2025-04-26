@@ -1,0 +1,94 @@
+You have an infinite loop happening inside a useEffect or a component render.
+
+🚨 This happens when:
+
+You setState() inside a useEffect that depends on the same state that it updates, without guarding it properly.
+
+Or you have a setState() call that keeps triggering rerenders endlessly.
+
+🎯 In our case, the problem is likely here in <ProtectedRoute>
+From the ProtectedRoute I gave you:
+
+tsx
+Copy
+Edit
+useEffect(() => {
+  if (!isLoading && !user) {
+    location('/auth');
+  }
+}, [user, isLoading, location]);
+👉 location('/auth') is the wrong call — it navigates, but it also returns a new setter.
+In wouter, the correct way to change page is setLocation, not location!
+
+location is the current path. setLocation is the function to redirect.
+
+🛠 Here’s how to fix it properly:
+Change:
+
+tsx
+Copy
+Edit
+const [location] = useLocation();
+➔ to:
+
+tsx
+Copy
+Edit
+const [, setLocation] = useLocation();
+✅ This way you're using setLocation correctly to trigger a navigation!
+
+Then update the useEffect:
+
+tsx
+Copy
+Edit
+useEffect(() => {
+  if (!isLoading && !user) {
+    setLocation('/auth');
+  }
+}, [user, isLoading, setLocation]);
+✅ No more infinite loop. ✅ No crash. ✅ Proper redirect when not logged in.
+
+📋 Full corrected <ProtectedRoute> code:
+tsx
+Copy
+Edit
+import { ReactNode, useEffect } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { useLocation } from "wouter";
+import { Loader2 } from "lucide-react";
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, isLoading } = useUser();
+  const [, setLocation] = useLocation(); // <<-- fix here!
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation('/auth');
+    }
+  }, [user, isLoading, setLocation]); // <<-- correct dependencies
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
+✅ Summary of the issue:
+
+Problem	Solution
+Accidentally calling location('/auth') (wrong function)	Use setLocation('/auth')
+Causing infinite re-renders	Redirect properly without updating during render
+"Maximum update depth exceeded" error	Fixed by using the correct navigation function

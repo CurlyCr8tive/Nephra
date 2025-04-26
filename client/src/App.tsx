@@ -12,39 +12,92 @@ import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Main component for routing
 const AppRoutes = () => {
   const { user, isLoading } = useAuth();
   
-  // If loading, don't render routes yet
+  // Don't render routes until we know the auth state
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
   }
-  
+
   return (
     <Switch>
-      {/* Auth page - always accessible */}
-      <Route path="/auth" component={AuthPage} />
+      {/* Auth page - if logged in, redirect to dashboard */}
+      <Route path="/auth">
+        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+      </Route>
       
-      {/* For all other routes - redirect to auth if not logged in */}
-      {!user && <Route path="*"><Redirect to="/auth" /></Route>}
-      
-      {/* Protected routes - only available when logged in */}
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/log" component={TrackPage} />
-      <Route path="/track" component={TrackPage} />
-      <Route path="/journal" component={JournalPage} />
-      <Route path="/transplant" component={TransplantRoadmap} />
-      <Route path="/trends" component={TrackPage} />
-      <Route path="/documents" component={MedicalDocuments} />
-      <Route path="/education" component={EducationHub} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route path="/chat" component={AIChatView} />
-      
-      {/* Root route redirects to dashboard when logged in */}
+      {/* Root route */}
       <Route path="/">
-        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
+        <Redirect to={user ? "/dashboard" : "/auth"} />
+      </Route>
+      
+      {/* Protected routes - using ProtectedRoute component */}
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/log">
+        <ProtectedRoute>
+          <TrackPage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/track">
+        <ProtectedRoute>
+          <TrackPage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/journal">
+        <ProtectedRoute>
+          <JournalPage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/transplant">
+        <ProtectedRoute>
+          <TransplantRoadmap />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/trends">
+        <ProtectedRoute>
+          <TrackPage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/documents">
+        <ProtectedRoute>
+          <MedicalDocuments />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/education">
+        <ProtectedRoute>
+          <EducationHub />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/profile">
+        <ProtectedRoute>
+          <ProfilePage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/chat">
+        <ProtectedRoute>
+          <AIChatView />
+        </ProtectedRoute>
       </Route>
       
       {/* 404 page - always last */}

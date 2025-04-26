@@ -27,6 +27,10 @@ export default function JournalPage() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useUser();
+  
+  // No need for authentication checks here anymore
+  // The ProtectedRoute component handles it for us
   
   // State for the journaling interface
   const [journalContent, setJournalContent] = useState("");
@@ -36,52 +40,6 @@ export default function JournalPage() {
   const [conversation, setConversation] = useState<{role: 'user' | 'ai', content: string}[]>([]);
   const [followUpPrompt, setFollowUpPrompt] = useState("");
   const [activeTab, setActiveTab] = useState<string>("write");
-  
-  // Safely access user context with fallback for error cases
-  let userId = 1; // Default fallback userId
-  let user = {
-    id: 1,
-    username: "testuser",
-    firstName: "User"
-  };
-  
-  try {
-    const userContext = useUser();
-    if (userContext.user) {
-      // Create safe user object with only needed properties
-      userId = userContext.user.id;
-      user = {
-        id: userContext.user.id,
-        username: userContext.user.username,
-        firstName: userContext.user.firstName || "User" // Handle potential null value
-      };
-    } else {
-      // If user is not logged in, we'll keep using the default user object
-      // but log a message to the console
-      console.log("User not authenticated in JournalPage, using default user");
-    }
-  } catch (error) {
-    console.error("UserContext not available:", error);
-    // Continue with default user
-  }
-  
-  // Check if user is authenticated when component mounts
-  useEffect(() => {
-    // Add a small delay to ensure context is fully loaded
-    const timer = setTimeout(() => {
-      console.log("Checking authentication in JournalPage");
-      // We allow default user for testing, but in production you might want to redirect
-      // if (!user || user.id === 1) {
-      //  toast({
-      //    title: "Not logged in",
-      //    description: "Please log in to access your journal",
-      //    variant: "destructive"
-      //  });
-      //  setLocation("/auth");
-      // }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, []);
   
   // Check for URL parameters and set the active tab
   useEffect(() => {
@@ -190,15 +148,15 @@ export default function JournalPage() {
 
   // Query to fetch journal entries
   const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery<JournalEntry[]>({
-    queryKey: [user ? `/api/journal-entries/${user.id}` : null],
-    enabled: !!user,
+    queryKey: [user && user.id ? `/api/journal-entries/${user.id}` : null],
+    enabled: !!user && !!user.id,
     initialData: [],
   });
 
   // Mutation to submit journal entry
   const { mutate: submitJournal, isPending: isSubmitting } = useMutation({
     mutationFn: async (data: { content: string, aiProvider: string }) => {
-      if (!user) throw new Error("No user found");
+      if (!user || !user.id) throw new Error("No user found");
       
       // Choose endpoint based on selected AI provider
       const endpoint = aiProviders.find(p => p.id === data.aiProvider)?.apiEndpoint || "/api/ai/journal/process";
@@ -211,7 +169,9 @@ export default function JournalPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/journal-entries/${user?.id}`] });
+      if (user && user.id) {
+        queryClient.invalidateQueries({ queryKey: [`/api/journal-entries/${user.id}`] });
+      }
       
       // Save AI response for conversation
       if (data.entry && data.entry.aiResponse) {
@@ -241,7 +201,7 @@ export default function JournalPage() {
   // Mutation for follow-up conversation
   const { mutate: submitFollowUp, isPending: isSubmittingFollowUp } = useMutation({
     mutationFn: async (prompt: string) => {
-      if (!user) throw new Error("No user found");
+      if (!user || !user.id) throw new Error("No user found");
       
       // Use enhanced journal API for follow-up if enhanced chatbot is selected
       const endpoint = selectedAIProvider === "enhanced" 
