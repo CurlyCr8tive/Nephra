@@ -37,7 +37,15 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation, registerMutation } = useAuth();
+  
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      console.log("User already logged in, redirecting to dashboard");
+      setLocation('/');
+    }
+  }, [user, setLocation]);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -59,13 +67,8 @@ export default function AuthPage() {
     },
   });
 
-  // We're using the loginMutation and registerMutation from useAuth() directly
-
-  // Add a useEffect to redirect when authenticated
-  const { user } = useAuth();
-  // No need for a redirect check - the main App.tsx routing now handles this
-  // If a user is logged in, they won't even reach this component
-  // This component now only shows when user is not logged in
+  // We're using loginMutation, registerMutation and user from useAuth() directly
+  // The useEffect above handles redirecting already logged in users
 
   // Handle form submissions
   const onLoginSubmit = (data: LoginFormValues) => {

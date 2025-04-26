@@ -241,6 +241,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Login successful",
         description: `Welcome back, ${userData.username}!`,
       });
+      
+      // Redirect to dashboard after successful login
+      if (location === '/auth') {
+        console.log("Redirecting to dashboard after login");
+        setLocation('/');
+      }
     },
     onError: (error: Error) => {
       console.error("Login mutation error:", error);
@@ -275,6 +281,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Registration successful",
         description: "Your account has been created",
       });
+      
+      // Redirect to dashboard after successful registration
+      if (location === '/auth') {
+        console.log("Redirecting to dashboard after registration");
+        setLocation('/');
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -322,6 +334,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Logged out",
         description: "You have been successfully logged out",
       });
+      
+      // Redirect to login page after logout
+      console.log("Redirecting to login page after logout");
+      setLocation('/auth');
     },
     onError: (error: Error) => {
       toast({
