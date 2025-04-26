@@ -12,107 +12,86 @@ import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/useAuth";
-import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Loader2 } from "lucide-react";
 
-// Main component for routing
-const AppRoutes = () => {
-  const { user, isLoading } = useUser();
-  
-  // Don't render routes until we know the auth state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <Switch>
-      {/* Auth page - if logged in, redirect to dashboard */}
-      <Route path="/auth">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
-      </Route>
-      
-      {/* Root route */}
-      <Route path="/">
-        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
-      </Route>
-      
-      {/* Protected routes - using ProtectedRoute component */}
-      <Route path="/dashboard">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/log">
-        <ProtectedRoute>
-          <TrackPage />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/track">
-        <ProtectedRoute>
-          <TrackPage />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/journal">
-        <ProtectedRoute>
-          <JournalPage />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/transplant">
-        <ProtectedRoute>
-          <TransplantRoadmap />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/trends">
-        <ProtectedRoute>
-          <TrackPage />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/documents">
-        <ProtectedRoute>
-          <MedicalDocuments />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/education">
-        <ProtectedRoute>
-          <EducationHub />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/profile">
-        <ProtectedRoute>
-          <ProfilePage />
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/chat">
-        <ProtectedRoute>
-          <AIChatView />
-        </ProtectedRoute>
-      </Route>
-      
-      {/* 404 page - always last */}
-      <Route component={NotFound} />
-    </Switch>
-  );
-};
-
+// Main App with Routes
 function App() {
   return (
     <TooltipProvider>
       <AuthProvider>
-        <AppRoutes />
+        <Switch>
+          {/* Public routes */}
+          <Route path="/auth" component={AuthPage} />
+          
+          {/* Home route - redirects based on auth state */}
+          <Route path="/">
+            <Redirect to="/dashboard" />
+          </Route>
+          
+          {/* Protected routes */}
+          <Route path="/dashboard">
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/track">
+            <ProtectedRoute>
+              <TrackPage />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/log">
+            <ProtectedRoute>
+              <TrackPage />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/journal">
+            <ProtectedRoute>
+              <JournalPage />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/transplant">
+            <ProtectedRoute>
+              <TransplantRoadmap />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/trends">
+            <ProtectedRoute>
+              <TrackPage />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/documents">
+            <ProtectedRoute>
+              <MedicalDocuments />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/education">
+            <ProtectedRoute>
+              <EducationHub />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/profile">
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/chat">
+            <ProtectedRoute>
+              <AIChatView />
+            </ProtectedRoute>
+          </Route>
+          
+          {/* 404 page - always last */}
+          <Route component={NotFound} />
+        </Switch>
         <Toaster />
       </AuthProvider>
     </TooltipProvider>

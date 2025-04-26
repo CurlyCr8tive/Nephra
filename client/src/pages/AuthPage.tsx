@@ -71,37 +71,26 @@ export default function AuthPage() {
     },
   });
 
-  // Use state to track redirect status
+  // State to track if we should redirect
   const [shouldRedirect, setShouldRedirect] = useState(false);
   
-  // Use direct side effect to save data and redirect
+  // Listen for user state changes and redirect if needed
   useEffect(() => {
-    // Only proceed if user is loaded and we're not already redirecting
-    if (user && !shouldRedirect && !isLoading) {
-      // Save user data to localStorage for persistence
-      try {
-        localStorage.setItem('nephra_user_data', JSON.stringify(user));
-        console.log("AuthPage: Saved user data to localStorage");
-      } catch (e) {
-        console.error("Error saving user data to localStorage:", e);
-      }
-      
-      // Only redirect if not being forced to login, otherwise proceed to render the form
+    // Only proceed if not loading and user is authenticated
+    if (!isLoading && user) {
+      // Only redirect if not forced to stay on login page
       if (!window.location.search.includes('forceLogin')) {
-        console.log("AuthPage: User already logged in, scheduling redirect to dashboard");
-        
-        // Short timeout to ensure user data is saved properly
+        // Use small timeout to avoid race conditions
         const timer = setTimeout(() => {
-          console.log("AuthPage: Proceeding with redirect to dashboard");
           setShouldRedirect(true);
-        }, 200);
+        }, 200); 
         
         return () => clearTimeout(timer);
       }
     }
-  }, [user, isLoading, shouldRedirect]);
+  }, [user, isLoading]);
   
-  // If we should redirect, use the Redirect component
+  // If we should redirect to dashboard, use the Redirect component
   if (shouldRedirect) {
     return <Redirect to="/dashboard" />;
   }

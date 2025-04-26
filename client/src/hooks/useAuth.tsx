@@ -104,6 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetch: refetchUser,
   } = useQuery({
     queryKey: ["/api/user", forceRefresh], // Add forceRefresh to the key
+    staleTime: 1000 * 60 * 5, // 5 minute stale time
+    refetchOnWindowFocus: false, // Disable auto-refetch on window focus
+    refetchInterval: false, // Disable polling
+    gcTime: 1000 * 60 * 10, // Keep for 10 minutes in the cache
     queryFn: async () => {
       try {
         console.log("Fetching user data...");
