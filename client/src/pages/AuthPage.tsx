@@ -71,29 +71,8 @@ export default function AuthPage() {
     },
   });
 
-  // State to track if we should redirect
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  
-  // Listen for user state changes and redirect if needed
-  useEffect(() => {
-    // Only proceed if not loading and user is authenticated
-    if (!isLoading && user) {
-      // Only redirect if not forced to stay on login page
-      if (!window.location.search.includes('forceLogin')) {
-        // Use small timeout to avoid race conditions
-        const timer = setTimeout(() => {
-          setShouldRedirect(true);
-        }, 200); 
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [user, isLoading]);
-  
-  // If we should redirect to dashboard, use the Redirect component
-  if (shouldRedirect) {
-    return <Redirect to="/dashboard" />;
-  }
+  // Auth page only handles login form display now
+  // The redirect logic is handled by the parent component (AppRoutes)
 
   return (
     <div className="flex min-h-screen flex-col">

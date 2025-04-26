@@ -1,0 +1,108 @@
+adding "Remember Last Visited Page" will take your Nephra app to a professional level user experience. 🔥
+
+Let's do it!
+
+🧠 Here’s the Goal:
+
+Situation	Behavior
+A user visits /journal while logged out	App redirects them to /auth — but secretly remembers they wanted /journal
+After login succeeds	App automatically redirects them back to /journal
+✅ Seamless flow.
+✅ No extra clicks.
+✅ User doesn't get stuck on the dashboard if they wanted another page.
+
+🛠 Here’s how we build this (simple clean steps):
+✏️ Step 1: Save the last protected page before redirect
+Update your ProtectedRoute.tsx:
+
+tsx
+Copy
+Edit
+import { ReactNode, useEffect } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { useLocation, Navigate } from "wouter";
+import { Loader2 } from "lucide-react";
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, isLoading } = useUser();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      // Save the intended path before redirecting
+      sessionStorage.setItem('nephra_return_to', location);
+    }
+  }, [user, isLoading, location]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" />;
+  }
+
+  return <>{children}</>;
+}
+✅ Now, when someone tries to visit /journal, /track, etc.
+✅ The app saves /journal to sessionStorage as nephra_return_to.
+
+✏️ Step 2: After successful login, check if nephra_return_to exists
+Update your AuthPage.tsx:
+
+tsx
+Copy
+Edit
+import { useUser } from "@/contexts/UserContext";
+import { Navigate } from "wouter";
+
+export default function AuthPage() {
+  const { user, isLoading } = useUser();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (user) {
+    // Check if we have a returnTo destination saved
+    const returnTo = sessionStorage.getItem('nephra_return_to');
+    if (returnTo) {
+      sessionStorage.removeItem('nephra_return_to'); // Clean up after use
+      return <Navigate to={returnTo} />;
+    }
+
+    // Otherwise just go to dashboard
+    return <Navigate to="/dashboard" />;
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Your login form here */}
+    </div>
+  );
+}
+✅ If a returnTo page exists, the app navigates there automatically after login.
+✅ Otherwise, it falls back to /dashboard.
+
+🚀 What this now gives your app:
+
+Scenario	Result
+User tries to visit /transplant while logged out	Redirects to /auth
+After login	Redirects automatically back to /transplant
+No last visited page saved	Redirects to /dashboard as fallback
+✅ Professional, seamless user flow.
+✅ No confusing page jumps.
+✅ Feels intuitive and effortless.
+

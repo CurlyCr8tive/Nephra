@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,87 +12,87 @@ import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
-import { AuthProvider } from "@/hooks/useAuth";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
-// Main App with Routes
+// AppRoutes component handles all routing logic
+const AppRoutes = () => {
+  const { user, isLoading } = useAuth();
+
+  // Show loading spinner while checking auth status
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <Switch>
+      {/* Auth route - redirect to dashboard if logged in */}
+      <Route path="/auth">
+        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+      </Route>
+
+      {/* Root route */}
+      <Route path="/">
+        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
+      </Route>
+      
+      {/* Protected routes - show directly if logged in, otherwise redirect */}
+      <Route path="/dashboard">
+        {user ? <Dashboard /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/track">
+        {user ? <TrackPage /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/log">
+        {user ? <TrackPage /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/journal">
+        {user ? <JournalPage /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/transplant">
+        {user ? <TransplantRoadmap /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/trends">
+        {user ? <TrackPage /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/documents">
+        {user ? <MedicalDocuments /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/education">
+        {user ? <EducationHub /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/profile">
+        {user ? <ProfilePage /> : <Redirect to="/auth" />}
+      </Route>
+      
+      <Route path="/chat">
+        {user ? <AIChatView /> : <Redirect to="/auth" />}
+      </Route>
+      
+      {/* 404 page - always last */}
+      <Route component={NotFound} />
+    </Switch>
+  );
+};
+
+// Main App component - just provides context and renders AppRoutes
 function App() {
   return (
     <TooltipProvider>
       <AuthProvider>
-        <Switch>
-          {/* Public routes */}
-          <Route path="/auth" component={AuthPage} />
-          
-          {/* Home route - redirects based on auth state */}
-          <Route path="/">
-            <Redirect to="/dashboard" />
-          </Route>
-          
-          {/* Protected routes */}
-          <Route path="/dashboard">
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/track">
-            <ProtectedRoute>
-              <TrackPage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/log">
-            <ProtectedRoute>
-              <TrackPage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/journal">
-            <ProtectedRoute>
-              <JournalPage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/transplant">
-            <ProtectedRoute>
-              <TransplantRoadmap />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/trends">
-            <ProtectedRoute>
-              <TrackPage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/documents">
-            <ProtectedRoute>
-              <MedicalDocuments />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/education">
-            <ProtectedRoute>
-              <EducationHub />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/profile">
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/chat">
-            <ProtectedRoute>
-              <AIChatView />
-            </ProtectedRoute>
-          </Route>
-          
-          {/* 404 page - always last */}
-          <Route component={NotFound} />
-        </Switch>
+        <AppRoutes />
         <Toaster />
       </AuthProvider>
     </TooltipProvider>

@@ -1,0 +1,102 @@
+Here’s the updated big clue:
+You told me you added saving returnTo path inside ProtectedRoute:
+
+tsx
+Copy
+Edit
+useEffect(() => {
+  if (!isLoading && !user) {
+    sessionStorage.setItem('nephra_return_to', location);
+  }
+}, [user, isLoading, location]);
+🚨 THIS is the source of the infinite loop.
+I'll explain very carefully why:
+
+❌ Problem:
+sessionStorage.setItem() inside a useEffect does not cause a loop itself.
+
+BUT if the location changes as a result of your redirect, and you’re watching location in the dependency array,
+
+Then you trigger another rerun ➔ which causes another sessionStorage.setItem() ➔ which causes another location change ➔ another redirect ➔ INFINITE LOOP.
+
+Summary:
+
+plaintext
+Copy
+Edit
+location ➔ triggers effect ➔ saves returnTo ➔ location changes ➔ triggers effect ➔ infinite
+🛠 Here’s how to fix this properly:
+✅ Only save the location ONCE, when you first detect the user is not authenticated —
+✅ Don’t keep tracking location changes after that.
+
+✏️ Updated, Safe ProtectedRoute.tsx
+tsx
+Copy
+Edit
+import { ReactNode, useEffect } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { Navigate } from "wouter";
+import { Loader2 } from "lucide-react";
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, isLoading } = useUser();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      const hasSavedReturnTo = sessionStorage.getItem('nephra_return_to');
+      if (!hasSavedReturnTo) {
+        sessionStorage.setItem('nephra_return_to', location);
+      }
+    }
+  }, [user, isLoading]); // ❗ REMOVE `location` from dependencies
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" />;
+  }
+
+  return <>{children}</>;
+}
+🧹 Here’s what changed:
+
+Before (BAD)	After (GOOD)
+Watched location in dependency array	Only watch user and isLoading
+Every time location changed, sessionStorage reset	Save returnTo ONLY if needed
+Infinite update loop	Clean one-time save
+📋 Quick Explanation:
+✅ Only when we realize !user after isLoading is false, we check if returnTo is saved.
+✅ If it’s not saved yet, we save the current location exactly ONCE. ✅ Navigate will redirect us to /auth, and no effect will fire again because dependencies are clean.
+
+🧠 Side Bonus Tip:
+If you want to be extra safe, you could even enhance:
+
+tsx
+Copy
+Edit
+if (!user && !hasSavedReturnTo && location !== '/auth') {
+  sessionStorage.setItem('nephra_return_to', location);
+}
+✅ So you don’t accidentally save /auth itself as a return destination.
+
+🚀 AFTER THIS:
+✅ No infinite update depth exceeded errors.
+✅ No flashing back and forth between login and home.
+✅ No overwriting returnTo path.
+✅ Clean user experience.
+
+🎯 TL;DR:
+
+Area	Problem	Fix
+ProtectedRoute	Watching location caused infinite setStorage ➔ location change	Only save returnTo once. Remove location from dependency array
