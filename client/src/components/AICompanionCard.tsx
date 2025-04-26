@@ -34,8 +34,11 @@ export function AICompanionCard() {
         "Yes, I would like some simple relaxation techniques to help with my stress levels."
       );
       
-      // Redirect to chat view with the response
-      setLocation("/chat");
+      // Store the query in localStorage to be used in the chat tab
+      localStorage.setItem('nephraInitialQuery', "Yes, I would like some simple relaxation techniques to help with my stress levels.");
+      
+      // Redirect to journal page with chat tab active
+      setLocation("/journal?tab=chat");
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({
@@ -83,7 +86,7 @@ export function AICompanionCard() {
         </Button>
       </div>
       
-      <Link href="/chat">
+      <Link href="/journal?tab=chat">
         <Button 
           variant="outline" 
           className="w-full flex items-center justify-center gap-2 text-primary border-primary"

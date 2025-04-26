@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Link, useLocation } from "wouter";
 
 // Emotion options
 const emotionOptions = [
@@ -27,6 +28,7 @@ const emotionTags = [
 export function EmotionalCheckInCard() {
   const { user } = useUser();
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   
   const [selectedEmotion, setSelectedEmotion] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -91,11 +93,21 @@ export function EmotionalCheckInCard() {
         notes: notes
       });
       
+      // Store the data in localStorage for journal page to use
+      localStorage.setItem('nephraEmotionData', JSON.stringify({
+        emotion: selectedEmotion,
+        tags: selectedTags,
+        notes: notes
+      }));
+      
       // Show success message
       toast({
         title: "Check-in logged",
         description: "Your emotional check-in has been recorded",
       });
+      
+      // Redirect to journal page with write tab active
+      setLocation("/journal?tab=write");
       
       // Reset form
       setSelectedEmotion("");

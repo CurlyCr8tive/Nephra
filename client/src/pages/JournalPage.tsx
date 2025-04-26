@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { JournalEntry } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Send, RefreshCw, Bot } from "lucide-react";
+import { useLocation } from "wouter";
 
 // Interface for the AI model selector
 interface AIProvider {
@@ -49,11 +50,53 @@ export default function JournalPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [journalContent, setJournalContent] = useState("");
-  const [selectedAIProvider, setSelectedAIProvider] = useState<string>("openai");
+  const [selectedAIProvider, setSelectedAIProvider] = useState<string>("enhanced");
   const [conversationMode, setConversationMode] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [conversation, setConversation] = useState<{role: 'user' | 'ai', content: string}[]>([]);
   const [followUpPrompt, setFollowUpPrompt] = useState("");
+  
+  // Get the active tab from URL parameters
+  const [location] = useLocation();
+  const [activeTab, setActiveTab] = useState<string>("write");
+  
+  // Check for URL parameters and set the active tab
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['write', 'chat', 'history'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    
+    // Check if we have emotional check-in data in localStorage
+    const emotionData = localStorage.getItem('nephraEmotionData');
+    if (emotionData && activeTab === 'write') {
+      try {
+        const parsedData = JSON.parse(emotionData);
+        // Pre-fill journal with emotional check-in data
+        let journalText = `Emotion: ${parsedData.emotion}\n`;
+        if (parsedData.tags && parsedData.tags.length > 0) {
+          journalText += `Tags: ${parsedData.tags.join(', ')}\n`;
+        }
+        if (parsedData.notes) {
+          journalText += `\n${parsedData.notes}`;
+        }
+        setJournalContent(journalText);
+        // Clear the localStorage data so it doesn't get used again
+        localStorage.removeItem('nephraEmotionData');
+      } catch (error) {
+        console.error('Error parsing emotion data:', error);
+      }
+    }
+    
+    // Check if we have an initial query for the chat tab
+    const initialQuery = localStorage.getItem('nephraInitialQuery');
+    if (initialQuery && activeTab === 'chat') {
+      setFollowUpPrompt(initialQuery);
+      // Clear the localStorage data
+      localStorage.removeItem('nephraInitialQuery');
+    }
+  }, [location]);
 
   // AI providers
   const aiProviders: AIProvider[] = [
