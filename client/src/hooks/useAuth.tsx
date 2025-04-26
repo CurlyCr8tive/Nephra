@@ -254,44 +254,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginCredentials) => {
       console.log("Login attempt for:", credentials.username);
       
-      // Try demo login first for quick testing (username: demouser, password: demopass)
-      if (credentials.username === "demouser" && credentials.password === "demopass") {
-        console.log("Using demo login shortcut");
-        try {
-          const demoRes = await fetch("/api/login-demo", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include" // Important: include cookies
-          });
-          
-          if (demoRes.ok) {
-            console.log("Demo login successful");
-            return await demoRes.json();
+      try {
+        // Try demo login first for quick testing (username: demouser, password: demopass)
+        if (credentials.username === "demouser" && credentials.password === "demopass") {
+          console.log("Using demo login shortcut");
+          try {
+            const demoRes = await fetch("/api/login-demo", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include" // Important: include cookies
+            });
+            
+            if (demoRes.ok) {
+              console.log("Demo login successful");
+              return await demoRes.json();
+            }
+          } catch (e) {
+            console.error("Demo login failed:", e);
           }
-        } catch (e) {
-          console.error("Demo login failed:", e);
         }
+        
+        // Regular login as fallback
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Important: include cookies
+          body: JSON.stringify(credentials),
+        });
+  
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Login API error:", errorText);
+          throw new Error(errorText || "Login failed");
+        }
+  
+        const userData = await res.json();
+        console.log("User data received from API login:", userData);
+        
+        // Immediately save to localStorage for state persistence
+        try {
+          localStorage.setItem('nephra_user_data', JSON.stringify(userData));
+          localStorage.setItem('nephra_user_id', userData.id.toString());
+          if (userData.gender) {
+            localStorage.setItem('nephra_user_gender', userData.gender);
+          }
+          console.log("User data saved to localStorage during login");
+        } catch (e) {
+          console.error("Error saving login data to localStorage:", e);
+        }
+        
+        return userData;
+      } catch (error) {
+        console.error("Login fetch critical error:", error);
+        throw error;
       }
-      
-      // Regular login as fallback
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Important: include cookies
-        body: JSON.stringify(credentials),
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Login API error:", errorText);
-        throw new Error(errorText || "Login failed");
-      }
-
-      return await res.json();
     },
     onSuccess: (userData: User) => {
       // Save the user data to the query cache
@@ -346,20 +366,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: RegisterCredentials) => {
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Registration failed");
+      try {
+        const res = await fetch("/api/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Include cookies for auth
+          body: JSON.stringify(credentials),
+        });
+  
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Registration API error:", errorText);
+          throw new Error(errorText || "Registration failed");
+        }
+  
+        const userData = await res.json();
+        console.log("User data received from API registration:", userData);
+        
+        // Immediately save to localStorage for state persistence
+        try {
+          localStorage.setItem('nephra_user_data', JSON.stringify(userData));
+          localStorage.setItem('nephra_user_id', userData.id.toString());
+          if (userData.gender) {
+            localStorage.setItem('nephra_user_gender', userData.gender);
+          }
+          console.log("User data saved to localStorage during registration");
+        } catch (e) {
+          console.error("Error saving registration data to localStorage:", e);
+        }
+        
+        return userData;
+      } catch (error) {
+        console.error("Registration fetch critical error:", error);
+        throw error;
       }
-
-      return await res.json();
     },
     onSuccess: (userData: User) => {
       queryClient.setQueryData(["/api/user"], userData);
@@ -408,14 +450,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include", // Include cookies for auth
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Logout failed");
+      try {
+        const res = await fetch("/api/logout", {
+          method: "POST",
+          credentials: "include", // Include cookies for auth
+        });
+  
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Logout API error:", errorText);
+          throw new Error(errorText || "Logout failed");
+        }
+        
+        return true;
+      } catch (error) {
+        console.error("Logout fetch critical error:", error);
+        throw error;
       }
     },
     onSuccess: () => {
