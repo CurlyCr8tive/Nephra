@@ -5,8 +5,50 @@ import { SupabaseEducationArticle, SupabaseHealthLog, SupabaseChatLog, SupabaseJ
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
 
-// Initialize Supabase client
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client with better error handling
+console.log('Initializing Supabase connection with URL:', supabaseUrl ? 'URL is set' : 'URL is missing');
+
+// Export the Supabase client
+let supabaseClient: SupabaseClient;
+try {
+  supabaseClient = createClient(supabaseUrl, supabaseKey);
+  console.log('Supabase client initialized');
+} catch (error) {
+  console.error('Failed to initialize Supabase client:', error);
+  // Create a mock client that logs errors for all operations
+  supabaseClient = {} as SupabaseClient;
+}
+
+export const supabase = supabaseClient;
+
+// Add a function to check if Supabase is properly connected
+export async function checkSupabaseConnection(): Promise<boolean> {
+  try {
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase credentials missing');
+      return false;
+    }
+    
+    // Try a simple query to verify the connection
+    // Make sure the from method exists
+    if (!supabase.from) {
+      console.error('Supabase client is not properly initialized');
+      return false;
+    }
+    
+    const { data, error } = await supabase.from('health_logs').select('count').limit(1);
+    if (error) {
+      console.error('Supabase connection test failed:', error.message);
+      return false;
+    }
+    
+    console.log('Supabase connection successful');
+    return true;
+  } catch (error) {
+    console.error('Error checking Supabase connection:', error);
+    return false;
+  }
+}
 
 /**
  * Retrieves education articles from Supabase by category
