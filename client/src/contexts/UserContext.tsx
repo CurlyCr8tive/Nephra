@@ -89,12 +89,28 @@ export function UserProvider({ children, value }: UserProviderProps) {
   // Refresh on route changes if we have a user ID but no user data
   // Only refresh if we don't already have an ongoing request
   useEffect(() => {
-    // Debounce refreshes and only do it if:
+    // Throttle refreshes and only do it if:
     // 1. We don't have user data
     // 2. We have a saved user ID (indicating we should be logged in)
     // 3. We are not already in a loading state
     if (!user && getFromStorage('nephra_user_id') && !isLoading) {
       console.log("Route changed, refreshing user data due to missing user object");
+      
+      // Check when we last refreshed to implement throttling
+      const lastRefreshStr = getFromStorage('nephra_last_refresh');
+      const now = Date.now();
+      const lastRefresh = lastRefreshStr ? parseInt(lastRefreshStr) : 0;
+      const timeSinceLastRefresh = now - lastRefresh;
+      
+      // Don't refresh more than once every 2 seconds (throttling)
+      if (timeSinceLastRefresh < 2000) {
+        console.log(`🛑 Throttling refresh (${Math.round(timeSinceLastRefresh)}ms since last refresh)`);
+        return;
+      }
+      
+      // Save current time as last refresh attempt
+      saveToStorage('nephra_last_refresh', now.toString());
+      
       // Wait a bit to avoid multiple rapid refreshes
       const timerId = setTimeout(() => {
         setForcedRefresh(prev => prev + 1);
@@ -212,8 +228,43 @@ export function UserProvider({ children, value }: UserProviderProps) {
       console.error("Error in UserContext:", err instanceof Error ? err.message : String(err));
       setError(err instanceof Error ? err : new Error(String(err)));
       
-      // On error, don't try to create a partial user object anymore
-      // This prevents invalid authentication state
+      // Try to recover from localStorage if server connection is lost
+      if (err instanceof Error && 
+          (err.message.includes("Failed to fetch") || 
+           err.message.includes("Network error") || 
+           err.message.includes("Bad Gateway"))) {
+        console.log("🔄 Network error detected, attempting recovery from localStorage");
+        
+        try {
+          // Try to load cached user data from localStorage
+          const cachedUserData = localStorage.getItem('nephra_user_data');
+          const savedUserId = getFromStorage('nephra_user_id');
+          const savedGender = getFromStorage('nephra_user_gender');
+          
+          if (cachedUserData) {
+            const userData = JSON.parse(cachedUserData);
+            console.log("🔄 Recovered user data from cache:", userData.username);
+            
+            // Make sure gender is preserved from separate storage
+            if (savedGender && (!userData.gender || userData.gender === '')) {
+              userData.gender = savedGender;
+            }
+            
+            // Set recovered user data
+            setUser(userData);
+            console.log("🔄 User session recovered from localStorage cache");
+            return; // Skip clearing user state
+          } else if (savedUserId && user) {
+            // If we have user ID but no cached data, preserve current user
+            console.log("🔄 Preserving current user session during network error");
+            return; // Skip clearing user state
+          }
+        } catch (cacheError) {
+          console.error("Error recovering from cache:", cacheError);
+        }
+      }
+      
+      // Only clear user state if recovery failed
       console.log("Network error in UserContext, clearing user state");
       setUser(null);
     } finally {

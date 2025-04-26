@@ -225,8 +225,18 @@ export const getResponseFromAvailableProvider = async (
             systemPrompt, 
             fullPrompt
           ]);
-          const text = result.response.text();
-          response = text;
+          
+          // Handle response content safely
+          if (result.response.text) {
+            response = result.response.text();
+          } else if (result.response.candidates && result.response.candidates.length > 0) {
+            // Fallback if text() method doesn't exist
+            response = result.response.candidates[0].content.parts
+              .map(part => typeof part.text === 'string' ? part.text : JSON.stringify(part))
+              .join("\n");
+          } else {
+            response = "Unable to process Gemini response format";
+          }
           break;
         }
         
@@ -253,7 +263,18 @@ export const getResponseFromAvailableProvider = async (
             ]
           });
           
-          response = message.content[0].text;
+          // Access content safely
+          if (message.content && message.content.length > 0) {
+            const firstContent = message.content[0];
+            if (typeof firstContent.text === 'string') {
+              response = firstContent.text;
+            } else {
+              // Handle non-text content or other formats
+              response = JSON.stringify(firstContent);
+            }
+          } else {
+            response = "No content received from Anthropic";
+          }
           break;
         }
       }
