@@ -147,6 +147,10 @@ export async function searchEducationArticles(query: string, limit: number = 5):
  * Saves a health log to Supabase
  */
 export async function saveHealthLog(healthLog: SupabaseHealthLog): Promise<{success: boolean, data?: any, error?: any}> {
+  // Ensure user_id is a string
+  if (healthLog.user_id) {
+    healthLog.user_id = healthLog.user_id.toString();
+  }
   try {
     const { data, error } = await supabase
       .from('health_logs')
@@ -173,7 +177,7 @@ export async function getHealthLogs(userId: string | number, limit: number = 20)
     const { data, error } = await supabase
       .from('health_logs')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', userId.toString())
       .order('created_at', { ascending: false })
       .limit(limit);
     
@@ -276,6 +280,10 @@ export async function getChatHistory(userId: string | number, limit: number = 10
  * Saves a journal entry to Supabase
  */
 export async function saveJournalEntry(journalEntry: SupabaseJournalEntry): Promise<{success: boolean, data?: any, error?: any}> {
+  // Ensure user_id is a string
+  if (journalEntry.user_id) {
+    journalEntry.user_id = journalEntry.user_id.toString();
+  }
   try {
     const { data, error } = await supabase
       .from('journal_entries')
@@ -302,7 +310,7 @@ export async function getJournalEntries(userId: string | number, limit: number =
     const { data, error } = await supabase
       .from('journal_entries')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', userId.toString())
       .order('created_at', { ascending: false })
       .limit(limit);
     

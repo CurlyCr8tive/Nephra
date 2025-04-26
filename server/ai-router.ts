@@ -110,7 +110,7 @@ router.get("/chat/:userId", async (req: Request, res: Response) => {
     const localChats = await storage.getAiChats(userId, limit);
     
     // Try to get richer chat data from Supabase if available
-    let supabaseChats = [];
+    let supabaseChats: any[] = [];
     try {
       if (typeof supabaseService.getChatLogs === 'function') {
         const isConnected = await supabaseService.checkSupabaseConnection();
@@ -127,7 +127,7 @@ router.get("/chat/:userId", async (req: Request, res: Response) => {
       chats: localChats,
       metadata: {
         hasSupabaseData: supabaseChats.length > 0,
-        supabseChats: supabaseChats
+        supabaseChats: supabaseChats
       }
     });
   } catch (error) {
@@ -167,7 +167,7 @@ router.get("/chat/:userId/supabase", async (req: Request, res: Response) => {
       .map(chat => chat.emotional_score);
     
     const avgEmotionalScore = emotions.length > 0 
-      ? emotions.reduce((sum, score) => sum + score, 0) / emotions.length 
+      ? emotions.reduce((sum: number, score: number) => sum + score, 0) / emotions.length 
       : null;
     
     // Extract all tags for trend analysis
@@ -178,7 +178,9 @@ router.get("/chat/:userId/supabase", async (req: Request, res: Response) => {
     // Count tag frequencies
     const tagCounts: Record<string, number> = {};
     allTags.forEach(tag => {
-      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      if (tag) { // Only process defined tags
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      }
     });
     
     // Return with analysis
