@@ -87,7 +87,8 @@ export const users = pgTable("users", {
   lastName: text("last_name"),
   age: integer("age"),
   gender: text("gender"),
-  weight: doublePrecision("weight"),
+  weight: doublePrecision("weight"), // in kg
+  height: doublePrecision("height"), // in cm
   race: text("race"),
   
   // Kidney disease and health information
@@ -122,7 +123,12 @@ export const healthMetrics = pgTable("health_metrics", {
   painLevel: integer("pain_level"),
   stressLevel: integer("stress_level"),
   fatigueLevel: integer("fatigue_level"), // 1-10 scale for fatigue
+  
+  // GFR calculation related fields
   estimatedGFR: doublePrecision("estimated_gfr"),
+  gfrCalculationMethod: text("gfr_calculation_method"), // "creatinine-based" or "symptom-and-vital-based"
+  creatinineLevel: doublePrecision("creatinine_level"), // in mg/dL
+  hydrationLevel: integer("hydration_level"), // 1-10 scale
 });
 
 // Emotional check-ins table
