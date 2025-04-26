@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import AppV2 from "./AppV2";
+import SimpleApp from "./SimpleApp";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -85,11 +85,9 @@ const setupDemoUser = async () => {
   }
 };
 
-// Simplified initialization - just render our new AppV2
+// Super simple initialization - just render our SimpleApp with minimal wrappers
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
-    <SupabaseProvider>
-      <AppV2 />
-    </SupabaseProvider>
+    <SimpleApp />
   </QueryClientProvider>
 );
