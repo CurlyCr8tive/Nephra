@@ -97,6 +97,38 @@ export default function JournalPage() {
       localStorage.removeItem('nephraInitialQuery');
     }
   }, [location]);
+  
+  // Auto-submit the initial query if provided via localStorage
+  useEffect(() => {
+    const initialQuery = localStorage.getItem('nephraInitialQuery');
+    // Only submit if we have a query and we're on the chat tab
+    if (initialQuery && activeTab === 'chat' && !isSubmittingFollowUp && followUpPrompt === initialQuery) {
+      // Use a small timeout to ensure UI is rendered first
+      const timer = setTimeout(() => {
+        handleFollowUpSubmit();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, followUpPrompt]);
+  
+  // Handle switching between conversation view in write tab and chat tab
+  // Make sure conversation state is preserved across tabs
+  useEffect(() => {
+    // If switching to chat tab and we have a conversation from the write tab
+    if (activeTab === 'chat' && conversationMode && conversation.length > 0) {
+      // Conversation state is already set, nothing to do
+    }
+    // If in write tab with conversation mode and switching to chat tab
+    else if (activeTab === 'chat' && conversationMode) {
+      // Set conversation state from write tab
+      if (aiResponse) {
+        setConversation([
+          { role: 'user', content: journalContent || "How can you help me with my kidney health?" },
+          { role: 'ai', content: aiResponse }
+        ]);
+      }
+    }
+  }, [activeTab, conversationMode]);
 
   // AI providers
   const aiProviders: AIProvider[] = [
@@ -251,7 +283,7 @@ export default function JournalPage() {
       <main className="flex-grow pt-20 pb-20 px-4">
         <h1 className="text-2xl font-bold mb-4">Journal & Check-In</h1>
         
-        <Tabs defaultValue="write" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="write">Write</TabsTrigger>
             <TabsTrigger value="chat">Chat</TabsTrigger>
