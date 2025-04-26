@@ -212,20 +212,10 @@ export function UserProvider({ children, value }: UserProviderProps) {
       console.error("Error in UserContext:", err instanceof Error ? err.message : String(err));
       setError(err instanceof Error ? err : new Error(String(err)));
       
-      // Check if we can still provide a partial user experience with saved data
-      const savedUserId = getFromStorage('nephra_user_id');
-      const savedGender = getFromStorage('nephra_user_gender');
-      
-      if (savedUserId && savedGender) {
-        console.log("Network error, but we have saved user data. Creating partial user object.");
-        setUser({
-          id: parseInt(savedUserId),
-          username: 'demouser',
-          gender: savedGender
-        } as User);
-      } else {
-        setUser(null);
-      }
+      // On error, don't try to create a partial user object anymore
+      // This prevents invalid authentication state
+      console.log("Network error in UserContext, clearing user state");
+      setUser(null);
     } finally {
       setIsLoading(false);
     }

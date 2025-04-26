@@ -1,5 +1,5 @@
 import React from "react";
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
@@ -12,15 +12,23 @@ import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
-import { AuthProvider } from "@/hooks/useAuth";
-import { useUser } from "@/contexts/UserContext";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
-// AppRoutes component handles all routing logic
+// AppRoutes component handles all routing logic - HEAVILY SIMPLIFIED
 const AppRoutes = () => {
-  const { user, isLoading } = useUser();
-
-  // Show loading spinner while checking auth status
+  // Get auth state from the hook
+  const { user, isLoading } = useAuth();
+  
+  // Get current URL path
+  const [pathname] = useLocation();
+  const isAuthPage = pathname === '/auth';
+  
+  // Check URL for forceLogin parameter (used after logout)
+  const urlParams = new URLSearchParams(window.location.search);
+  const forceLogin = urlParams.get('forceLogin') === 'true';
+  
+  // Show a loading spinner while checking auth status
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -28,61 +36,35 @@ const AppRoutes = () => {
       </div>
     );
   }
-
+  
+  // SIMPLIFIED AUTH FLOW:
+  // 1. If on auth page and logged in (and not force login), redirect to dashboard
+  if (isAuthPage && user && !forceLogin) {
+    return <Redirect to="/dashboard" />;
+  }
+  
+  // 2. If not on auth page and not logged in, redirect to auth
+  if (!isAuthPage && !user) {
+    return <Redirect to="/auth" />;
+  }
+  
+  // Normal routing with simple Switch
   return (
     <Switch>
-      {/* Auth route - redirect to dashboard if logged in */}
-      <Route path="/auth">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
-      </Route>
-
-      {/* Root route */}
+      <Route path="/auth" component={AuthPage} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/track" component={TrackPage} />
+      <Route path="/log" component={TrackPage} />
+      <Route path="/journal" component={JournalPage} />
+      <Route path="/transplant" component={TransplantRoadmap} />
+      <Route path="/trends" component={TrackPage} />
+      <Route path="/documents" component={MedicalDocuments} />
+      <Route path="/education" component={EducationHub} />
+      <Route path="/profile" component={ProfilePage} />
+      <Route path="/chat" component={AIChatView} />
       <Route path="/">
         {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
       </Route>
-      
-      {/* Protected routes - show directly if logged in, otherwise redirect */}
-      <Route path="/dashboard">
-        {user ? <Dashboard /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/track">
-        {user ? <TrackPage /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/log">
-        {user ? <TrackPage /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/journal">
-        {user ? <JournalPage /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/transplant">
-        {user ? <TransplantRoadmap /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/trends">
-        {user ? <TrackPage /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/documents">
-        {user ? <MedicalDocuments /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/education">
-        {user ? <EducationHub /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/profile">
-        {user ? <ProfilePage /> : <Redirect to="/auth" />}
-      </Route>
-      
-      <Route path="/chat">
-        {user ? <AIChatView /> : <Redirect to="/auth" />}
-      </Route>
-      
-      {/* 404 page - always last */}
       <Route component={NotFound} />
     </Switch>
   );

@@ -462,7 +462,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(errorText || "Logout failed");
         }
         
-        return true;
+        // Don't return anything to match void return type
+        return undefined;
       } catch (error) {
         console.error("Logout fetch critical error:", error);
         throw error;
