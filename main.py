@@ -1,1055 +1,173 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+from typing import Optional
 
-"""
-Nephra AI Services - Main Entry Point
-
-This script serves as the main entry point for the Python-based AI and NLP services
-that support the Nephra application. It provides a Flask API server that integrates
-with multiple AI providers (OpenAI, Google Gemini, Perplexity, and Anthropic) to offer
-health insights, journal analysis, and conversational support for kidney patients.
-
-Features:
-- Journal entry analysis with sentiment extraction and health insights
-- Medical document validation and summarization
-- Health metrics validation and interpretation
-- Conversational AI with fallback mechanisms across multiple providers
-- Educational content generation on Nephra health topics
-
-Usage:
-    python main.py [--port PORT] [--debug]
-"""
-
-import os
-import sys
-import json
-import argparse
-import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime
-
-# Flask imports
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
-
-# AI provider imports
-import openai
-try:
-    import google.generativeai as genai
-except ImportError:
-    genai = None
-
-try:
-    from anthropic import Anthropic
-except ImportError:
-    Anthropic = None
-
-# Supabase imports
-try:
-    from supabase import create_client, Client
-except ImportError:
-    create_client = None
-    Client = None
-
-# Utility imports
-import requests
-from dotenv import load_dotenv
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
-
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)
-
-# Initialize AI clients
-openai_client = None
-anthropic_client = None
-gemini_configured = False
-supabase_client = None
-
-try:
-    if os.environ.get("OPENAI_API_KEY"):
-        openai_client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        logger.info("OpenAI client initialized")
-except Exception as e:
-    logger.warning(f"Failed to initialize OpenAI client: {e}")
-
-try:
-    if os.environ.get("ANTHROPIC_API_KEY") and Anthropic:
-        anthropic_client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-        logger.info("Anthropic client initialized")
-except Exception as e:
-    logger.warning(f"Failed to initialize Anthropic client: {e}")
-
-try:
-    if os.environ.get("GEMINI_API_KEY") and genai:
-        genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-        gemini_configured = True
-        logger.info("Google Gemini API configured")
-except Exception as e:
-    logger.warning(f"Failed to configure Google Gemini API: {e}")
-    
-# Initialize Supabase client
-try:
-    if os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_KEY") and create_client:
-        supabase_client = create_client(
-            os.environ.get("SUPABASE_URL", ""),
-            os.environ.get("SUPABASE_KEY", "")
-        )
-        logger.info("Supabase client initialized")
-except Exception as e:
-    logger.warning(f"Failed to initialize Supabase client: {e}")
-
-# Health check route
-@app.route("/health", methods=["GET"])
-def health_check() -> Response:
-    """Health check endpoint for the API server."""
-    providers = {
-        "openai": openai_client is not None,
-        "anthropic": anthropic_client is not None,
-        "gemini": gemini_configured,
-        "perplexity": os.environ.get("PERPLEXITY_API_KEY") is not None
-    }
-    
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "providers": providers
-    })
-
-# Journal analysis route
-@app.route("/api/journal/analyze", methods=["POST"])
-def analyze_journal() -> Response:
+def estimate_gfr_score(
+    age: int,
+    gender: str,
+    weight_kg: float,
+    height_cm: float,
+    hydration_level: int,   # 1–10, 10 being well-hydrated
+    systolic_bp: int,
+    diastolic_bp: int,
+    stress: int,            # 1–10, 10 being very high stress
+    fatigue: int,           # 1–10, 10 being very fatigued
+    pain: int,              # 1–10, 10 being severe pain
+    creatinine: Optional[float] = None  # in mg/dL
+) -> dict:
     """
-    Analyze a journal entry using multiple AI models for sentiment, 
-    health insights, and supportive response generation.
+    Estimate GFR or risk score based on inputs.
     """
-    data = request.json
-    journal_content = data.get("content")
-    user_id = data.get("userId")
-    
-    if not journal_content:
-        return jsonify({"error": "No journal content provided"}), 400
-    
-    if not user_id:
-        logger.warning("No user ID provided, context from past entries will not be available")
-    
-    # Get past journal entries from Supabase if available
-    past_entries = []
-    if supabase_client and user_id:
-        try:
-            # Get past entries from Supabase
-            past_entries_response = supabase_client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(5).execute()
-            if hasattr(past_entries_response, 'data') and past_entries_response.data:
-                past_entries = past_entries_response.data
-                logger.info(f"Retrieved {len(past_entries)} past journal entries for user {user_id}")
-            else:
-                logger.info(f"No past journal entries found for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error retrieving past journal entries: {e}")
-    
-    # Analyze journal entry with fallback mechanisms across providers
-    analysis_result = analyze_journal_entry(journal_content, user_id, past_entries)
-    
-    # Save the journal entry and analysis to Supabase if available
-    if supabase_client and user_id:
-        try:
-            entry_data = {
-                "user_id": user_id,
-                "content": journal_content,
-                "created_at": datetime.now().isoformat(),
-                "stress_score": analysis_result.get("stressScore", 5),
-                "fatigue_score": analysis_result.get("fatigueScore", 5),
-                "pain_score": analysis_result.get("painScore", 3),
-                "sentiment": analysis_result.get("sentiment", "neutral"),
-                "ai_response": analysis_result.get("supportiveResponse", ""),
-                "keywords": analysis_result.get("keywords", [])
-            }
-            
-            supabase_client.table("journal_entries").insert(entry_data).execute()
-            logger.info(f"Saved journal entry for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error saving journal entry to Supabase: {e}")
-    
-    return jsonify(analysis_result)
 
-# Health metrics validation route
-@app.route("/api/health-metrics/validate", methods=["POST"])
-def validate_health_metrics() -> Response:
-    """Validate and analyze health metrics data."""
-    data = request.json
-    metrics = data.get("metrics")
-    patient_info = data.get("patientInfo", {})
-    
-    if not metrics:
-        return jsonify({"error": "No health metrics provided"}), 400
-    
-    # Analyze health metrics with fallback mechanisms
-    validation_result = validate_health_metrics_data(metrics, patient_info)
-    
-    return jsonify(validation_result)
+    # Base factors
+    gender_factor = 0.85 if gender.lower() == 'female' else 1.0
+    bsa = 0.007184 * (height_cm**0.725) * (weight_kg**0.425)  # Du Bois formula
 
-# Medical document validation route
-@app.route("/api/documents/validate", methods=["POST"])
-def validate_document() -> Response:
-    """Validate and analyze medical documents."""
-    data = request.json
-    document_type = data.get("documentType")
-    document_text = data.get("documentText")
-    patient_info = data.get("patientInfo", {})
-    
-    if not document_type or not document_text:
-        return jsonify({"error": "Document type and text are required"}), 400
-    
-    # Validate document with fallback mechanisms
-    validation_result = validate_medical_document(document_type, document_text, patient_info)
-    
-    return jsonify(validation_result)
+    # Optional creatinine-based GFR (CKD-EPI-like formula)
+    if creatinine:
+        # Simplified CKD-EPI style (not race-based)
+        gfr = 141 * min(creatinine / 0.9, 1) ** -0.411 * max(creatinine / 0.9, 1) ** -1.209 * (0.993 ** age)
+        gfr *= gender_factor
+        return {
+            "gfr_estimate": round(gfr, 2),
+            "method": "creatinine-based"
+        }
 
-# Educational content route
-@app.route("/api/education/content", methods=["POST"])
-def get_education_content() -> Response:
-    """Generate educational content on Nephra health topics."""
-    data = request.json
-    topic = data.get("topic")
-    audience = data.get("audience", "patient")
-    
-    if not topic:
-        return jsonify({"error": "Topic is required"}), 400
-    
-    # Generate educational content with fallback mechanisms
-    education_content = generate_educational_content(topic, audience)
-    
-    return jsonify(education_content)
+    # Symptom score method
+    stress_factor = stress / 10
+    fatigue_factor = fatigue / 10
+    pain_factor = pain / 10
+    hydration_penalty = max(0, (7 - hydration_level)) * 1.5  # mild dehydration penalty
+    bp_penalty = (systolic_bp - 130) / 10 if systolic_bp > 130 else 0
+    symptom_total = stress_factor + fatigue_factor + pain_factor + hydration_penalty + bp_penalty
 
-# Chat conversation route
-@app.route("/api/chat", methods=["POST"])
-def chat_message() -> Response:
-    """Process conversational messages with AI assistant."""
-    data = request.json
-    message = data.get("message")
-    conversation_history = data.get("history", [])
-    context = data.get("context", {})
-    user_id = context.get("userId")
-    
-    if not message:
-        return jsonify({"error": "Message is required"}), 400
-    
-    # Enhance with past entries from Supabase if available
-    if supabase_client and user_id:
-        try:
-            # Get additional context from Supabase - journal entries
-            journal_entries = []
-            try:
-                journal_response = supabase_client.table("journal_entries").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(3).execute()
-                if hasattr(journal_response, 'data') and journal_response.data:
-                    journal_entries = journal_response.data
-                    logger.info(f"Retrieved {len(journal_entries)} journal entries for chat context")
-            except Exception as je:
-                logger.warning(f"Failed to get journal entries from Supabase: {je}")
-            
-            # Get additional context from Supabase - chat history
-            chat_logs = []
-            try:
-                chat_response = supabase_client.table("chat_logs").select("*").eq("user_id", user_id).order("timestamp", desc=True).limit(5).execute()
-                if hasattr(chat_response, 'data') and chat_response.data:
-                    chat_logs = chat_response.data
-                    logger.info(f"Retrieved {len(chat_logs)} chat logs for context")
-            except Exception as ce:
-                logger.warning(f"Failed to get chat logs from Supabase: {ce}")
-            
-            # Extend conversation history with Supabase chat logs if needed
-            if len(conversation_history) < 2 and chat_logs:
-                for log in chat_logs[:3]:  # Only use the most recent 3 logs
-                    # Convert Supabase chat logs to conversation history format
-                    conversation_history.extend([
-                        {"role": "user", "content": log.get("user_input", "")},
-                        {"role": "assistant", "content": log.get("ai_response", "")}
-                    ])
-                logger.info(f"Enhanced conversation history with {len(chat_logs[:3])} entries from Supabase")
-            
-            # Add journal context to the context dictionary
-            if journal_entries:
-                # Extract key health metrics from journal entries
-                journal_insights = []
-                for entry in journal_entries:
-                    entry_date = entry.get("created_at", "")
-                    sentiment = entry.get("sentiment", "")
-                    stress = entry.get("stress_score")
-                    fatigue = entry.get("fatigue_score")
-                    pain = entry.get("pain_score")
-                    
-                    journal_insights.append({
-                        "date": entry_date,
-                        "sentiment": sentiment,
-                        "metrics": {
-                            "stress": stress,
-                            "fatigue": fatigue,
-                            "pain": pain
-                        }
-                    })
-                
-                # Add to context
-                context["journalInsights"] = journal_insights
-                context["hasJournalContext"] = True
-                logger.info("Added journal insights to chat context")
-        
-        except Exception as e:
-            logger.warning(f"Error enhancing context from Supabase: {e}")
-    
-    # Process chat message with fallback mechanisms
-    chat_response = process_chat_message(message, conversation_history, context)
-    
-    # Add indication that the response was context-enhanced
-    if context.get("hasJournalContext"):
-        chat_response["contextEnhanced"] = True
-    
-    return jsonify(chat_response)
+    # Start from baseline GFR for age
+    base_gfr = 100 - (age * 0.8)  # rough average expected
+    score_adjusted = base_gfr - (symptom_total * 5)
+    score_adjusted *= gender_factor
+    score_adjusted = max(score_adjusted, 15)  # prevent underflow
 
-# Implementation of core analysis functions
-def analyze_journal_entry(journal_content: str, user_id: str = None, past_entries: List[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    Analyze a journal entry with multiple AI providers.
-    Falls back between providers if any fail.
-    
-    Args:
-        journal_content: The journal entry content to analyze
-        user_id: Optional user ID for context
-        past_entries: Optional list of past journal entries for context
-    """
-    # Try OpenAI first
-    if openai_client:
-        try:
-            messages = [
-                {
-                    "role": "system",
-                    "content": """You are a Nephra health AI assistant analyzing journal entries. 
-                    Extract the following information from the journal entry:
-                    1. Stress level (1-10)
-                    2. Fatigue level (1-10)
-                    3. Pain level (1-10)
-                    4. Overall sentiment (positive, negative, neutral)
-                    5. Key health concerns mentioned
-                    6. A brief supportive response to the user
-
-                    Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
-                    sentiment, keywords, supportiveResponse, healthInsights.
-                    """
-                }
-            ]
-            
-            # Add past entries context if available
-            if past_entries and len(past_entries) > 0:
-                context_message = "Here are the user's previous journal entries for context:\n\n"
-                for idx, entry in enumerate(past_entries):
-                    entry_content = entry.get('content', '')
-                    if entry_content:
-                        entry_date = entry.get('created_at', 'Unknown date')
-                        context_message += f"Entry {idx+1} ({entry_date}):\n{entry_content}\n\n"
-                
-                context_message += "\nBased on this history and their current entry, provide your analysis."
-                messages.append({"role": "system", "content": context_message})
-                
-                # If we have history and the user seems tired/overwhelmed, add empathetic prompt
-                if any('tired' in entry.get('content', '').lower() for entry in past_entries):
-                    prompt = f"""
-                    This user has been feeling tired and overwhelmed recently. Here's their last entry:
-                    "{past_entries[0].get('content', '')}"
-
-                    Based on that, respond empathetically and give one helpful suggestion.
-                    """
-                    messages.append({"role": "system", "content": prompt})
-            
-            # Add the current journal entry
-            messages.append({"role": "user", "content": journal_content})
-            
-            # Call OpenAI API
-            response = openai_client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                messages=messages,
-                response_format={"type": "json_object"}
-            )
-            
-            # Parse the JSON response
-            result = json.loads(response.choices[0].message.content)
-            
-            # Log to Supabase if available
-            if supabase_client and user_id:
-                try:
-                    # Calculate highest emotional score
-                    emotional_score = max(
-                        result.get("stressScore", 0),
-                        result.get("fatigueScore", 0),
-                        result.get("painScore", 0)
-                    )
-                    
-                    # Get keywords as tags
-                    tags = result.get("keywords", [])
-                    if isinstance(tags, str):
-                        # In case keywords are returned as a comma-separated string
-                        tags = [tag.strip() for tag in tags.split(",")]
-                    
-                    # Log the analyzed journal entry
-                    log_chat_to_supabase(
-                        user_id=user_id,
-                        user_input=journal_content,
-                        ai_response=result.get("supportiveResponse", ""),
-                        model_used="openai",
-                        tags=tags,
-                        emotional_score=emotional_score if emotional_score > 0 else None
-                    )
-                    logger.info(f"Journal analysis logged to Supabase for user {user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to log journal analysis to Supabase: {e}")
-            
-            # Return the result
-            return result
-            
-        except Exception as e:
-            logger.warning(f"OpenAI analysis failed, falling back to alternative: {e}")
-    
-    # Try Anthropic next
-    if anthropic_client:
-        try:
-            # Prepare messages with or without context
-            messages = []
-            
-            # Add past entries context if available
-            if past_entries and len(past_entries) > 0:
-                context_message = "Here are the user's previous journal entries for context:\n\n"
-                for idx, entry in enumerate(past_entries):
-                    entry_content = entry.get('content', '')
-                    if entry_content:
-                        entry_date = entry.get('created_at', 'Unknown date')
-                        entry_stress = entry.get('stress_score', 'N/A')
-                        entry_fatigue = entry.get('fatigue_score', 'N/A')
-                        entry_pain = entry.get('pain_score', 'N/A')
-                        
-                        context_message += f"Entry {idx+1} ({entry_date}):\n"
-                        context_message += f"Content: {entry_content}\n"
-                        context_message += f"Previous scores: Stress {entry_stress}, Fatigue {entry_fatigue}, Pain {entry_pain}\n\n"
-                
-                context_message += "\nAnalyze their current journal entry with awareness of this history:\n"
-                context_message += f"Current entry: {journal_content}\n\n"
-                
-                user_message = f"""Please analyze this journal entry in context of the user's history and extract the following information:
-                1. Stress level (1-10)
-                2. Fatigue level (1-10)
-                3. Pain level (1-10)
-                4. Overall sentiment (positive, negative, neutral)
-                5. Key health concerns mentioned
-                6. A brief supportive response that acknowledges any trends or changes from previous entries
-                7. Health insights based on patterns across entries
-
-                Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
-                sentiment, keywords, supportiveResponse, healthInsights.
-                
-                {context_message}
-                """
-            else:
-                user_message = f"""Please analyze this journal entry and extract the following information:
-                1. Stress level (1-10)
-                2. Fatigue level (1-10)
-                3. Pain level (1-10)
-                4. Overall sentiment (positive, negative, neutral)
-                5. Key health concerns mentioned
-                6. A brief supportive response
-
-                Format your response as JSON with these keys: stressScore, fatigueScore, painScore, 
-                sentiment, keywords, supportiveResponse, healthInsights.
-
-                Journal entry: {journal_content}
-                """
-            
-            # Create message and call Anthropic API
-            response = anthropic_client.messages.create(
-                model="claude-3-7-sonnet-20250219",  # the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-                max_tokens=1024,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": user_message
-                    }
-                ]
-            )
-            
-            # Try to parse the response as JSON
-            try:
-                result = json.loads(response.content[0].text)
-                
-                # Log to Supabase if available
-                if supabase_client and user_id:
-                    try:
-                        # Calculate highest emotional score
-                        emotional_score = max(
-                            result.get("stressScore", 0),
-                            result.get("fatigueScore", 0),
-                            result.get("painScore", 0)
-                        )
-                        
-                        # Get keywords as tags
-                        tags = result.get("keywords", [])
-                        if isinstance(tags, str):
-                            # In case keywords are returned as a comma-separated string
-                            tags = [tag.strip() for tag in tags.split(",")]
-                        
-                        # Log the analyzed journal entry
-                        log_chat_to_supabase(
-                            user_id=user_id,
-                            user_input=journal_content,
-                            ai_response=result.get("supportiveResponse", ""),
-                            model_used="anthropic",
-                            tags=tags,
-                            emotional_score=emotional_score if emotional_score > 0 else None
-                        )
-                        logger.info(f"Journal analysis (Anthropic) logged to Supabase for user {user_id}")
-                    except Exception as e:
-                        logger.error(f"Failed to log Anthropic journal analysis to Supabase: {e}")
-                
-                return result
-            except json.JSONDecodeError:
-                # If not valid JSON, extract info manually
-                text = response.content[0].text
-                
-                # Fallback extraction
-                result = {
-                    "stressScore": extract_score(text, "stress", 5),
-                    "fatigueScore": extract_score(text, "fatigue", 5),
-                    "painScore": extract_score(text, "pain", 3),
-                    "sentiment": extract_sentiment(text),
-                    "keywords": extract_keywords(text),
-                    "supportiveResponse": extract_supportive_response(text),
-                    "healthInsights": "Analysis completed with limited structured data extraction."
-                }
-                
-                # Log to Supabase even with extracted info
-                if supabase_client and user_id:
-                    try:
-                        log_chat_to_supabase(
-                            user_id=user_id,
-                            user_input=journal_content,
-                            ai_response=result["supportiveResponse"],
-                            model_used="anthropic-extracted",
-                            tags=result["keywords"],
-                            emotional_score=max(
-                                result["stressScore"],
-                                result["fatigueScore"],
-                                result["painScore"]
-                            )
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to log extracted Anthropic analysis to Supabase: {e}")
-                
-                return result
-                
-        except Exception as e:
-            logger.warning(f"Anthropic analysis failed, falling back to fallback: {e}")
-    
-    # Final fallback to basic analysis
-    result = {
-        "stressScore": 5,
-        "fatigueScore": 5,
-        "painScore": 3,
-        "sentiment": "neutral",
-        "keywords": ["health", "journal"],
-        "supportiveResponse": "Thank you for sharing your thoughts. It's important to monitor your health and well-being. Consider discussing any concerns with your healthcare provider.",
-        "healthInsights": "Unable to perform detailed analysis. Please ensure your journal entry contains health-related information."
-    }
-    
-    # Log even the fallback analysis to Supabase if available
-    if supabase_client and user_id:
-        try:
-            log_chat_to_supabase(
-                user_id=user_id,
-                user_input=journal_content,
-                ai_response=result["supportiveResponse"],
-                model_used="fallback",
-                tags=result["keywords"],
-                emotional_score=5  # Mid-range default score
-            )
-            logger.info(f"Fallback journal analysis logged to Supabase for user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to log fallback journal analysis to Supabase: {e}")
-    
-    return result
-
-def validate_health_metrics_data(metrics: Dict[str, Any], patient_info: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Validate health metrics data with multiple AI providers.
-    Falls back between providers if any fail.
-    """
-    # Implementation would be similar to analyze_journal_entry
-    # with appropriate prompts and fallback mechanisms
-    pass
-
-def validate_medical_document(document_type: str, document_text: str, patient_info: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Validate medical documents with multiple AI providers.
-    Falls back between providers if any fail.
-    """
-    # Implementation would be similar to analyze_journal_entry
-    # with appropriate prompts and fallback mechanisms
-    pass
-
-def generate_educational_content(topic: str, audience: str) -> Dict[str, Any]:
-    """
-    Generate educational content with multiple AI providers.
-    Falls back between providers if any fail.
-    """
-    # Implementation would be similar to analyze_journal_entry
-    # with appropriate prompts and fallback mechanisms
-    pass
-
-def process_chat_message(message: str, conversation_history: List[Dict[str, str]], context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Process chat messages with multiple AI providers.
-    Falls back between providers if any fail.
-    """
-    # Try Gemini first for variety (we used OpenAI for journal analysis)
-    if gemini_client:
-        try:
-            # Prepare conversation history for Gemini
-            gemini_history = []
-            for msg in conversation_history:
-                gemini_history.append({
-                    "role": "user" if msg.get("role") == "user" else "model",
-                    "parts": [{"text": msg.get("content", "")}]
-                })
-            
-            # Create the prompt - enhanced with conversation history if available
-            if conversation_history and len(conversation_history) > 0:
-                history_text = "Previous conversation:\n"
-                for idx, msg in enumerate(conversation_history[-3:]):  # Only use the last 3 messages for context
-                    role = msg.get("role", "")
-                    content = msg.get("content", "")
-                    if role and content:
-                        speaker = "User" if role == "user" else "Nephra AI"
-                        history_text += f"{speaker}: {content}\n"
-                
-                # Check for recurring themes
-                user_concerns = []
-                for msg in conversation_history:
-                    if msg.get("role") == "user":
-                        user_msg = msg.get("content", "").lower()
-                        if "tired" in user_msg or "fatigue" in user_msg:
-                            user_concerns.append("fatigue")
-                        if "pain" in user_msg:
-                            user_concerns.append("pain")
-                        if "stress" in user_msg or "anxious" in user_msg or "worried" in user_msg:
-                            user_concerns.append("stress/anxiety")
-                
-                concerns_text = ""
-                if user_concerns:
-                    unique_concerns = list(set(user_concerns))
-                    concerns_text = f"\nThe user has previously mentioned concerns about: {', '.join(unique_concerns)}."
-                
-                # Check if we have journal insights in context
-                journal_insights_text = ""
-                if context.get("journalInsights"):
-                    journal_insights = context.get("journalInsights", [])
-                    if journal_insights:
-                        journal_insights_text = "\nThe user has shared the following health metrics in their journal:\n"
-                        for entry in journal_insights:
-                            entry_date = entry.get("date", "")
-                            metrics = entry.get("metrics", {})
-                            sentiment = entry.get("sentiment", "")
-                            date_str = entry_date[:10] if entry_date else "Recent entry"
-                            
-                            stress = metrics.get("stress", "N/A")
-                            fatigue = metrics.get("fatigue", "N/A")
-                            pain = metrics.get("pain", "N/A")
-                            
-                            journal_insights_text += f"- {date_str}: Stress ({stress}), Fatigue ({fatigue}), Pain ({pain}), Sentiment: {sentiment}\n"
-                        
-                        # Add analysis of trends
-                        if len(journal_insights) > 1:
-                            journal_insights_text += "\nNote any trends in these metrics when responding to their current message."
-                
-                gemini_prompt = f"""
-                You are a kidney health assistant for the Nephra app with access to previous conversation context and journal data.
-                
-                {history_text}
-                {concerns_text}
-                {journal_insights_text}
-                
-                Now the user has sent this new message:
-                "{message}"
-                
-                Provide a helpful, empathetic response with accurate medical information that references relevant context from previous messages and journal data if appropriate.
-                If you're unsure about something medical, be transparent about the limits of your knowledge.
-                """
-            else:
-                gemini_prompt = f"""
-                You are a kidney health assistant for the Nephra app. The user has sent this message:
-                "{message}"
-                Provide a helpful, empathetic response with accurate medical information. 
-                If you're unsure about something medical, be transparent about the limits of your knowledge.
-                """
-            
-            # Call Gemini API
-            gemini_response = gemini_client.generate_content(
-                contents=[{"role": "user", "parts": [{"text": gemini_prompt}]}],
-                generation_config={"temperature": 0.2, "max_output_tokens": 800}
-            )
-            
-            # Extract response
-            ai_response = gemini_response.text
-            
-            # Log to Supabase if available
-            if supabase_client:
-                try:
-                    # Extract keywords and emotional score from the conversation
-                    keywords = extract_keywords(message + " " + ai_response)
-                    
-                    # Estimate emotional score based on content
-                    emotional_score = None
-                    if any(keyword.lower() in ["tired", "exhausted", "fatigue"] for keyword in keywords):
-                        emotional_score = 7
-                    elif any(keyword.lower() in ["pain", "hurt", "ache"] for keyword in keywords):
-                        emotional_score = 8
-                    elif any(keyword.lower() in ["stress", "anxiety", "worried"] for keyword in keywords):
-                        emotional_score = 6
-                    
-                    # Log the actual interaction with the enhanced context flag
-                    log_chat_to_supabase(
-                        user_id=context.get("userId", "anonymous_user"),
-                        user_input=message,
-                        ai_response=ai_response,
-                        model_used="gemini" + ("-context" if context.get("hasJournalContext") else ""),
-                        tags=keywords,
-                        emotional_score=emotional_score
-                    )
-                    
-                    logger.info(f"Saved chat log to Supabase for user {context.get('userId', 'anonymous_user')}")
-                except Exception as e:
-                    logger.error(f"Error saving chat log to Supabase: {e}")
-            
-            return {
-                "response": ai_response,
-                "provider": "gemini",
-                "timestamp": datetime.now().isoformat()
-            }
-        except Exception as e:
-            logger.warning(f"Gemini chat processing failed, falling back to alternative: {e}")
-    
-    # Fallback to other providers
-    # ... fallback implementation similar to journal analysis
-    
-    # Final fallback
     return {
-        "response": "I'm sorry, I couldn't process your message at this time. Please try again later.",
-        "provider": "fallback",
-        "timestamp": datetime.now().isoformat()
+        "gfr_estimate": round(score_adjusted, 2),
+        "method": "symptom-and-vital-based"
     }
 
-# Utility extraction functions
-def extract_score(text: str, metric: str, default: int) -> int:
-    """Extract a numerical score from text for a given metric."""
-    import re
-    
-    patterns = [
-        rf"{metric}\s*(?:level|score)\s*(?::|is|of|:)\s*(\d+)",
-        rf"{metric}:\s*(\d+)",
-        rf"{metric}\s*-\s*(\d+)",
-        rf"{metric}.*?(\d+)/10"
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            try:
-                score = int(match.group(1))
-                return min(max(score, 1), 10)  # Ensure score is between 1-10
-            except ValueError:
-                pass
-    
-    return default
-
-def extract_sentiment(text: str) -> str:
-    """Extract sentiment classification from text."""
-    text_lower = text.lower()
-    
-    if "sentiment: positive" in text_lower or "sentiment is positive" in text_lower:
-        return "positive"
-    elif "sentiment: negative" in text_lower or "sentiment is negative" in text_lower:
-        return "negative"
+# CKD Stage interpretation function
+def interpret_gfr(gfr: float) -> dict:
+    """
+    Get interpretation of GFR value according to CKD stages
+    """
+    if gfr >= 90:
+        return {
+            "stage": "G1",
+            "description": "Normal or high kidney function"
+        }
+    elif gfr >= 60:
+        return {
+            "stage": "G2",
+            "description": "Mildly decreased kidney function"
+        }
+    elif gfr >= 45:
+        return {
+            "stage": "G3a",
+            "description": "Mild to moderately decreased kidney function"
+        }
+    elif gfr >= 30:
+        return {
+            "stage": "G3b",
+            "description": "Moderately to severely decreased kidney function"
+        }
+    elif gfr >= 15:
+        return {
+            "stage": "G4",
+            "description": "Severely decreased kidney function"
+        }
     else:
-        return "neutral"
+        return {
+            "stage": "G5",
+            "description": "Kidney failure"
+        }
 
-def extract_keywords(text: str) -> List[str]:
-    """Extract keywords from text."""
-    import re
-    
-    # Look for keywords or tags section
-    patterns = [
-        r"keywords:([^.]*)",
-        r"tags:([^.]*)",
-        r"key\s*concerns:([^.]*)",
-        r"health\s*concerns:([^.]*)"
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            keywords_text = match.group(1).strip()
-            # Split by commas or other separators
-            keywords = [k.strip() for k in re.split(r'[,;]', keywords_text)]
-            return [k for k in keywords if k]  # Filter out empty strings
-    
-    # Fallback: extract capitalized words as potential keywords
-    capitalized_words = re.findall(r'\b[A-Z][a-z]{2,}\b', text)
-    if capitalized_words:
-        return capitalized_words[:5]  # Return up to 5 keywords
-    
-    return ["health", "Nephra", "kidney"]  # Default keywords
-
-def extract_supportive_response(text: str) -> str:
-    """Extract supportive response from text."""
-    import re
-    
-    patterns = [
-        r"supportive\s*response:([^.]*.)",
-        r"response:([^.]*.)",
-        r"support:([^.]*.)"
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    
-    # If no supportive response found, return last sentence
-    sentences = text.split('.')
-    if sentences:
-        return sentences[-2].strip() if len(sentences) > 1 else sentences[0].strip()
-    
-    return "Thank you for sharing your health journey. Remember to keep monitoring your symptoms and stay in touch with your healthcare provider."
-
-def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Nephra AI Services")
-    parser.add_argument("--port", type=int, default=5001, help="Port to run the server on")
-    parser.add_argument("--debug", action="store_true", help="Run in debug mode")
-    return parser.parse_args()
-
-def log_chat_to_supabase(user_id: str, user_input: str, ai_response: str, model_used: str = "openai", tags: list = None, emotional_score = None):
+# Function to get recommendations based on GFR value
+def get_gfr_recommendation(gfr: float, method: str) -> str:
     """
-    Logs a chat interaction to the Supabase chat_logs table.
-
-    Args:
-        user_id (str): The user's unique ID or email.
-        user_input (str): The message sent by the user.
-        ai_response (str): The response generated by the AI.
-        model_used (str): The model name, e.g., 'openai' or 'gemini'.
-        tags (list): Optional keywords like ["fatigue", "stress"].
-        emotional_score: Optional stress or fatigue score (1–10), can be None.
+    Get recommendations based on GFR value and calculation method
     """
-    # Debug prints to check response integrity
-    print(f"🔎 Full AI Response for user {user_id} using {model_used}:")
-    print(f"🔎 Response length: {len(ai_response)} characters")
-    print(f"🔎 First 100 chars: {ai_response[:100]}...")
-    print(f"🔎 Last 100 chars: ...{ai_response[-100:] if len(ai_response) > 100 else ai_response}")
-    print(f"🔎 Tags: {tags}")
-    print(f"🔎 Emotional score: {emotional_score}")
-    data = {
-        "user_id": user_id,
-        "user_input": user_input,
-        "ai_response": ai_response,
-        "model_used": model_used,
-        "timestamp": datetime.now().isoformat()
-    }
-
-    # Handle tags - ensure it's a list
-    if tags:
-        if isinstance(tags, str):
-            # If tags is a string, convert to list by splitting
-            data["tags"] = [tag.strip() for tag in tags.split(",")]
-        else:
-            # Otherwise assume it's already a list or similar iterable
-            data["tags"] = list(tags)
-
-    # Handle emotional score - must be an integer if provided
-    if emotional_score is not None:
-        try:
-            # Convert to integer or default to 5
-            data["emotional_score"] = int(emotional_score)
-        except (ValueError, TypeError):
-            # If conversion fails, use a default mid-range value
-            data["emotional_score"] = 5
-            logger.warning(f"Invalid emotional_score value '{emotional_score}', using default 5")
-
-    # Complete debug log of the full response
-    print("\n🔍 FULL RESPONSE:\n", ai_response)
+    interpretation = interpret_gfr(gfr)
     
-    if supabase_client:
-        try:
-            response = supabase_client.table("chat_logs").insert(data).execute()
-            logger.info(f"✅ Logged chat to Supabase: {user_input[:30]}...")
-            return response
-        except Exception as e:
-            logger.error(f"Error logging chat to Supabase: {e}")
-            return None
+    # Add disclaimer for symptom-based method
+    method_disclaimer = ""
+    if method == "symptom-and-vital-based":
+        method_disclaimer = "This is an estimated value based on your symptoms and vitals. For a more accurate measurement, please consult your healthcare provider for a blood test."
+    
+    if gfr >= 60:
+        return f"Your kidney function appears to be in {interpretation['stage']} stage ({interpretation['description']}). {method_disclaimer} Continue to monitor your kidney health and follow a kidney-friendly lifestyle."
+    elif gfr >= 30:
+        return f"Your kidney function appears to be in {interpretation['stage']} stage ({interpretation['description']}). {method_disclaimer} Regular monitoring by a nephrologist is recommended."
+    elif gfr >= 15:
+        return f"Your kidney function appears to be in {interpretation['stage']} stage ({interpretation['description']}). {method_disclaimer} Close management by a nephrologist is important at this stage."
     else:
-        logger.warning("Supabase client not available, chat not logged")
-        return None
+        return f"Your kidney function appears to be in {interpretation['stage']} stage ({interpretation['description']}). {method_disclaimer} Please consult with your healthcare team about treatment options, which may include dialysis or transplantation."
 
-def get_chat_response(user_id, user_message, model="openai"):
-    """
-    Gets a response from an AI model and logs it to Supabase.
-    
-    Args:
-        user_id: User identifier for tracking conversations
-        user_message: Message from the user
-        model: AI model to use ('openai', 'gemini', 'perplexity')
-        
-    Returns:
-        AI response text
-    """
-    # Get response from AI model
-    ai_response = generate_ai_response(user_message, model)
-    
-    # Extract emotion keywords and score from response
-    keywords = extract_keywords(user_message + " " + ai_response)
-    
-    # Estimate emotional score based on content
-    emotional_score = None
-    if any(keyword in keywords for keyword in ["tired", "exhausted", "fatigue"]):
-        emotional_score = 7
-    elif any(keyword in keywords for keyword in ["pain", "hurt", "ache"]):
-        emotional_score = 8
-    elif any(keyword in keywords for keyword in ["stress", "anxiety", "worried"]):
-        emotional_score = 6
-    
-    # Log the response in Supabase with richer metadata
-    log_chat_to_supabase(
-        user_id=user_id,
-        user_input=user_message,
-        ai_response=ai_response,
-        model_used=model,
-        tags=keywords,
-        emotional_score=emotional_score
-    )
-    
-    return ai_response
+# Example with no creatinine (symptom-based)
+print("Example 1: Female patient with no creatinine value (symptom-based estimation)")
+result1 = estimate_gfr_score(
+    age=45,
+    gender='female',
+    weight_kg=68,
+    height_cm=165,
+    hydration_level=6,
+    systolic_bp=140,
+    diastolic_bp=85,
+    stress=7,
+    fatigue=8,
+    pain=4,
+    creatinine=None
+)
+print(f"GFR Estimate: {result1['gfr_estimate']} ml/min/1.73m²")
+print(f"Method: {result1['method']}")
+interpretation1 = interpret_gfr(result1['gfr_estimate'])
+print(f"Stage: {interpretation1['stage']} - {interpretation1['description']}")
+print(f"Recommendation: {get_gfr_recommendation(result1['gfr_estimate'], result1['method'])}")
+print()
 
-def generate_ai_response(user_message, model="openai"):
-    """
-    Generate a response using the specified AI model
-    
-    Args:
-        user_message: Message from the user
-        model: AI model to use
-        
-    Returns:
-        AI response text
-    """
-    if model == "openai" and openai_client:
-        try:
-            response = openai_client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                messages=[
-                    {"role": "system", "content": "You are a kidney health assistant for Nephra. Be helpful and empathetic."},
-                    {"role": "user", "content": user_message}
-                ],
-                max_tokens=800
-            )
-            ai_response = response.choices[0].message.content
-            
-            # Check if the response appears to be incomplete (doesn't end with proper punctuation)
-            if not ai_response.strip().endswith(('.', '?', '!')):
-                logger.info("Detected potentially incomplete response, requesting continuation...")
-                try:
-                    # Request a continuation of the previous response
-                    continuation = openai_client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {"role": "system", "content": "You are a kidney health assistant for Nephra."},
-                            {"role": "user", "content": "Continue your previous response from where you left off."}
-                        ],
-                        max_tokens=300
-                    )
-                    # Append the continuation to the original response
-                    ai_response += " " + continuation.choices[0].message.content
-                    logger.info("Successfully added continuation to the response")
-                except Exception as cont_err:
-                    logger.warning(f"Failed to get continuation: {cont_err}")
-                    # Continue with the original response if continuation fails
-            
-            return ai_response
-            
-        except Exception as e:
-            logger.warning(f"OpenAI failed: {e}")
-    
-    elif model == "gemini" and gemini_client:
-        try:
-            response = gemini_client.generate_content(
-                contents=[{"role": "user", "parts": [{"text": user_message}]}],
-                generation_config={
-                    "temperature": 0.2, 
-                    "max_output_tokens": 800  # Increased token limit for more complete responses
-                }
-            )
-            ai_response = response.text
-            
-            # Check if the response appears to be incomplete (doesn't end with proper punctuation)
-            if not ai_response.strip().endswith(('.', '?', '!')):
-                logger.info("Detected potentially incomplete Gemini response, requesting continuation...")
-                try:
-                    # Request a continuation
-                    continuation = gemini_client.generate_content(
-                        contents=[{"role": "user", "parts": [{"text": "Continue your previous response from where you left off."}]}],
-                        generation_config={"temperature": 0.2, "max_output_tokens": 300}
-                    )
-                    # Append the continuation to the original response
-                    ai_response += " " + continuation.text
-                    logger.info("Successfully added Gemini continuation to the response")
-                except Exception as cont_err:
-                    logger.warning(f"Failed to get Gemini continuation: {cont_err}")
-                    # Continue with the original response if continuation fails
-            
-            return ai_response
-            
-        except Exception as e:
-            logger.warning(f"Gemini failed: {e}")
-    
-    elif model == "perplexity" and perplexity_api_key:
-        try:
-            # Implement Perplexity API with proper error handling and response continuation
-            # This would be similar to the OpenAI implementation above
-            
-            # Until fully implemented, return a placeholder
-            return "Perplexity API response would appear here"
-        except Exception as e:
-            logger.warning(f"Perplexity failed: {e}")
-    
-    # Fallback response if the requested model is not available
-    return "I'm sorry, I couldn't process your message at this time. The requested AI service may be unavailable."
+# Example with creatinine (lab-based)
+print("Example 2: Male patient with creatinine value (lab-based calculation)")
+result2 = estimate_gfr_score(
+    age=35,
+    gender='male',
+    weight_kg=70,
+    height_cm=175,
+    hydration_level=8,
+    systolic_bp=125,
+    diastolic_bp=80,
+    stress=5,
+    fatigue=6,
+    pain=3,
+    creatinine=1.3
+)
+print(f"GFR Estimate: {result2['gfr_estimate']} ml/min/1.73m²")
+print(f"Method: {result2['method']}")
+interpretation2 = interpret_gfr(result2['gfr_estimate'])
+print(f"Stage: {interpretation2['stage']} - {interpretation2['description']}")
+print(f"Recommendation: {get_gfr_recommendation(result2['gfr_estimate'], result2['method'])}")
+print()
 
-if __name__ == "__main__":
-    args = parse_arguments()
-    
-    # Check for API keys and warn if missing
-    if not os.environ.get("OPENAI_API_KEY"):
-        logger.warning("OPENAI_API_KEY not found in environment. OpenAI services will not be available.")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        logger.warning("ANTHROPIC_API_KEY not found in environment. Anthropic services will not be available.")
-    if not os.environ.get("PERPLEXITY_API_KEY"):
-        logger.warning("PERPLEXITY_API_KEY not found in environment. Perplexity services will not be available.")
-    if not os.environ.get("GEMINI_API_KEY"):
-        logger.warning("GEMINI_API_KEY not found in environment. Google Gemini services will not be available.")
-    
-    # Run the Flask app
-    logger.info(f"Starting Nephra AI Services on port {args.port}")
-    app.run(host="0.0.0.0", port=args.port, debug=args.debug)
+# Example for early stage CKD
+print("Example 3: Elderly female with early CKD")
+result3 = estimate_gfr_score(
+    age=72,
+    gender='female',
+    weight_kg=65,
+    height_cm=162,
+    hydration_level=7,
+    systolic_bp=145,
+    diastolic_bp=82,
+    stress=4,
+    fatigue=6,
+    pain=3,
+    creatinine=1.1
+)
+print(f"GFR Estimate: {result3['gfr_estimate']} ml/min/1.73m²")
+print(f"Method: {result3['method']}")
+interpretation3 = interpret_gfr(result3['gfr_estimate'])
+print(f"Stage: {interpretation3['stage']} - {interpretation3['description']}")
+print(f"Recommendation: {get_gfr_recommendation(result3['gfr_estimate'], result3['method'])}")
