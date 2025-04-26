@@ -382,14 +382,12 @@ export default function AuthPage() {
                 <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg flex items-start">
                   <div className="bg-white/20 p-2 rounded-full mr-4 flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">AI-Powered Health Assistant</h3>
-                    <p className="opacity-80">Get personalized health insights and emotional support from our advanced AI</p>
+                    <h3 className="font-semibold text-lg">Transplant Journey Support</h3>
+                    <p className="opacity-80">Track your progress and access resources for every step of your transplant journey</p>
                   </div>
                 </div>
               </div>
