@@ -16,6 +16,7 @@ export function Header({ title }: HeaderProps) {
   const handleLogout = async () => {
     try {
       console.log("Logging out...");
+      
       // Clear user data from cache first
       if (logoutMutation && typeof logoutMutation.mutateAsync === 'function') {
         await logoutMutation.mutateAsync();
@@ -36,22 +37,22 @@ export function Header({ title }: HeaderProps) {
       
       console.log("Logout API call successful");
       
-      // Clear local storage but preserve gender data
+      // Clear all storage except gender
       try {
         if (typeof window !== 'undefined') {
           console.log("Clearing session data");
+          
           // Save gender before clearing
           const gender = window.localStorage.getItem('nephra_user_gender');
-          console.log("Preserved gender during logout:", gender);
           
-          // Clear all user related data except the ID for testers
-          // window.sessionStorage.removeItem('nephra_user_id');
-          // window.localStorage.removeItem('nephra_user_id');
+          // Clear all user data
+          window.sessionStorage.removeItem('nephra_user_id');
+          window.localStorage.removeItem('nephra_user_id');
           
-          // Instead of removing the ID, we'll mark the logout explicitly
-          window.sessionStorage.setItem('test_account', 'true');
+          // Clear any test flags
+          window.sessionStorage.removeItem('test_account');
           
-          // Clear auth tokens if any
+          // Clear auth cookies
           document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
           
           // Restore gender if it existed
@@ -64,8 +65,6 @@ export function Header({ title }: HeaderProps) {
         console.error("Error managing storage during logout:", e);
       }
       
-      console.log("Redirecting to auth page");
-      
       // Force a hard navigation to auth page (bypassing React Router)
       toast({
         title: "Logged out successfully",
@@ -74,8 +73,7 @@ export function Header({ title }: HeaderProps) {
       
       // Small delay to ensure toast appears before redirect
       setTimeout(() => {
-        // Add a special parameter to force showing the auth page
-        window.location.replace('/auth?forceLogin=true');
+        window.location.replace('/auth');
       }, 500);
       
     } catch (error) {
@@ -107,17 +105,7 @@ export function Header({ title }: HeaderProps) {
             <span className="material-icons text-sm mr-1">logout</span>
             Logout
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => {
-              window.location.href = "/auth?forceLogin=true";
-            }}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            <span className="material-icons text-sm mr-1">login</span>
-            Show Login
-          </Button>
+
           <Link href="/profile">
             <div className={`w-10 h-10 rounded-full ${isProfileActive ? 'bg-primary' : 'bg-neutral-100'} flex items-center justify-center transition-colors cursor-pointer`}>
               <span className={`material-icons ${isProfileActive ? 'text-white' : 'text-neutral-600'}`}>account_circle</span>

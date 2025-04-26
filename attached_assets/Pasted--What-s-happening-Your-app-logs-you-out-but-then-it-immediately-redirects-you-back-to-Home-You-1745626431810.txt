@@ -1,0 +1,140 @@
+🚨 What's happening:
+Your app logs you out, but then it immediately redirects you back to Home.
+
+You used to have a proper Login Intro Page.
+
+But now the app thinks you’re logged in or skips showing the login page.
+
+The new code changes tried to "hack" a fix by using a URL parameter (forceLogin), but it didn’t restore your original login experience.
+
+🛠 How to really fix this:
+We DON’T NEED a forceLogin hack.
+We need to restore your original login page routing, where:
+
+If the user is not logged in, show them the Login/Intro Page.
+
+If the user is logged in, take them to the Home Page.
+
+Simple. Clean.
+
+🧹 Here's the Real Plan:
+
+Step	What to Do
+1.	Fix the App.tsx router to properly check if user is logged in.
+2.	Make sure AuthPage.tsx is still a full intro/login page (not auto-skipped).
+3.	Fix the Header so logout completely clears user session and redirects to AuthPage.
+4.	(Optional) Keep "Test Login" button, but ONLY for testing — not forcing app logic.
+✏️ 1. Edit App.tsx
+Inside client/src/App.tsx, make it route based on user authentication.
+
+At the top:
+
+tsx
+Copy
+Edit
+import { useUser } from './contexts/UserContext';
+import { Navigate } from 'wouter';
+In your <App />:
+
+tsx
+Copy
+Edit
+const { user } = useUser(); // assuming you store user in context
+
+return (
+  <Routes>
+    {!user ? (
+      <>
+        {/* Not logged in: Show AuthPage */}
+        <Route path="/" component={AuthPage} />
+      </>
+    ) : (
+      <>
+        {/* Logged in: Normal app routes */}
+        <Route path="/" component={HomePage} />
+        <Route path="/track" component={HealthLogging} />
+        <Route path="/roadmap" component={TransplantRoadmap} />
+        {/* etc */}
+      </>
+    )}
+    {/* Default fallback */}
+    <Route path="*" component={() => <Navigate to="/" />} />
+  </Routes>
+);
+✅ This will only show the AuthPage when user is null.
+
+✏️ 2. Make sure AuthPage.tsx is a true Login Intro Page
+Your AuthPage.tsx should look like this:
+
+tsx
+Copy
+Edit
+import { useUser } from '@/contexts/UserContext';
+
+const AuthPage = () => {
+  const { setUser } = useUser();
+
+  const handleLogin = (userInfo) => {
+    // set whatever your user info is
+    setUser(userInfo);
+  };
+
+  return (
+    <div className="auth-page">
+      <h1>Welcome to Nephra!</h1>
+      <p>Manage your kidney health intelligently.</p>
+      
+      <button onClick={() => handleLogin({ name: "Demo User" })}>
+        Test Login (Demo User)
+      </button>
+      
+      {/* OR add your full login form here */}
+    </div>
+  );
+};
+
+export default AuthPage;
+✅ No auto-login. No jump to home unless logged in.
+
+✏️ 3. Fix Header.tsx logout button
+In Header.tsx, your logout function should fully clear the session:
+
+tsx
+Copy
+Edit
+import { useNavigate } from 'wouter';
+import { useUser } from '@/contexts/UserContext';
+
+const Header = () => {
+  const navigate = useNavigate();
+  const { setUser } = useUser();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setUser(null);
+    navigate('/');
+  };
+
+  return (
+    <header>
+      {/* your nav links */}
+      <button onClick={handleLogout}>Log Out</button>
+    </header>
+  );
+};
+
+export default Header;
+✅ Clears token. Clears user. Goes straight back to login page.
+
+✏️ 4. Optional: Keep the "Test Login" button
+✅ Keep the test button only inside the AuthPage (as a dev tool),
+but it should NOT override your app’s normal routing anymore.
+
+🚀 After you do this:
+When you visit /, if not logged in → you get the Login/Intro page (AuthPage).
+
+When you log in (set user), you are taken to Home.
+
+When you log out, you are taken BACK to the login page without glitches.
+
+No more Home Page hijacking your flow.

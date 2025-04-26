@@ -63,15 +63,9 @@ export default function AuthPage() {
 
   // Add a useEffect to redirect when authenticated
   const { user } = useAuth();
-  useEffect(() => {
-    // If the URL has the forceLogin parameter, don't redirect
-    const urlParams = new URLSearchParams(window.location.search);
-    const forceLogin = urlParams.get('forceLogin');
-    
-    if (user && !forceLogin) {
-      setLocation("/");
-    }
-  }, [user, setLocation]);
+  // No need for a redirect check - the main App.tsx routing now handles this
+  // If a user is logged in, they won't even reach this component
+  // This component now only shows when user is not logged in
 
   // Handle form submissions
   const onLoginSubmit = (data: LoginFormValues) => {
