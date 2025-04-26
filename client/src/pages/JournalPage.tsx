@@ -9,7 +9,20 @@ import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { JournalEntry } from "@shared/schema";
+// Define our JournalEntry interface to match what we're getting from the API
+interface JournalEntry {
+  id: number;
+  content: string;
+  aiResponse: string | null;
+  date?: Date | string;
+  createdAt?: Date | string;
+  userId: number | null;
+  sentiment: string | null;
+  tags: string[] | null;
+  stressScore: number | null;
+  fatigueScore: number | null;
+  painScore: number | null;
+}
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Send, RefreshCw, Bot } from "lucide-react";
 import { useLocation } from "wouter";
@@ -70,18 +83,21 @@ export default function JournalPage() {
     // Add a small delay to ensure context is fully loaded
     const timer = setTimeout(() => {
       console.log("Checking authentication in JournalPage");
-      // We allow default user for testing, but in production you might want to redirect
-      // if (!user || user.id === 1) {
-      //  toast({
-      //    title: "Not logged in",
-      //    description: "Please log in to access your journal",
-      //    variant: "destructive"
-      //  });
-      //  setLocation("/auth");
-      // }
-    }, 200);
+      
+      // Check if we're logged in with a real user
+      // If not, redirect to auth page
+      if (!user || user.id === 1) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to access your journal",
+          variant: "destructive"
+        });
+        setLocation("/auth");
+      }
+    }, 300); // Increased timeout to ensure UserContext has loaded
+    
     return () => clearTimeout(timer);
-  }, []);
+  }, [user, toast, setLocation]);
   
   // Check for URL parameters and set the active tab
   useEffect(() => {
@@ -545,7 +561,7 @@ export default function JournalPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <CardTitle className="text-base">
-                            {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                            {new Date(entry.createdAt || entry.date || new Date()).toLocaleDateString('en-US', {
                               weekday: 'short',
                               month: 'short', 
                               day: 'numeric',

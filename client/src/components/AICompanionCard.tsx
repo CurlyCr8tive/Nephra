@@ -80,42 +80,44 @@ export function AICompanionCard() {
         </div>
       </div>
       
-      <div className="flex gap-2 mb-4">
+      {user && user.id ? (
+        <>
+          <div className="flex gap-2 mb-4">
+            <Button 
+              className="flex-1" 
+              onClick={handleAcceptSuggestion}
+              disabled={isLoading}
+            >
+              {isLoading ? "Loading..." : "Yes, please"}
+            </Button>
+            <Button 
+              variant="secondary" 
+              className="flex-1"
+            >
+              Not now
+            </Button>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            className="w-full flex items-center justify-center gap-2 text-primary border-primary"
+            onClick={() => {
+              setLocation("/journal?tab=chat");
+            }}
+          >
+            <span className="material-icons text-sm">chat</span>
+            Start new conversation
+          </Button>
+        </>
+      ) : (
         <Button 
-          className="flex-1" 
-          onClick={handleAcceptSuggestion}
-          disabled={isLoading}
+          variant="outline" 
+          className="w-full text-primary border-primary"
+          onClick={() => setLocation("/auth")}
         >
-          {isLoading ? "Loading..." : "Yes, please"}
+          Log in to use AI Companion
         </Button>
-        <Button 
-          variant="secondary" 
-          className="flex-1"
-        >
-          Not now
-        </Button>
-      </div>
-      
-      <Button 
-        variant="outline" 
-        className="w-full flex items-center justify-center gap-2 text-primary border-primary"
-        onClick={() => {
-          // Check if user is logged in before redirecting
-          if (user && user.id) {
-            setLocation("/journal?tab=chat");
-          } else {
-            toast({
-              title: "Not logged in",
-              description: "Please log in to chat with your AI assistant",
-              variant: "destructive"
-            });
-            setLocation("/auth");
-          }
-        }}
-      >
-        <span className="material-icons text-sm">chat</span>
-        Start new conversation
-      </Button>
+      )}
     </div>
   );
 }

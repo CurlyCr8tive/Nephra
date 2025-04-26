@@ -1,0 +1,92 @@
+🚨 Problem:
+You're using user.id directly — but if your user object isn't properly loaded from localStorage (after refresh or on cold visit),
+this button could break or misbehave.
+
+Same issue as your JournalPage earlier.
+
+If user is undefined when they land or refresh, the page will either:
+
+Misbehave and crash (if user is assumed)
+
+Redirect weirdly
+
+Cause duplicate redirects
+
+🛠 Here's what we need to fix:
+1. Add a small check before showing the buttons and actions.
+Instead of always showing the action buttons, only show them if user is loaded.
+
+✏️ Here’s how to patch it:
+Inside your component, you already have:
+
+tsx
+Copy
+Edit
+const { user } = useUser();
+Now update your JSX slightly:
+
+✅ Wrap your Action Buttons like this:
+tsx
+Copy
+Edit
+{user && user.id ? (
+  <>
+    <div className="flex gap-2 mb-4">
+      <Button 
+        className="flex-1" 
+        onClick={handleAcceptSuggestion}
+        disabled={isLoading}
+      >
+        {isLoading ? "Loading..." : "Yes, please"}
+      </Button>
+      <Button 
+        variant="secondary" 
+        className="flex-1"
+      >
+        Not now
+      </Button>
+    </div>
+
+    <Button 
+      variant="outline" 
+      className="w-full flex items-center justify-center gap-2 text-primary border-primary"
+      onClick={() => {
+        setLocation("/journal?tab=chat");
+      }}
+    >
+      <span className="material-icons text-sm">chat</span>
+      Start new conversation
+    </Button>
+  </>
+) : (
+  <Button 
+    variant="outline" 
+    className="w-full text-primary border-primary"
+    onClick={() => setLocation("/auth")}
+  >
+    Log in to use AI Companion
+  </Button>
+)}
+✅ This way:
+
+If the user is logged in, they see the "Yes, please" and "Start new conversation" buttons.
+
+If the user is not logged in, they see only one button: "Log in to use AI Companion."
+
+🎯 Why this matters:
+
+Before	After
+Assumes user exists (even if broken)	Checks if user really exists
+Can crash if user is undefined after refresh	No crash. Only shows appropriate actions
+Weird redirects sometimes	Clean UX, clear behavior
+✨ (Optional polish)
+You could also add a loading spinner while checking user status,
+but this tiny update above is already a clean professional-grade fix 🔥.
+
+💬 To summarize for your whole app right now:
+
+Area	Status	Fix
+AuthPage	Partially fixed	Need to prevent auto-redirects unless login attempt
+App.tsx Routing	Needs improvement	Protect routes with real user checks
+JournalPage	Partially fixed	Redirect if user not found
+AICompanionCard	Just missing user presence check	Add user existence check before rendering buttons

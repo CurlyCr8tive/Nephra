@@ -71,10 +71,21 @@ export function UserProvider({ children, value }: UserProviderProps) {
     // Try to use value from props first
     if (value?.user !== undefined) return value.user;
     
-    // Otherwise check if we have a user ID in storage
-    const savedUserId = getFromStorage('nephra_user_id');
-    if (savedUserId) {
-      console.log("Found saved user ID in storage:", savedUserId);
+    // Otherwise check if we have a user data in storage
+    try {
+      const savedUser = localStorage.getItem('nephra_user');
+      if (savedUser) {
+        console.log("Found saved user data in localStorage");
+        return JSON.parse(savedUser);
+      }
+      
+      // Otherwise check if we have a user ID in storage
+      const savedUserId = getFromStorage('nephra_user_id');
+      if (savedUserId) {
+        console.log("Found saved user ID in storage:", savedUserId);
+      }
+    } catch (e) {
+      console.error("Error restoring user from localStorage:", e);
     }
     
     return null;
@@ -178,6 +189,14 @@ export function UserProvider({ children, value }: UserProviderProps) {
           // Double-check by reading it back immediately
           const verifyGender = getFromStorage('nephra_user_gender');
           console.log("✅ Verified gender in storage:", verifyGender);
+        }
+        
+        // Save complete user object to localStorage for persistence
+        try {
+          localStorage.setItem('nephra_user', JSON.stringify(userData));
+          console.log("📦 Saved user data to localStorage during fetch");
+        } catch (e) {
+          console.error("Error saving user to localStorage:", e);
         }
         
         setUser(userData);
@@ -290,9 +309,36 @@ export function UserProvider({ children, value }: UserProviderProps) {
     }
   }, [user, forceUpdateGender]);
 
+  // Create a modified setUser function that also saves to localStorage
+  const setUserWithStorage = useCallback((newUser: User | null) => {
+    if (newUser) {
+      // Save complete user object to localStorage
+      try {
+        localStorage.setItem('nephra_user', JSON.stringify(newUser));
+        console.log("📦 Saved user data to localStorage");
+      } catch (e) {
+        console.error("Error saving user to localStorage:", e);
+      }
+    } else {
+      // If user is null (logout), clear localStorage
+      try {
+        localStorage.removeItem('nephra_user');
+        localStorage.removeItem('nephra_user_id');
+        localStorage.removeItem('nephra_user_gender');
+        localStorage.removeItem('nephra_last_refresh');
+        console.log("🧹 Cleared user data from localStorage");
+      } catch (e) {
+        console.error("Error clearing localStorage:", e);
+      }
+    }
+    
+    // Call original setUser
+    setUser(newUser);
+  }, []);
+
   const contextValue: UserContextType = {
     user: value?.user !== undefined ? value.user : user,
-    setUser: value?.setUser || setUser,
+    setUser: value?.setUser || setUserWithStorage,
     isLoading,
     error,
     refreshUserData,
