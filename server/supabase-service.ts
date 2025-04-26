@@ -223,8 +223,9 @@ export async function logChatToSupabase(
   emotionalScore?: number
 ): Promise<{success: boolean, data?: any, error?: any}> {
   try {
+    // Ensure user_id is stored as a string in Supabase
     const chatLog: SupabaseChatLog = {
-      user_id: userId,
+      user_id: userId.toString(), // Convert to string to ensure consistent format
       user_input: userInput,
       ai_response: aiResponse,
       model_used: modelUsed,
@@ -255,7 +256,7 @@ export async function getChatHistory(userId: string | number, limit: number = 10
     const { data, error } = await supabase
       .from('chat_logs')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', userId.toString())
       .order('timestamp', { ascending: false })
       .limit(limit);
     
