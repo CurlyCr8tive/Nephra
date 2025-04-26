@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { useUser } from "@/contexts/UserContext";
 
 interface ProtectedRouteProps {
@@ -7,20 +7,43 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useUser();
+  const redirectAttemptedRef = useRef(false);
   
   // Use a direct window.location approach instead of Redirect component
   // This bypasses the React rendering cycle and avoids infinite loops
   useEffect(() => {
-    if (!isLoading && !user) {
+    // Only attempt redirect if:
+    // 1. We're not currently loading user data
+    // 2. No user is found after checking
+    // 3. We haven't already tried redirecting
+    if (!isLoading && !user && !redirectAttemptedRef.current) {
+      // Set flag to prevent multiple redirects
+      redirectAttemptedRef.current = true;
+      
       console.log("ProtectedRoute: No user found, redirecting to /auth");
-      // Add a small timeout to ensure state is stable
+      
+      // Use a longer timeout to ensure state has fully stabilized
+      // This prevents race conditions with localStorage and API calls
       setTimeout(() => {
-        window.location.replace("/auth");
-      }, 100);
+        // If after timeout we still have no user, proceed with redirect
+        if (!sessionStorage.getItem('nephra_auth_redirect_pending')) {
+          sessionStorage.setItem('nephra_auth_redirect_pending', 'true');
+          window.location.replace("/auth");
+        }
+      }, 500);
     }
   }, [user, isLoading]);
 
-  if (isLoading) {
+  // Reset the redirect flag if user is present
+  useEffect(() => {
+    if (user) {
+      redirectAttemptedRef.current = false;
+      sessionStorage.removeItem('nephra_auth_redirect_pending');
+    }
+  }, [user]);
+
+  // Show loading spinner while authenticating
+  if (isLoading || (!user && !redirectAttemptedRef.current)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -28,11 +51,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Don't render anything if not authenticated (redirection will happen via useEffect)
+  // Don't render children if not authenticated
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="ml-3 text-primary">Redirecting to login...</p>
       </div>
     );
   }

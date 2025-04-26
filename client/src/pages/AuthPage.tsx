@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -70,10 +70,16 @@ export default function AuthPage() {
     },
   });
 
+  // Track redirect attempts to prevent infinite loops
+  const redirectAttemptedRef = useRef(false);
+  
   // Use direct side effect to save data and redirect
   useEffect(() => {
     // If the user is logged in
-    if (user) {
+    if (user && !redirectAttemptedRef.current) {
+      // Set flag to prevent multiple redirects
+      redirectAttemptedRef.current = true;
+      
       // If the user has a stored session, save it for persistence
       try {
         localStorage.setItem('nephra_user_data', JSON.stringify(user));
@@ -85,10 +91,15 @@ export default function AuthPage() {
       // Only redirect if not being forced to login, otherwise proceed to render the form
       if (!window.location.search.includes('forceLogin')) {
         console.log("AuthPage: User already logged in, redirecting to dashboard");
-        // Use direct browser navigation with timeout to avoid React rendering cycle
+        
+        // Use a longer timeout to ensure all user data is saved properly
         setTimeout(() => {
-          window.location.replace("/dashboard");
-        }, 100);
+          // Use sessionStorage to track redirect state
+          if (!sessionStorage.getItem('nephra_dashboard_redirect_pending')) {
+            sessionStorage.setItem('nephra_dashboard_redirect_pending', 'true');
+            window.location.replace("/dashboard");
+          }
+        }, 500);
       }
     }
   }, [user]);
