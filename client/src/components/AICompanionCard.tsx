@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { getChatCompletion } from "@/lib/openai";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
 export function AICompanionCard() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestion, setSuggestion] = useState({
     message: "I notice your stress levels have been higher this week. This can affect your blood pressure. Would you like some simple relaxation techniques?",
@@ -14,11 +16,21 @@ export function AICompanionCard() {
   });
   
   const handleAcceptSuggestion = async () => {
+    // Don't proceed if there's no user
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to use the AI assistant.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Using a default user ID (1) since we have a mock user
+      // Use the current user's ID instead of a hardcoded value
       const response = await getChatCompletion(
-        1,
+        user.id,
         "Yes, I would like some simple relaxation techniques to help with my stress levels."
       );
       
