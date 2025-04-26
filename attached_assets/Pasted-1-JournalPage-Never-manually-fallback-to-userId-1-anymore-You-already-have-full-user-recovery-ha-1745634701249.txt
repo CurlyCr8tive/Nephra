@@ -1,0 +1,91 @@
+1. JournalPage: Never manually fallback to userId = 1 anymore
+You already have full user recovery handled inside UserContext.
+That means in all pages, like JournalPage.tsx, AICompanionCard.tsx, etc:
+
+✅ Trust user from context:
+
+tsx
+Copy
+Edit
+const { user, isLoading } = useUser();
+✅ If !user and not isLoading, redirect to /auth (clean redirect).
+
+✅ No need to ever fake a user object { id: 1, username: 'testuser' } again.
+Your context is smarter now.
+
+2. Protect pages at render time
+At the top of pages like JournalPage.tsx, add:
+
+tsx
+Copy
+Edit
+const { user, isLoading } = useUser();
+const [location] = useLocation();
+
+// Redirect if no user and not currently loading
+useEffect(() => {
+  if (!isLoading && !user) {
+    location('/auth');
+  }
+}, [user, isLoading, location]);
+
+if (isLoading) {
+  return (
+    <div className="flex justify-center items-center min-h-screen">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+}
+
+if (!user) {
+  return null; // Nothing while redirecting
+}
+✅ This ensures:
+
+While loading the user from storage/api → show a spinner
+
+If no user after loading → redirect
+
+If valid user → show full page
+
+✨ WHY this is important:
+
+Old Problem	New Behavior
+Pages sometimes fake a user	Pages only render when real user is ready
+Confusing fallback userID 1 issues	True session security
+Risk of API calls with wrong IDs	Secure API calls tied to real user
+🔥 Quick Example of JournalPage After Full Fix:
+tsx
+Copy
+Edit
+import { useUser } from "@/contexts/UserContext";
+import { useLocation } from "wouter";
+import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
+
+export default function JournalPage() {
+  const { user, isLoading } = useUser();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      location('/auth');
+    }
+  }, [user, isLoading, location]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Redirecting silently
+  }
+
+  const userId = user.id; // Safe to use here
+
+  // ...rest of your JournalPage logic...
+}

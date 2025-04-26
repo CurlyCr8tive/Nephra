@@ -115,7 +115,15 @@ export default function JournalPage() {
     // Check if we have an initial query for the chat tab
     const initialQuery = localStorage.getItem('nephraInitialQuery');
     if (initialQuery && activeTab === 'chat') {
+      // Add the initial query to the conversation and input field
       setFollowUpPrompt(initialQuery);
+      
+      // Add user message to conversation immediately for better UX
+      if (conversation.length === 0) {
+        setConversation([
+          { role: 'user', content: initialQuery }
+        ]);
+      }
       // Clear the localStorage data
       localStorage.removeItem('nephraInitialQuery');
     }

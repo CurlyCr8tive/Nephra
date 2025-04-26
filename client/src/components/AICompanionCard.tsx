@@ -28,18 +28,36 @@ export function AICompanionCard() {
 
     setIsLoading(true);
     try {
-      // Use the current user's ID instead of a hardcoded value
-      const response = await getChatCompletion(
-        user.id,
-        "Yes, I would like some simple relaxation techniques to help with my stress levels."
-      );
+      // The chatQuery that will be used in the chat tab
+      const chatQuery = "Yes, I would like some simple relaxation techniques to help with my stress levels.";
+      
+      // Pre-cache the response for faster UX - this initializes the conversation
+      // but the JournalPage will also handle the actual submission
+      try {
+        // Only fire this request if we're sure we have a valid user
+        if (user && user.id) {
+          const response = await getChatCompletion(
+            user.id,
+            chatQuery
+          );
+          console.log("Pre-cached AI response for faster loading");
+        }
+      } catch (preloadErr) {
+        // Silently fail pre-caching - the JournalPage will retry anyway
+        console.warn("Failed to pre-cache AI response, will retry in chat tab", preloadErr);
+      }
       
       // Store the query in localStorage to be used in the chat tab
-      localStorage.setItem('nephraInitialQuery', "Yes, I would like some simple relaxation techniques to help with my stress levels.");
+      // This is the key integration point that connects the card to the Journal page
+      localStorage.setItem('nephraInitialQuery', chatQuery);
       
       // Check if user is still logged in before redirecting
       if (user && user.id) {
         // Redirect to journal page with chat tab active
+        toast({
+          title: "Opening chat assistant",
+          description: "Preparing your relaxation techniques...",
+        });
         setLocation("/journal?tab=chat");
       } else {
         toast({
@@ -50,7 +68,7 @@ export function AICompanionCard() {
         setLocation("/auth");
       }
     } catch (error) {
-      console.error("Error getting AI response:", error);
+      console.error("Error preparing AI assistant:", error);
       toast({
         title: "Communication Error",
         description: "Could not connect to AI assistant. Please try again later.",

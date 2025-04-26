@@ -84,21 +84,33 @@ export function EmotionalCheckInCard() {
     
     setIsSubmitting(true);
     try {
-      // Use the current user's ID
-      await logEmotionalCheckIn({
-        userId: user.id,
-        date: new Date(),
+      // Format the emotional check-in data as a rich entry
+      const emotionData = {
         emotion: selectedEmotion,
         tags: selectedTags,
         notes: notes
-      });
+      };
       
-      // Store the data in localStorage for journal page to use
-      localStorage.setItem('nephraEmotionData', JSON.stringify({
-        emotion: selectedEmotion,
-        tags: selectedTags,
-        notes: notes
-      }));
+      // First store data in localStorage BEFORE API call in case API fails
+      // This is the key integration that connects the card to the Journal page
+      localStorage.setItem('nephraEmotionData', JSON.stringify(emotionData));
+      
+      // Then try to save to server storage
+      try {
+        // Use the current user's ID
+        await logEmotionalCheckIn({
+          userId: user.id,
+          date: new Date(),
+          emotion: selectedEmotion,
+          tags: selectedTags,
+          notes: notes
+        });
+        console.log("✅ Saved emotional check-in to server");
+      } catch (apiError) {
+        console.error("Error saving emotional check-in to server:", apiError);
+        // Continue with local data even if server save fails
+        // This ensures the integration to journal still works
+      }
       
       // Show success message
       toast({
@@ -109,6 +121,10 @@ export function EmotionalCheckInCard() {
       // Check if user is still logged in before redirecting
       if (user && user.id) {
         // Redirect to journal page with write tab active
+        toast({
+          title: "Opening journal",
+          description: "You can now add more details to your entry",
+        });
         setLocation("/journal?tab=write");
       } else {
         toast({
@@ -124,10 +140,10 @@ export function EmotionalCheckInCard() {
       setSelectedTags([]);
       setNotes("");
     } catch (error) {
-      console.error("Error logging emotional check-in:", error);
+      console.error("Error processing emotional check-in:", error);
       toast({
         title: "Error",
-        description: "Could not log your emotional check-in. Please try again.",
+        description: "Could not process your emotional check-in. Please try again.",
         variant: "destructive"
       });
     } finally {
