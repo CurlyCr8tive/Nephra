@@ -15,7 +15,13 @@ export function Header({ title }: HeaderProps) {
   
   const handleLogout = async () => {
     try {
-      // Use direct fetch instead of the mutation to avoid any issues
+      console.log("Logging out...");
+      // Clear user data from cache first
+      if (logoutMutation && typeof logoutMutation.mutateAsync === 'function') {
+        await logoutMutation.mutateAsync();
+      }
+      
+      // Then make direct API call to ensure server session is cleared
       const res = await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
@@ -28,15 +34,21 @@ export function Header({ title }: HeaderProps) {
         throw new Error("Logout request failed");
       }
       
+      console.log("Logout API call successful");
+      
       // Clear local storage but preserve gender data
       try {
         if (typeof window !== 'undefined') {
+          console.log("Clearing session data");
           // Save gender before clearing
           const gender = window.localStorage.getItem('nephra_user_gender');
           
-          // Clear user ID
+          // Clear all user related data
           window.sessionStorage.removeItem('nephra_user_id');
           window.localStorage.removeItem('nephra_user_id');
+          
+          // Clear auth tokens if any
+          document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
           
           // Restore gender if it existed
           if (gender) {
@@ -48,13 +60,19 @@ export function Header({ title }: HeaderProps) {
         console.error("Error managing storage during logout:", e);
       }
       
-      // Force a hard navigation to auth page
-      window.location.href = '/auth';
+      console.log("Redirecting to auth page");
       
+      // Force a hard navigation to auth page (bypassing React Router)
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account",
       });
+      
+      // Small delay to ensure toast appears before redirect
+      setTimeout(() => {
+        window.location.replace('/auth');
+      }, 500);
+      
     } catch (error) {
       toast({
         title: "Logout failed",
