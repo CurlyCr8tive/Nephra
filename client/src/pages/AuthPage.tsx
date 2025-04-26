@@ -64,7 +64,11 @@ export default function AuthPage() {
   // Add a useEffect to redirect when authenticated
   const { user } = useAuth();
   useEffect(() => {
-    if (user) {
+    // If the URL has the forceLogin parameter, don't redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceLogin = urlParams.get('forceLogin');
+    
+    if (user && !forceLogin) {
       setLocation("/");
     }
   }, [user, setLocation]);

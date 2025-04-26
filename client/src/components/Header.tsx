@@ -74,7 +74,8 @@ export function Header({ title }: HeaderProps) {
       
       // Small delay to ensure toast appears before redirect
       setTimeout(() => {
-        window.location.replace('/auth');
+        // Add a special parameter to force showing the auth page
+        window.location.replace('/auth?forceLogin=true');
       }, 500);
       
     } catch (error) {
@@ -105,6 +106,17 @@ export function Header({ title }: HeaderProps) {
           >
             <span className="material-icons text-sm mr-1">logout</span>
             Logout
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => {
+              window.location.href = "/auth?forceLogin=true";
+            }}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            <span className="material-icons text-sm mr-1">login</span>
+            Show Login
           </Button>
           <Link href="/profile">
             <div className={`w-10 h-10 rounded-full ${isProfileActive ? 'bg-primary' : 'bg-neutral-100'} flex items-center justify-center transition-colors cursor-pointer`}>

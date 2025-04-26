@@ -216,8 +216,12 @@ export function UserProvider({ children, value }: UserProviderProps) {
   
   // Fetch user data on mount if not provided externally
   useEffect(() => {
-    // Only attempt to fetch if not already provided externally
-    if (value?.user === undefined) {
+    // Check if we're on the auth page with forceLogin
+    const isForceLoginAuth = window.location.pathname === '/auth' && 
+                           window.location.search.includes('forceLogin');
+                           
+    // Only attempt to fetch if not already provided externally AND not on force login page
+    if (value?.user === undefined && !isForceLoginAuth) {
       fetchUserData();
     }
   }, [value?.user, forcedRefresh, fetchUserData]);

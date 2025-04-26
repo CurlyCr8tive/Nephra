@@ -29,7 +29,7 @@ const AppRoutes = () => {
     <Switch>
       {/* Auth page - must come BEFORE the root route */}
       <Route path="/auth">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+        {(user && !window.location.search.includes('forceLogin')) ? <Redirect to="/dashboard" /> : <AuthPage />}
       </Route>
       
       {/* Protected routes - specific routes first */}
