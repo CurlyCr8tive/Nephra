@@ -42,18 +42,31 @@ export function useHealthData({ userId }: UseHealthDataProps) {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
       
-      const response = await fetch(
-        `/api/health-metrics/${userId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
-        { credentials: "include" }
-      );
+      console.log(`Fetching data for user ID ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch weekly metrics");
+      try {
+        const response = await fetch(
+          `/api/health-metrics/${userId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
+          { credentials: "include" }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error fetching weekly metrics:", errorText);
+          throw new Error(`Failed to fetch weekly metrics: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Retrieved ${data.length} health metrics for user ${userId}:`, data);
+        return data;
+      } catch (error) {
+        console.error("Exception while fetching health metrics:", error);
+        throw error;
       }
-      
-      return response.json();
     },
     enabled: !!userId,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Mutation for logging new health metrics

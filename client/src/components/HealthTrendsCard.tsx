@@ -132,10 +132,13 @@ export function HealthTrendsCard() {
 
   const getChartData = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
-      // Return mock data if no metrics exist
-      return [1.5, 2.0, 1.8, 1.2, 2.2, 1.5, 2.0];
+      console.log("No weekly metrics data available for chart");
+      // Return empty array instead of mock data to better reflect real situation
+      return [];
     }
 
+    console.log("Weekly metrics data for charts:", weeklyMetrics);
+    
     // Extract appropriate data based on active tab
     switch (activeTab) {
       case "hydration":
@@ -143,7 +146,13 @@ export function HealthTrendsCard() {
       case "bp":
         return weeklyMetrics.map(metric => metric.systolicBP || 0);
       case "gfr":
-        return weeklyMetrics.map(metric => metric.estimatedGFR || 0);
+        // Add logging to see the GFR values being extracted
+        const gfrValues = weeklyMetrics.map(metric => {
+          console.log(`GFR data point: ${metric.estimatedGFR}`);
+          return metric.estimatedGFR || 0;
+        });
+        console.log("GFR values for chart:", gfrValues);
+        return gfrValues;
       default:
         return [];
     }
@@ -168,8 +177,22 @@ export function HealthTrendsCard() {
         return 3;
       case "bp":
         return 200;
-      case "gfr":
-        return 120;
+      case "gfr": {
+        // For GFR, dynamically calculate max based on actual data
+        if (weeklyMetrics && weeklyMetrics.length > 0) {
+          const maxGfr = Math.max(...weeklyMetrics.map(metric => metric.estimatedGFR || 0));
+          console.log("Max GFR value:", maxGfr);
+          
+          // Add 10% padding above the max value for better visualization
+          // For very low GFR values, ensure a minimum range
+          if (maxGfr < 30) {
+            return Math.max(maxGfr + 10, 40); // Show at least up to 40 for low values
+          } else {
+            return Math.max(maxGfr * 1.1, 120); // Cap at 120 for normal range
+          }
+        }
+        return 120; // Default for empty data
+      }
       default:
         return 100;
     }
@@ -190,17 +213,11 @@ export function HealthTrendsCard() {
 
   const calculateAverage = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
-      switch (activeTab) {
-        case "hydration":
-          return "1.8L / day";
-        case "bp":
-          return "120/80";
-        case "gfr":
-          return "45";
-        default:
-          return "--";
-      }
+      console.log("No metrics for average calculation");
+      return "--";
     }
+
+    console.log("Calculating average for", activeTab, "with", weeklyMetrics.length, "entries");
 
     switch (activeTab) {
       case "hydration": {
@@ -215,8 +232,17 @@ export function HealthTrendsCard() {
         return `${avgSystolic}/${avgDiastolic}`;
       }
       case "gfr": {
-        const total = weeklyMetrics.reduce((sum, metric) => sum + (metric.estimatedGFR || 0), 0);
-        return `${Math.round(total / weeklyMetrics.length)}`;
+        // Log each GFR value to ensure we're accessing the correct property
+        weeklyMetrics.forEach((metric, index) => {
+          console.log(`GFR entry ${index}:`, metric.estimatedGFR);
+        });
+        
+        const gfrValues = weeklyMetrics.map(metric => metric.estimatedGFR || 0);
+        const total = gfrValues.reduce((sum, value) => sum + value, 0);
+        const average = Math.round(total / gfrValues.length);
+        
+        console.log("GFR average calculation:", total, "÷", gfrValues.length, "=", average);
+        return `${average}`;
       }
       default:
         return "--";
