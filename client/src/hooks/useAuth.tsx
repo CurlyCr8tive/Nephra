@@ -82,6 +82,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [location]);
 
+  // Try to load user from localStorage first for quick start
+  const [initialUser, setInitialUser] = useState<User | null>(() => {
+    try {
+      const savedUserData = localStorage.getItem('nephra_user_data');
+      if (savedUserData) {
+        const parsedUser = JSON.parse(savedUserData);
+        console.log("🔄 Loading initial user data from localStorage:", parsedUser.username);
+        return parsedUser;
+      }
+    } catch (e) {
+      console.error("Error loading user data from localStorage:", e);
+    }
+    return null;
+  });
+
   const {
     data: user,
     error,
@@ -92,6 +107,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       try {
         console.log("Fetching user data...");
+        
+        // First check if we have the user data in localStorage for quick loading
+        // This helps prevent flickering during page navigation
+        const cachedUserData = localStorage.getItem('nephra_user_data');
+        let cachedUser = null;
+        
+        if (cachedUserData) {
+          try {
+            cachedUser = JSON.parse(cachedUserData);
+            console.log("Found cached user data in localStorage:", cachedUser.username);
+          } catch (e) {
+            console.error("Error parsing cached user data:", e);
+          }
+        }
+        
+        // Actual API call to fetch fresh user data
         const res = await fetch("/api/user", {
           credentials: "include", // Include cookies with the request
           headers: {
@@ -103,16 +134,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           if (res.status === 401) {
             console.log("User not authenticated");
+            // Clear local storage if server says we're not authenticated
+            try {
+              // Don't clear gender though - always preserve gender
+              const gender = localStorage.getItem('nephra_user_gender');
+              localStorage.removeItem('nephra_user_data');
+              localStorage.removeItem('nephra_user_id');
+              
+              // Restore gender after clearing
+              if (gender) {
+                localStorage.setItem('nephra_user_gender', gender);
+              }
+            } catch (e) {
+              console.error("Error clearing localStorage:", e);
+            }
+            
             // Not authenticated, but not an error
             return null;
           }
+          
           const errText = await res.text();
           console.error(`Failed to fetch user (${res.status}): ${errText}`);
+          
+          // If we have cached user data and there was just a network error, use that instead
+          if (cachedUser && (res.status >= 500 || res.status === 0)) {
+            console.log("Using cached user data due to server error");
+            return cachedUser;
+          }
+          
           throw new Error(`Failed to fetch user: ${errText || res.statusText}`);
         }
         
         const userData = await res.json();
-        console.log("User data retrieved:", userData?.username);
+        console.log("User data retrieved from API:", userData?.username);
         
         // Check if we have gender in userData
         if (userData && (!userData.gender || userData.gender === '')) {
@@ -151,14 +205,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
         
+        // Save the complete user data to localStorage for persistence
+        if (userData) {
+          try {
+            localStorage.setItem('nephra_user_data', JSON.stringify(userData));
+            console.log("✅ Saved full user data to localStorage");
+          } catch (e) {
+            console.error("Error saving user data to localStorage:", e);
+          }
+        }
+        
         return userData;
       } catch (err) {
         console.error("Error fetching user:", err);
+        
+        // On network error, try to use cached data if available
+        try {
+          const cachedUserData = localStorage.getItem('nephra_user_data');
+          if (cachedUserData) {
+            const cachedUser = JSON.parse(cachedUserData);
+            console.log("⚠️ Network error, using cached user data:", cachedUser.username);
+            return cachedUser;
+          }
+        } catch (e) {
+          console.error("Error loading cached user data:", e);
+        }
+        
         return null;
       }
     },
     retry: 1, // Retry once in case of network issues
     retryDelay: 1000,
+    initialData: initialUser, // Use locally stored user data to avoid initial loading state
   });
 
   useEffect(() => {
@@ -315,16 +393,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Do NOT clear the gender from storage - we want to preserve it
       // for accurate GFR calculations even after logout
-      // Just clear the user ID to prevent auto-login
       try {
         if (typeof window !== 'undefined') {
-          // Get gender before clearing if needed
+          // Get gender before clearing
           const gender = window.localStorage.getItem('nephra_user_gender');
-          console.log("Preserved gender during logout:", gender);
+          console.log("Preserving gender during logout:", gender);
           
-          // Clear user ID but NOT gender
+          // Clear ALL user data except gender
           window.sessionStorage.removeItem('nephra_user_id');
           window.localStorage.removeItem('nephra_user_id');
+          window.localStorage.removeItem('nephra_user_data');
+          
+          // Restore gender after clearing
+          if (gender) {
+            window.localStorage.setItem('nephra_user_gender', gender);
+            window.sessionStorage.setItem('nephra_user_gender', gender);
+            console.log("✅ Restored gender after logout:", gender);
+          }
         }
       } catch (e) {
         console.error("Error managing storage during logout:", e);
@@ -335,9 +420,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "You have been successfully logged out",
       });
       
-      // Redirect to login page after logout
-      console.log("Redirecting to login page after logout");
-      setLocation('/auth');
+      // IMPORTANT: Add forceLogin parameter to prevent immediate redirect
+      // back to home if there's cached data
+      console.log("Redirecting to login page with forceLogin parameter");
+      setLocation('/auth?forceLogin=true');
     },
     onError: (error: Error) => {
       toast({

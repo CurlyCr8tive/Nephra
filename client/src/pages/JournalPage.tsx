@@ -545,7 +545,7 @@ export default function JournalPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <CardTitle className="text-base">
-                            {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                            {new Date(entry.date || new Date()).toLocaleDateString('en-US', {
                               weekday: 'short',
                               month: 'short', 
                               day: 'numeric',

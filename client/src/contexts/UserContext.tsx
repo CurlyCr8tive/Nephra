@@ -137,6 +137,14 @@ export function UserProvider({ children, value }: UserProviderProps) {
         // Save user ID to storage for persistence
         if (userData.id) {
           saveToStorage('nephra_user_id', userData.id.toString());
+          
+          // Save entire user object to localStorage for full persistence
+          try {
+            localStorage.setItem('nephra_user_data', JSON.stringify(userData));
+            console.log("📦 Saved user data to localStorage during fetch");
+          } catch (e) {
+            console.error("Error saving user data to localStorage:", e);
+          }
         }
         
         // CRITICAL: Enhanced gender handling - log debugging info
