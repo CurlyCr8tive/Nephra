@@ -17,62 +17,10 @@ export function Header({ title }: HeaderProps) {
     try {
       console.log("Logging out...");
       
-      // Clear user data from cache first
-      if (logoutMutation && typeof logoutMutation.mutateAsync === 'function') {
-        await logoutMutation.mutateAsync();
-      }
+      // Simple logout - call the API endpoint and let the auth system handle it
+      await logoutMutation.mutateAsync();
       
-      // Then make direct API call to ensure server session is cleared
-      const res = await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Cache-Control": "no-cache"
-        }
-      });
-      
-      if (!res.ok) {
-        throw new Error("Logout request failed");
-      }
-      
-      console.log("Logout API call successful");
-      
-      // Clear all storage except gender
-      try {
-        if (typeof window !== 'undefined') {
-          console.log("Clearing session data");
-          
-          // Save gender before clearing
-          const gender = window.localStorage.getItem('nephra_user_gender');
-          console.log("Preserved gender during logout:", gender);
-          
-          // Clear all user data
-          window.sessionStorage.removeItem('nephra_user_id');
-          window.localStorage.removeItem('nephra_user_id');
-          
-          // Clear any test flags
-          window.sessionStorage.removeItem('test_account');
-          
-          // Clear auth cookies
-          document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-          
-          // Restore gender if it existed
-          if (gender) {
-            window.localStorage.setItem('nephra_user_gender', gender);
-            window.sessionStorage.setItem('nephra_user_gender', gender);
-          }
-        }
-      } catch (e) {
-        console.error("Error managing storage during logout:", e);
-      }
-      
-      // Success toast
-      toast({
-        title: "Logged out successfully",
-        description: "You have been logged out of your account",
-      });
-      
-      // Force a hard navigation to auth page
+      // Force a navigation to auth page
       window.location.href = '/auth';
       
     } catch (error) {

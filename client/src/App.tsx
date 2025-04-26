@@ -12,7 +12,6 @@ import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
 
 // Main component for routing
 const AppRoutes = () => {
@@ -23,23 +22,15 @@ const AppRoutes = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
   
-  // Simple clean routing based on authentication status
-  if (!user) {
-    // Not logged in - only show auth page
-    return (
-      <Switch>
-        <Route path="/auth" component={AuthPage} />
-        <Route path="*">
-          <Redirect to="/auth" />
-        </Route>
-      </Switch>
-    );
-  }
-  
-  // Logged in - show app routes
   return (
     <Switch>
-      {/* Protected routes - specific routes first */}
+      {/* Auth page - always accessible */}
+      <Route path="/auth" component={AuthPage} />
+      
+      {/* For all other routes - redirect to auth if not logged in */}
+      {!user && <Route path="*"><Redirect to="/auth" /></Route>}
+      
+      {/* Protected routes - only available when logged in */}
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/log" component={TrackPage} />
       <Route path="/track" component={TrackPage} />
@@ -51,9 +42,9 @@ const AppRoutes = () => {
       <Route path="/profile" component={ProfilePage} />
       <Route path="/chat" component={AIChatView} />
       
-      {/* Root route redirects to dashboard */}
+      {/* Root route redirects to dashboard when logged in */}
       <Route path="/">
-        <Redirect to="/dashboard" />
+        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
       </Route>
       
       {/* 404 page - always last */}
