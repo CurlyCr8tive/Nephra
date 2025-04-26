@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { getChatCompletion } from "@/lib/openai";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/contexts/UserContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AICompanionCard() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestion, setSuggestion] = useState({
     message: "I notice your stress levels have been higher this week. This can affect your blood pressure. Would you like some simple relaxation techniques?",

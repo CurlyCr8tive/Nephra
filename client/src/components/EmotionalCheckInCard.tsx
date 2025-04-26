@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { useUser } from "@/contexts/UserContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
@@ -26,7 +26,7 @@ const emotionTags = [
 ];
 
 export function EmotionalCheckInCard() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   
