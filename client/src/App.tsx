@@ -13,6 +13,7 @@ import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { Loader2 } from "lucide-react";
 
 // Main component for routing
 const AppRoutes = () => {
@@ -22,7 +23,7 @@ const AppRoutes = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -35,8 +36,8 @@ const AppRoutes = () => {
       </Route>
       
       {/* Root route */}
-      <Route path="/">
-        <Redirect to={user ? "/dashboard" : "/auth"} />
+      <Route path="/" exact>
+        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
       </Route>
       
       {/* Protected routes - using ProtectedRoute component */}

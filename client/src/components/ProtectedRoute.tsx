@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useUser();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation(); // Only get the setter, not the current location
 
   useEffect(() => {
     if (!isLoading && !user) {

@@ -353,7 +353,7 @@ export default function JournalPage() {
                               <AvatarFallback>
                                 {message.role === 'ai' ? 
                                   <Bot className="h-4 w-4" /> : 
-                                  (typeof user.firstName === 'string' ? user.firstName.charAt(0) : 'U')
+                                  (user && user.firstName ? user.firstName.charAt(0) : 'U')
                                 }
                               </AvatarFallback>
                             </Avatar>
@@ -436,7 +436,7 @@ export default function JournalPage() {
                             <AvatarFallback>
                               {message.role === 'ai' ? 
                                 <Bot className="h-4 w-4" /> : 
-                                (typeof user.firstName === 'string' ? user.firstName.charAt(0) : 'U')
+                                (user && user.firstName ? user.firstName.charAt(0) : 'U')
                               }
                             </AvatarFallback>
                           </Avatar>
