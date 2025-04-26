@@ -20,6 +20,7 @@ import aiRouter from "./ai-router";
 import enhancedJournalRouter from "./enhanced-journal-api-router";
 import supabaseRouter from "./supabase-router-fixed";
 import healthLogRouter from "./health-log-router";
+import statusRouter from "./status-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
 // Import OpenAI
@@ -143,6 +144,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount health log router for unified health data logging
   app.use('/api', healthLogRouter);
+  
+  // Mount status router for system monitoring
+  app.use('/api/status', statusRouter);
   
   // User profile endpoints (REMOVED DUPLICATE DEFINITIONS)
   // The user profile endpoints are defined at the bottom of this file

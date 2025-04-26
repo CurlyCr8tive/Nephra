@@ -162,10 +162,12 @@ router.get("/chat/:userId/supabase", async (req: Request, res: Response) => {
     const chats = await supabaseService.getChatLogs(userId, limit);
     
     // Return the chat logs with analytics
-    const emotions = chats
-      .filter(chat => chat.emotional_score)
-      .map(chat => chat.emotional_score);
+    // Filter out undefined/null values and ensure we have valid numerical scores
+    const emotions: number[] = chats
+      .filter(chat => typeof chat.emotional_score === 'number')
+      .map(chat => chat.emotional_score as number);
     
+    // Calculate average with proper type safety
     const avgEmotionalScore = emotions.length > 0 
       ? emotions.reduce((sum: number, score: number) => sum + score, 0) / emotions.length 
       : null;
