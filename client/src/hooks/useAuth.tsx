@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInitialized, setIsInitialized] = useState(false);
-  const [location] = useLocation(); // Add location monitoring
+  const [location, setLocation] = useLocation(); // Add location with navigation
 
   // Add a force refresh state
   const [forceRefresh, setForceRefresh] = useState(0);
