@@ -10,7 +10,7 @@ import MedicalDocuments from "@/pages/MedicalDocuments";
 import JournalPage from "@/pages/JournalPage";
 import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
-import AuthPage from "@/pages/AuthPage";
+import LoginPage from "@/pages/LoginPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/hooks/useAuth";
 import { useUser } from "@/contexts/UserContext";
@@ -33,17 +33,17 @@ const AppRoutes = () => {
     <Switch>
       {/* Auth route - redirect to dashboard if logged in */}
       <Route path="/auth">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+        {user ? <Redirect to="/dashboard" /> : <LoginPage />}
       </Route>
 
       {/* Root route */}
       <Route path="/">
-        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
+        {user ? <Redirect to="/dashboard" /> : <LoginPage />}
       </Route>
       
       {/* Protected routes - show directly if logged in, otherwise redirect */}
       <Route path="/dashboard">
-        {user ? <Dashboard /> : <Redirect to="/auth" />}
+        {user ? <Dashboard /> : <LoginPage />}
       </Route>
       
       <Route path="/track">
