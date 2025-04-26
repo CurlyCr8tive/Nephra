@@ -212,6 +212,42 @@ export async function saveChatLog(chatLog: SupabaseChatLog): Promise<{success: b
 }
 
 /**
+ * Log chat to Supabase for analytics and context history
+ */
+export async function logChatToSupabase(
+  userId: string | number,
+  userInput: string,
+  aiResponse: string,
+  modelUsed: string = 'openai',
+  tags?: string[],
+  emotionalScore?: number
+): Promise<{success: boolean, data?: any, error?: any}> {
+  try {
+    const chatLog: SupabaseChatLog = {
+      user_id: userId,
+      user_input: userInput,
+      ai_response: aiResponse,
+      model_used: modelUsed,
+      timestamp: new Date().toISOString(),
+      tags,
+      emotional_score: emotionalScore
+    };
+    
+    return await saveChatLog(chatLog);
+  } catch (error) {
+    console.error('Failed to log chat to Supabase:', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Alias for getChatHistory to maintain compatibility
+ */
+export async function getChatLogs(userId: string | number, limit: number = 10): Promise<SupabaseChatLog[]> {
+  return getChatHistory(userId, limit);
+}
+
+/**
  * Retrieves chat history for a user
  */
 export async function getChatHistory(userId: string | number, limit: number = 10): Promise<SupabaseChatLog[]> {

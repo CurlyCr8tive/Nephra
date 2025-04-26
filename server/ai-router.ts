@@ -57,16 +57,24 @@ router.post("/chat", async (req: Request, res: Response) => {
       timestamp: new Date()
     });
     
-    // Also log to Supabase for analytics and context history
+    // Also log to Supabase for analytics and context history, but only if connection is available
     try {
-      await supabaseService.logChatToSupabase(
-        userId,
-        userMessage,
-        aiResponse,
-        'openai',
-        tags.length > 0 ? tags : undefined,
-        emotionalScore
-      );
+      // First check if Supabase is connected before attempting to save
+      const isConnected = await supabaseService.checkSupabaseConnection();
+      
+      if (isConnected) {
+        await supabaseService.logChatToSupabase(
+          userId,
+          userMessage,
+          aiResponse,
+          'openai',
+          tags.length > 0 ? tags : undefined,
+          emotionalScore
+        );
+        console.log('Chat successfully logged to Supabase');
+      } else {
+        console.log('Skipping Supabase logging - connection not available');
+      }
     } catch (supabaseError) {
       console.warn('Supabase logging failed but chat was saved locally:', supabaseError);
     }
@@ -412,14 +420,14 @@ router.post("/journal/process-with-metrics", async (req: Request, res: Response)
     // Process and save the journal entry with optional health metrics
     const result = await journalService.processAndSaveJournalEntry(userId, content);
     
-    // If Supabase is configured, also save to Supabase
+    // If Supabase is configured, also save to Supabase - but don't block on it
     let supabaseResult = { success: false, message: "Supabase not configured" };
     
     try {
-      // Check if Supabase is configured by testing for presence of functions
+      // Check if Supabase is configured and connected before trying to save
       if (typeof supabaseService.checkSupabaseConnection === 'function') {
         const isConnected = await supabaseService.checkSupabaseConnection();
-        
+        console.log('Supabase connection for journal entry:', isConnected ? 'available' : 'unavailable');
         if (isConnected) {
           // Get emotional scores and tags from the result
           const tags = result.entry.tags || [];
