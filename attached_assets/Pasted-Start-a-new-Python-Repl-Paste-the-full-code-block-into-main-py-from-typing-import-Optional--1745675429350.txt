@@ -1,0 +1,93 @@
+Start a new Python Repl
+
+
+Paste the full code block into main.py
+from typing import Optional
+
+def estimate_gfr_score(
+    age: int,
+    gender: str,
+    weight_kg: float,
+    height_cm: float,
+    hydration_level: int,   # 1–10, 10 being well-hydrated
+    systolic_bp: int,
+    diastolic_bp: int,
+    stress: int,            # 1–10, 10 being very high stress
+    fatigue: int,           # 1–10, 10 being very fatigued
+    pain: int,              # 1–10, 10 being severe pain
+    creatinine: Optional[float] = None  # in mg/dL
+) -> dict:
+    """
+    Estimate GFR or risk score based on inputs.
+    """
+
+    # Base factors
+    gender_factor = 0.85 if gender.lower() == 'female' else 1.0
+    bsa = 0.007184 * (height_cm**0.725) * (weight_kg**0.425)  # Du Bois formula
+
+    # Optional creatinine-based GFR (CKD-EPI-like formula)
+    if creatinine:
+        # Simplified CKD-EPI style (not race-based)
+        gfr = 141 * min(creatinine / 0.9, 1) ** -0.411 * max(creatinine / 0.9, 1) ** -1.209 * (0.993 ** age)
+        gfr *= gender_factor
+        return {
+            "gfr_estimate": round(gfr, 2),
+            "method": "creatinine-based"
+        }
+
+    # Symptom score method
+    stress_factor = stress / 10
+    fatigue_factor = fatigue / 10
+    pain_factor = pain / 10
+    hydration_penalty = max(0, (7 - hydration_level)) * 1.5  # mild dehydration penalty
+    bp_penalty = (systolic_bp - 130) / 10 if systolic_bp > 130 else 0
+    symptom_total = stress_factor + fatigue_factor + pain_factor + hydration_penalty + bp_penalty
+
+    # Start from baseline GFR for age
+    base_gfr = 100 - (age * 0.8)  # rough average expected
+    score_adjusted = base_gfr - (symptom_total * 5)
+    score_adjusted *= gender_factor
+    score_adjusted = max(score_adjusted, 15)  # prevent underflow
+
+    return {
+        "gfr_estimate": round(score_adjusted, 2),
+        "method": "symptom-and-vital-based"
+    }
+
+# Example call to test it:
+print(estimate_gfr_score(
+    age=45,
+    gender='female',
+    weight_kg=68,
+    height_cm=165,
+    hydration_level=6,
+    systolic_bp=140,
+    diastolic_bp=85,
+    stress=7,
+    fatigue=8,
+    pain=4,
+    creatinine=None  # If available, add a value like 1.1
+))
+
+
+
+
+Below the function, you can use your own values like this:
+
+
+python
+print(estimate_gfr_score(
+    age=35,
+    gender='male',
+    weight_kg=70,
+    height_cm=175,
+    hydration_level=8,
+    systolic_bp=125,
+    diastolic_bp=80,
+    stress=5,
+    fatigue=6,
+    pain=3,
+    creatinine=None  # or add value like 1.3
+))
+
+Press Run and you'll get your GFR estimate in the console.

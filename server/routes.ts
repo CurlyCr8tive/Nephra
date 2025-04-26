@@ -13,6 +13,7 @@ import {
   insertTransplantStepSchema,
   insertUserTransplantProgressSchema
 } from "@shared/schema";
+import { estimateGfrScore, interpretGfr, getGfrRecommendation } from "./utils/gfr-calculator";
 
 // API routers
 import aiRouter from "./ai-router";
@@ -211,35 +212,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Normalize gender value to handle potential case issues
           const normalizedGender = user.gender ? String(user.gender).toLowerCase() : '';
           
-          console.log("Estimating GFR with user data", {
+          console.log("Estimating GFR with advanced calculator", {
             age: user.age,
-            rawGender: user.gender,
-            normalizedGender: normalizedGender,
-            race: user.race,
-            weight: user.weight,
-            diseaseStage: user.kidneyDiseaseStage || 1, // Default stage if missing
+            gender: normalizedGender,
+            weight_kg: user.weight,
+            height_cm: user.height || 170, // Default height if not available
             systolicBP: data.systolicBP,
             diastolicBP: data.diastolicBP || 80,
-            hydration: data.hydration,
-            stressLevel: data.stressLevel,
-            painLevel: data.painLevel
+            hydration_level: data.hydrationLevel || Math.round(data.hydration * 2), // Convert hydration in liters to scale 1-10
+            stress: data.stressLevel,
+            fatigue: data.fatigueLevel || 5, // Default if not available
+            pain: data.painLevel,
+            creatinine: data.creatinineLevel // May be undefined, which is fine
           });
           
-          const gfr = estimateGFR(
-            user.age,
-            normalizedGender, // Use normalized gender
-            user.race,
-            user.weight,
-            data.systolicBP,
-            data.diastolicBP || 80, // Default if not provided
-            data.hydration,
-            data.stressLevel,
-            data.painLevel,
-            user.kidneyDiseaseStage || 1 // Default stage if missing
-          );
+          // Check if minimum required data is available
+          if (user.age && user.gender && user.weight && (user.height || user.height === 0)) {
+            // Use the advanced GFR calculator
+            const gfrResult = estimateGfrScore(
+              user.age,
+              normalizedGender,
+              user.weight,
+              user.height || 170, // Default height if not available
+              data.hydrationLevel || Math.round(data.hydration * 2), // Convert hydration from liters to scale
+              data.systolicBP,
+              data.diastolicBP || 80,
+              data.stressLevel,
+              data.fatigueLevel || 5, // Default if not available
+              data.painLevel,
+              data.creatinineLevel // May be undefined, which is fine
+            );
+            
+            // Save both the GFR result and the method used
+            data.estimatedGFR = gfrResult.gfr_estimate;
+            data.gfrCalculationMethod = gfrResult.method;
+            
+            // Get interpretation and recommendations
+            const interpretation = interpretGfr(gfrResult.gfr_estimate);
+            const recommendation = getGfrRecommendation(gfrResult.gfr_estimate, gfrResult.method);
+            
+            console.log("Advanced GFR Estimation:", {
+              gfr: gfrResult.gfr_estimate,
+              method: gfrResult.method,
+              stage: interpretation.stage,
+              description: interpretation.description
+            });
+          } else {
+            // Fallback to the original calculator if height is missing
+            console.log("Using legacy GFR calculator due to missing height data");
+            const gfr = estimateGFR(
+              user.age,
+              normalizedGender,
+              user.race,
+              user.weight,
+              data.systolicBP,
+              data.diastolicBP || 80,
+              data.hydration,
+              data.stressLevel,
+              data.painLevel,
+              user.kidneyDiseaseStage || 1
+            );
+            
+            data.estimatedGFR = gfr;
+            data.gfrCalculationMethod = "legacy";
+          }
           
-          data.estimatedGFR = gfr;
-          console.log("Estimated GFR:", gfr);
+          console.log("Estimated GFR:", data.estimatedGFR);
         } else {
           console.log("Missing user profile data for GFR estimation");
         }
@@ -282,6 +320,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error) {
       res.status(400).json({ error: error.message });
+    }
+  });
+  
+  // GFR estimation endpoint - calculate without saving
+  app.post("/api/estimate-gfr", async (req, res) => {
+    try {
+      console.log("Received GFR estimation request:", req.body);
+      
+      const { 
+        age, 
+        gender, 
+        weight_kg, 
+        height_cm, 
+        hydration_level, 
+        systolic_bp, 
+        diastolic_bp, 
+        stress, 
+        fatigue, 
+        pain, 
+        creatinine 
+      } = req.body;
+      
+      // Validate required parameters
+      if (!age || !gender || !weight_kg || !height_cm) {
+        return res.status(400).json({ 
+          error: "Missing required parameters", 
+          required: ["age", "gender", "weight_kg", "height_cm"] 
+        });
+      }
+      
+      // Calculate GFR
+      const gfrResult = estimateGfrScore(
+        age,
+        gender.toLowerCase(),
+        weight_kg,
+        height_cm,
+        hydration_level || 5,
+        systolic_bp || 120,
+        diastolic_bp || 80,
+        stress || 5,
+        fatigue || 5,
+        pain || 3,
+        creatinine
+      );
+      
+      // Get interpretation and recommendations
+      const interpretation = interpretGfr(gfrResult.gfr_estimate);
+      const recommendation = getGfrRecommendation(gfrResult.gfr_estimate, gfrResult.method);
+      
+      // Return comprehensive result
+      res.json({
+        gfr: gfrResult.gfr_estimate,
+        method: gfrResult.method,
+        stage: interpretation.stage,
+        description: interpretation.description,
+        recommendation
+      });
+    } catch (error) {
+      console.error("Error in GFR estimation:", error);
+      res.status(500).json({ error: handleError(error) });
     }
   });
 
