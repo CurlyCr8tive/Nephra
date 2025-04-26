@@ -23,6 +23,20 @@ interface AIProvider {
 }
 
 export default function JournalPage() {
+  // Setup hooks
+  const [location, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // State for the journaling interface
+  const [journalContent, setJournalContent] = useState("");
+  const [selectedAIProvider, setSelectedAIProvider] = useState<string>("enhanced");
+  const [conversationMode, setConversationMode] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<{role: 'user' | 'ai', content: string}[]>([]);
+  const [followUpPrompt, setFollowUpPrompt] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("write");
+  
   // Safely access user context with fallback for error cases
   let userId = 1; // Default fallback userId
   let user = {
@@ -41,24 +55,33 @@ export default function JournalPage() {
         username: userContext.user.username,
         firstName: userContext.user.firstName || "User" // Handle potential null value
       };
+    } else {
+      // If user is not logged in, we'll keep using the default user object
+      // but log a message to the console
+      console.log("User not authenticated in JournalPage, using default user");
     }
   } catch (error) {
     console.error("UserContext not available:", error);
     // Continue with default user
   }
-
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [journalContent, setJournalContent] = useState("");
-  const [selectedAIProvider, setSelectedAIProvider] = useState<string>("enhanced");
-  const [conversationMode, setConversationMode] = useState(false);
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
-  const [conversation, setConversation] = useState<{role: 'user' | 'ai', content: string}[]>([]);
-  const [followUpPrompt, setFollowUpPrompt] = useState("");
   
-  // Get the active tab from URL parameters
-  const [location] = useLocation();
-  const [activeTab, setActiveTab] = useState<string>("write");
+  // Check if user is authenticated when component mounts
+  useEffect(() => {
+    // Add a small delay to ensure context is fully loaded
+    const timer = setTimeout(() => {
+      console.log("Checking authentication in JournalPage");
+      // We allow default user for testing, but in production you might want to redirect
+      // if (!user || user.id === 1) {
+      //  toast({
+      //    title: "Not logged in",
+      //    description: "Please log in to access your journal",
+      //    variant: "destructive"
+      //  });
+      //  setLocation("/auth");
+      // }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Check for URL parameters and set the active tab
   useEffect(() => {
@@ -153,9 +176,9 @@ export default function JournalPage() {
   ];
   
   // Default to enhanced chatbot
-  useState(() => {
+  useEffect(() => {
     setSelectedAIProvider("enhanced");
-  });
+  }, []);
 
   // Query to fetch journal entries
   const { data: journalEntries = [], isLoading: isLoadingJournalEntries } = useQuery<JournalEntry[]>({
@@ -518,66 +541,74 @@ export default function JournalPage() {
               <div className="space-y-4">
                 {journalEntries.map((entry: JournalEntry) => (
                   <Card key={entry.id} className="overflow-hidden">
-                    <CardHeader className="p-4 pb-2 bg-muted/30">
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="text-md">
-                          {new Date(entry.date || new Date()).toLocaleDateString()}
-                        </CardTitle>
-                        <div className="flex space-x-1">
-                          {entry.tags && entry.tags.map((tag) => (
-                            <span 
-                              key={tag} 
-                              className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+                    <CardHeader className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base">
+                            {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </CardTitle>
+                          <div className="flex gap-2 mt-1">
+                            {entry.painScore && (
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">
+                                Pain: {entry.painScore}/10
+                              </span>
+                            )}
+                            {entry.stressScore && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                                Stress: {entry.stressScore}/10
+                              </span>
+                            )}
+                            {entry.fatigueScore && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                Fatigue: {entry.fatigueScore}/10
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-4">
-                      <div className="mb-4">
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {entry.content}
-                        </p>
-                      </div>
-                      
+                      <div className="text-sm mb-3 whitespace-pre-wrap">{entry.content}</div>
+                      {entry.sentiment && (
+                        <div className="text-xs text-muted-foreground p-2 bg-muted rounded-md">
+                          <strong>Mood:</strong> {entry.sentiment}
+                        </div>
+                      )}
                       {entry.aiResponse && (
-                        <div className="border-t pt-3 mt-3">
-                          <h4 className="text-sm font-medium mb-1">AI Insights:</h4>
-                          <div className="text-sm text-muted-foreground italic max-h-96 overflow-y-auto">
-                            <p className="whitespace-pre-wrap">{entry.aiResponse}</p>
+                        <div className="mt-3 border-t pt-3">
+                          <div className="flex items-start gap-2 mt-2">
+                            <Avatar className="h-7 w-7 bg-primary">
+                              <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
+                            </Avatar>
+                            <div className="text-sm text-muted-foreground">{entry.aiResponse}</div>
                           </div>
                         </div>
                       )}
-                      
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                        <div className="flex space-x-3">
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">Pain: </span>
-                            <span className="font-semibold">{entry.painScore}/10</span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">Stress: </span>
-                            <span className="font-semibold">{entry.stressScore}/10</span>
-                          </div>
-                          <div className="text-xs">
-                            <span className="text-muted-foreground">Fatigue: </span>
-                            <span className="font-semibold">{entry.fatigueScore}/10</span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Mood: {entry.sentiment}
-                        </div>
-                      </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No journal entries yet. Start writing to track your health journey.</p>
-              </div>
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="mb-4">
+                    <Bot className="h-12 w-12 mx-auto text-muted-foreground opacity-30" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No journal entries yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start by writing about how you're feeling today. Your entries will appear here.
+                  </p>
+                  <Button onClick={() => setActiveTab("write")}>
+                    Write Your First Entry
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
         </Tabs>

@@ -37,8 +37,18 @@ export function AICompanionCard() {
       // Store the query in localStorage to be used in the chat tab
       localStorage.setItem('nephraInitialQuery', "Yes, I would like some simple relaxation techniques to help with my stress levels.");
       
-      // Redirect to journal page with chat tab active
-      setLocation("/journal?tab=chat");
+      // Check if user is still logged in before redirecting
+      if (user && user.id) {
+        // Redirect to journal page with chat tab active
+        setLocation("/journal?tab=chat");
+      } else {
+        toast({
+          title: "Session expired",
+          description: "Please log in again to continue",
+          variant: "destructive"
+        });
+        setLocation("/auth");
+      }
     } catch (error) {
       console.error("Error getting AI response:", error);
       toast({
@@ -86,15 +96,26 @@ export function AICompanionCard() {
         </Button>
       </div>
       
-      <Link href="/journal?tab=chat">
-        <Button 
-          variant="outline" 
-          className="w-full flex items-center justify-center gap-2 text-primary border-primary"
-        >
-          <span className="material-icons text-sm">chat</span>
-          Start new conversation
-        </Button>
-      </Link>
+      <Button 
+        variant="outline" 
+        className="w-full flex items-center justify-center gap-2 text-primary border-primary"
+        onClick={() => {
+          // Check if user is logged in before redirecting
+          if (user && user.id) {
+            setLocation("/journal?tab=chat");
+          } else {
+            toast({
+              title: "Not logged in",
+              description: "Please log in to chat with your AI assistant",
+              variant: "destructive"
+            });
+            setLocation("/auth");
+          }
+        }}
+      >
+        <span className="material-icons text-sm">chat</span>
+        Start new conversation
+      </Button>
     </div>
   );
 }

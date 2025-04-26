@@ -1,0 +1,116 @@
+🚨 What's happening:
+You are logged in (session data exists).
+
+But when you navigate to pages like the JournalPage, your app sometimes doesn’t find the user context properly.
+
+So you fall back to a "default" user (userId = 1) instead of your real session.
+
+This suggests:
+Your app isn't always pulling the user from context or checking auth correctly on new page loads.
+
+🛠 What you just did in JournalPage:
+From your patch, it looks like you hardcoded a fallback:
+
+tsx
+Copy
+Edit
+let userId = 1; // Default fallback userId
+let user = { username: "Guest", firstName: "User" }; // Fallback user
+
+if (userContext?.user) {
+  userId = userContext.user.id;
+  user = {
+    username: userContext.user.username,
+    firstName: userContext.user.firstName || "User"
+  };
+}
+✅ This will stop your page from crashing.
+✅ It will also show some default text if somehow userContext is broken.
+
+💬 But here's the deeper truth:
+You're band-aiding a bigger issue:
+→ The real fix is making sure userContext is properly populated across all page loads.
+
+🧹 Here's what you should do next (to solve the root cause):
+Update your UserContext Provider
+
+When your app starts, check for a saved token or user data in localStorage.
+
+Restore the user if a valid session exists.
+
+Modify App.tsx to protect pages with a real auth check.
+
+🏗 Step 1: Update UserContext
+In your client/src/contexts/UserContext.tsx (or wherever you define it):
+
+tsx
+Copy
+Edit
+import { createContext, useContext, useState, useEffect } from "react";
+
+const UserContext = createContext(null);
+
+export const UserProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // When app loads, check localStorage/session for a saved user
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+export const useUser = () => useContext(UserContext);
+✅ This way, even after a page refresh or route change, your app reloads the logged-in user from storage!
+
+🏗 Step 2: Save User Info After Login
+In your useAuth.ts (where you do loginMutation.mutate), after a successful login, save the user to localStorage:
+
+tsx
+Copy
+Edit
+loginMutation.mutateAsync(data, {
+  onSuccess: (userData) => {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    navigate('/');
+  },
+  onError: (error) => {
+    console.error(error);
+  }
+});
+✅ Now you preserve the logged-in state across pages and reloads.
+
+🏗 Step 3: Secure Pages Like JournalPage
+Instead of doing fallbacks manually in each page,
+you should redirect to login if no user.
+
+In JournalPage.tsx, add at the top:
+
+tsx
+Copy
+Edit
+const { user } = useUser();
+const [location, setLocation] = useLocation();
+
+useEffect(() => {
+  if (!user) {
+    setLocation('/'); // Redirect to AuthPage if not logged in
+  }
+}, [user]);
+✅ This keeps people out of protected pages unless they're logged in.
+
+🚀 Quick Summary of Your Next Moves:
+
+Step	Action
+1	Update UserContext to restore user from localStorage
+2	Save user data to localStorage after login
+3	Protect JournalPage (and other pages) by redirecting if user is missing

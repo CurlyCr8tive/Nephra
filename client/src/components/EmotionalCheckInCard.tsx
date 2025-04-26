@@ -106,8 +106,18 @@ export function EmotionalCheckInCard() {
         description: "Your emotional check-in has been recorded",
       });
       
-      // Redirect to journal page with write tab active
-      setLocation("/journal?tab=write");
+      // Check if user is still logged in before redirecting
+      if (user && user.id) {
+        // Redirect to journal page with write tab active
+        setLocation("/journal?tab=write");
+      } else {
+        toast({
+          title: "Session expired",
+          description: "Please log in again to continue",
+          variant: "destructive"
+        });
+        setLocation("/auth");
+      }
       
       // Reset form
       setSelectedEmotion("");
