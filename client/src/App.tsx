@@ -12,12 +12,13 @@ import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth";
+import { useUser } from "@/contexts/UserContext";
 import { Loader2 } from "lucide-react";
 
 // AppRoutes component handles all routing logic
 const AppRoutes = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading } = useUser();
 
   // Show loading spinner while checking auth status
   if (isLoading) {
