@@ -186,47 +186,7 @@ export function UserProvider({ children, value }: UserProviderProps) {
         // Not authenticated - expected case
         console.log("User not authenticated (401 response)");
         
-        // If we have a saved user ID, try to log in as demo user automatically
-        if (savedUserId) {
-          console.log("Lost session but have saved user ID. Attempting auto-login as demo user...");
-          try {
-            // Attempt auto-login
-            const loginResponse = await fetch('/api/login', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                username: 'demouser',
-                password: 'password123'
-              })
-            });
-            
-            if (loginResponse.ok) {
-              console.log("Auto-login successful. Fetching user data again...");
-              // If successful, re-fetch user data
-              const reloginUser = await loginResponse.json();
-              console.log("Auto-login user data:", reloginUser.username);
-              
-              // Restore gender if needed
-              if (savedGenderBeforeFetch && (!reloginUser.gender || reloginUser.gender === '')) {
-                console.log("Restoring gender after auto-login:", savedGenderBeforeFetch);
-                reloginUser.gender = savedGenderBeforeFetch;
-                saveToStorage('nephra_user_gender', savedGenderBeforeFetch);
-              }
-              
-              setUser(reloginUser);
-              setError(null);
-              return; // Exit early as we've handled the user
-            } else {
-              console.error("Auto-login failed:", loginResponse.statusText);
-            }
-          } catch (loginError) {
-            console.error("Error during auto-login:", loginError);
-          }
-        }
-        
+        // No auto-login - this allows proper logout and returning to auth page
         setUser(null);
       } else {
         throw new Error(`Error fetching user: ${response.statusText}`);

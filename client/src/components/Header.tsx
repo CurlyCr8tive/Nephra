@@ -42,10 +42,14 @@ export function Header({ title }: HeaderProps) {
           console.log("Clearing session data");
           // Save gender before clearing
           const gender = window.localStorage.getItem('nephra_user_gender');
+          console.log("Preserved gender during logout:", gender);
           
-          // Clear all user related data
-          window.sessionStorage.removeItem('nephra_user_id');
-          window.localStorage.removeItem('nephra_user_id');
+          // Clear all user related data except the ID for testers
+          // window.sessionStorage.removeItem('nephra_user_id');
+          // window.localStorage.removeItem('nephra_user_id');
+          
+          // Instead of removing the ID, we'll mark the logout explicitly
+          window.sessionStorage.setItem('test_account', 'true');
           
           // Clear auth tokens if any
           document.cookie = "connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";

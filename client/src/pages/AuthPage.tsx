@@ -339,15 +339,15 @@ export default function AuthPage() {
                   <Button 
                     className="bg-blue-600 hover:bg-blue-700 text-white w-full"
                     onClick={() => {
-                      loginForm.setValue('username', 'ChericeHeron');
-                      loginForm.setValue('password', 'mypassword');
+                      loginForm.setValue('username', 'demouser');
+                      loginForm.setValue('password', 'password123');
                       setActiveTab('login');
                       setTimeout(() => {
                         loginForm.handleSubmit(onLoginSubmit)();
                       }, 100);
                     }}
                   >
-                    Quick Login as ChericeHeron
+                    Test Login (demouser)
                   </Button>
                   
                   <Button 
