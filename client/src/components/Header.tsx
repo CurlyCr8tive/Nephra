@@ -44,6 +44,7 @@ export function Header({ title }: HeaderProps) {
           
           // Save gender before clearing
           const gender = window.localStorage.getItem('nephra_user_gender');
+          console.log("Preserved gender during logout:", gender);
           
           // Clear all user data
           window.sessionStorage.removeItem('nephra_user_id');
@@ -65,16 +66,14 @@ export function Header({ title }: HeaderProps) {
         console.error("Error managing storage during logout:", e);
       }
       
-      // Force a hard navigation to auth page (bypassing React Router)
+      // Success toast
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account",
       });
       
-      // Small delay to ensure toast appears before redirect
-      setTimeout(() => {
-        window.location.replace('/auth');
-      }, 500);
+      // Force a hard navigation to auth page
+      window.location.href = '/auth';
       
     } catch (error) {
       toast({
