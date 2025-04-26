@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       console.log("ProtectedRoute: No user found, redirecting to /auth");
       // Add a small timeout to ensure state is stable
       setTimeout(() => {
-        window.location.href = "/auth";
+        window.location.replace("/auth");
       }, 100);
     }
   }, [user, isLoading]);
