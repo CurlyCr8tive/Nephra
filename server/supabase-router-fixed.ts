@@ -8,7 +8,8 @@ import {
   getChatHistory,
   saveChatLog,
   getJournalEntries,
-  saveJournalEntry
+  saveJournalEntry,
+  supabase
 } from './supabase-service';
 import { 
   supabaseHealthLogSchema,
@@ -62,6 +63,27 @@ supabaseRouter.get('/health-logs', ensureAuthenticated, async (req, res) => {
   } catch (error) {
     console.error('Error in health logs route:', error);
     res.status(500).json({ error: 'Failed to fetch health logs' });
+  }
+});
+
+// Get count of health logs for the current user
+supabaseRouter.get('/health-logs/count', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = (req.user as any).id;
+    
+    const { data, error, count } = await supabase
+      .from('health_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    
+    if (error) {
+      throw error;
+    }
+    
+    res.json({ count });
+  } catch (error) {
+    console.error('Error getting health logs count:', error);
+    res.status(500).json({ error: 'Failed to get health logs count' });
   }
 });
 

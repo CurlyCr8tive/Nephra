@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,37 +35,20 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user, loginMutation, registerMutation, isLoading } = useAuth();
-  
-  // Check on initial render if user is already logged in
-  useEffect(() => {
-    console.log("AuthPage: Checking authentication state");
-    // If user is logged in and this isn't a forced login attempt (from logout)
-    if (user && !window.location.search.includes('forceLogin')) {
-      console.log("AuthPage: User already logged in, redirecting to home");
-      // Save user data to localStorage for persistence
-      if (user) {
-        try {
-          localStorage.setItem('nephra_user_data', JSON.stringify(user));
-          console.log("AuthPage: Saved user data to localStorage");
-        } catch (e) {
-          console.error("Error saving user data to localStorage:", e);
-        }
-      }
-      // Redirect to home page
-      setLocation('/');
-    }
-  }, [user, setLocation]);
-  
-  // Handle redirect after login/registration attempt
-  useEffect(() => {
-    if (user && hasAttemptedLogin) {
-      console.log("User logged in after attempt, redirecting to dashboard");
-      setLocation('/');
-    }
-  }, [user, hasAttemptedLogin, setLocation]);
+
+  // Handle form submissions
+  const onLoginSubmit = (data: LoginFormValues) => {
+    setHasAttemptedLogin(true);
+    loginMutation.mutate(data);
+  };
+
+  const onRegisterSubmit = (data: RegisterFormValues) => {
+    setHasAttemptedLogin(true);
+    const { confirmPassword, ...registerData } = data;
+    registerMutation.mutate(registerData as any);
+  };
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -88,20 +70,28 @@ export default function AuthPage() {
     },
   });
 
-  // We're using loginMutation, registerMutation and user from useAuth() directly
-  // The useEffect above handles redirecting already logged in users
-
-  // Handle form submissions
-  const onLoginSubmit = (data: LoginFormValues) => {
-    setHasAttemptedLogin(true);
-    loginMutation.mutate(data);
-  };
-
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    setHasAttemptedLogin(true);
-    const { confirmPassword, ...registerData } = data;
-    registerMutation.mutate(registerData as any);
-  };
+  // Use direct side effect to save data and redirect
+  useEffect(() => {
+    // If the user is logged in
+    if (user) {
+      // If the user has a stored session, save it for persistence
+      try {
+        localStorage.setItem('nephra_user_data', JSON.stringify(user));
+        console.log("AuthPage: Saved user data to localStorage");
+      } catch (e) {
+        console.error("Error saving user data to localStorage:", e);
+      }
+      
+      // Only redirect if not being forced to login, otherwise proceed to render the form
+      if (!window.location.search.includes('forceLogin')) {
+        console.log("AuthPage: User already logged in, redirecting to dashboard");
+        // Use direct browser navigation with timeout to avoid React rendering cycle
+        setTimeout(() => {
+          window.location.replace("/dashboard");
+        }, 100);
+      }
+    }
+  }, [user]);
 
   return (
     <div className="flex min-h-screen flex-col">

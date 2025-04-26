@@ -1,7 +1,5 @@
 import { ReactNode, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
-import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,24 +7,34 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useUser();
-  const [, setLocation] = useLocation(); // Only get the setter, not the current location
-
+  
+  // Use a direct window.location approach instead of Redirect component
+  // This bypasses the React rendering cycle and avoids infinite loops
   useEffect(() => {
     if (!isLoading && !user) {
-      setLocation('/auth');
+      console.log("ProtectedRoute: No user found, redirecting to /auth");
+      // Add a small timeout to ensure state is stable
+      setTimeout(() => {
+        window.location.href = "/auth";
+      }, 100);
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isLoading]);
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
+  // Don't render anything if not authenticated (redirection will happen via useEffect)
   if (!user) {
-    return null; // redirecting silently
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   return <>{children}</>;

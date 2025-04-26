@@ -87,12 +87,21 @@ export function UserProvider({ children, value }: UserProviderProps) {
   const [forcedRefresh, setForcedRefresh] = useState<number>(0);
   
   // Refresh on route changes if we have a user ID but no user data
+  // Only refresh if we don't already have an ongoing request
   useEffect(() => {
-    if (!user && getFromStorage('nephra_user_id')) {
+    // Debounce refreshes and only do it if:
+    // 1. We don't have user data
+    // 2. We have a saved user ID (indicating we should be logged in)
+    // 3. We are not already in a loading state
+    if (!user && getFromStorage('nephra_user_id') && !isLoading) {
       console.log("Route changed, refreshing user data due to missing user object");
-      setForcedRefresh(prev => prev + 1);
+      // Wait a bit to avoid multiple rapid refreshes
+      const timerId = setTimeout(() => {
+        setForcedRefresh(prev => prev + 1);
+      }, 200);
+      return () => clearTimeout(timerId);
     }
-  }, [location, user]);
+  }, [location, user, isLoading]);
   
   // Expose the refresh function through context
   const refreshUserData = useCallback(() => {

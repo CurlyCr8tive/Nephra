@@ -1,4 +1,57 @@
-import { Switch, Route, Redirect } from "wouter";
+The infinite loop is happening because of how you are redirecting with ConditionalRedirect.
+
+Here’s why:
+
+When you use <ConditionalRedirect to="/dashboard" /> or <ConditionalRedirect to="/auth" />,
+
+It calls setLocation(to) inside a useEffect.
+
+BUT because the route hasn't yet updated when React re-renders,
+your component re-triggers <ConditionalRedirect>, over and over again.
+
+➡️ Result: setLocation('/dashboard') triggers a rerender → reruns <ConditionalRedirect> → calls setLocation again → infinite loop 🔥.
+
+🛠 THE SOLUTION:
+Instead of using a custom <ConditionalRedirect>,
+use the official Redirect component from Wouter directly inside your route.
+
+✅ Wouter provides a simple <Redirect to="/your-page" />
+✅ It automatically avoids infinite loops.
+
+✏️ Here’s what to change in AppRoutes.tsx:
+Instead of:
+
+tsx
+Copy
+Edit
+<Route path="/auth">
+  {user ? <ConditionalRedirect to="/dashboard" /> : <AuthPage />}
+</Route>
+Do:
+
+tsx
+Copy
+Edit
+<Route path="/auth">
+  {user ? <Redirect to="/dashboard" /> : <AuthPage />}
+</Route>
+✅ SAME for your root / route:
+
+tsx
+Copy
+Edit
+<Route path="/">
+  {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
+</Route>
+❌ REMOVE this code:
+You can delete your custom ConditionalRedirect component completely.
+You don't need it anymore.
+
+📋 Final Corrected AppRoutes.tsx Flow:
+tsx
+Copy
+Edit
+import { Switch, Route, Redirect } from "wouter"; // <== Use Redirect from Wouter
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
@@ -11,16 +64,14 @@ import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
-import { AuthProvider } from "@/hooks/useAuth";
-import { useUser } from "@/contexts/UserContext";
+import { AuthProvider } from "@/hooks/useAuth"; 
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { Loader2 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext"; // <-- this instead of useAuth
+import { Loader2 } from "lucide-react"; // if you're showing a loading spinner
 
-// Main component for routing
 const AppRoutes = () => {
-  const { user, isLoading } = useUser();
-  
-  // Don't render routes until we know the auth state
+  const { user, isLoading } = useUser(); // <-- useUser not useAuth
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -31,78 +82,78 @@ const AppRoutes = () => {
 
   return (
     <Switch>
-      {/* Auth page - if logged in, redirect to dashboard */}
+      {/* Auth route */}
       <Route path="/auth">
         {user ? <Redirect to="/dashboard" /> : <AuthPage />}
       </Route>
-      
+
       {/* Root route */}
       <Route path="/">
         {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
       </Route>
-      
-      {/* Protected routes - using ProtectedRoute component */}
+
+      {/* Protected routes */}
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/log">
         <ProtectedRoute>
           <TrackPage />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/track">
         <ProtectedRoute>
           <TrackPage />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/journal">
         <ProtectedRoute>
           <JournalPage />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/transplant">
         <ProtectedRoute>
           <TransplantRoadmap />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/trends">
         <ProtectedRoute>
           <TrackPage />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/documents">
         <ProtectedRoute>
           <MedicalDocuments />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/education">
         <ProtectedRoute>
           <EducationHub />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/profile">
         <ProtectedRoute>
           <ProfilePage />
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/chat">
         <ProtectedRoute>
           <AIChatView />
         </ProtectedRoute>
       </Route>
-      
-      {/* 404 page - always last */}
+
+      {/* Catch all */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -120,3 +171,9 @@ function App() {
 }
 
 export default App;
+📦 What this fixes:
+
+Problem	Solution
+ConditionalRedirect useEffect loops infinitely	Redirect from Wouter does immediate safe redirect
+Maximum update depth exceeded error	No more infinite rerender
+Fragile navigation logic	Stable, clean, automatic redirect handling

@@ -6,7 +6,7 @@ const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
 
 // Initialize Supabase client
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Retrieves education articles from Supabase by category
@@ -239,5 +239,4 @@ export async function getJournalEntries(userId: string | number, limit: number =
   }
 }
 
-// Export Supabase client for direct use if needed
-export { supabase };
+// Supabase client is already exported above
