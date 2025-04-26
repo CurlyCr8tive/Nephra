@@ -331,12 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to dashboard after successful login
       if (location === '/auth') {
         console.log("Redirecting to dashboard after login");
-        setLocation('/dashboard');
-        
-        // Force a window reload to ensure all auth state is refreshed
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
+        window.location.href = '/dashboard'; // Only ONE redirect, full page reload
       }
     },
     onError: (error: Error) => {
@@ -399,12 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect to dashboard after successful registration
       if (location === '/auth') {
         console.log("Redirecting to dashboard after registration");
-        setLocation('/dashboard');
-        
-        // Force a window reload to ensure all auth state is refreshed
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
+        window.location.href = '/dashboard'; // Only ONE redirect, full page reload
       }
     },
     onError: (error: Error) => {
@@ -464,7 +454,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // IMPORTANT: Add forceLogin parameter to prevent immediate redirect
       // back to home if there's cached data
       console.log("Redirecting to login page with forceLogin parameter");
-      setLocation('/auth?forceLogin=true');
+      window.location.href = '/auth?forceLogin=true';
     },
     onError: (error: Error) => {
       toast({

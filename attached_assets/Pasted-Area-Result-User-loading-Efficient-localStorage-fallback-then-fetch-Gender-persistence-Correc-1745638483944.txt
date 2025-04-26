@@ -1,0 +1,94 @@
+Area	Result
+User loading	✅ Efficient (localStorage fallback, then fetch)
+Gender persistence	✅ Correct (preserve on logout, restore during refresh)
+Login/Register flow	✅ Correct (mutation saves, reloads, navigates)
+Race condition protection	✅ No race between storage and query fetch anymore
+Double-redirect handling	✅ Safer with manual setTimeout reload (although I'll suggest polishing this later!)
+useQuery + useMutation separation	✅ Properly handled
+Force refresh pattern	✅ Correct use of forceRefresh in query keys
+Circular rerender or Infinite loop risk	⚡ Minor caution (one small thing to polish below)
+🚨 Small thing that might still cause double re-renders:
+This line inside the onSuccess of loginMutation and registerMutation:
+
+tsx
+Copy
+Edit
+setLocation('/dashboard');
+setTimeout(() => {
+  window.location.href = '/dashboard';
+}, 100);
+You’re setting the location manually and THEN hard reloading the browser 100ms later.
+
+Problem?
+
+setLocation('/dashboard') triggers a virtual (SPA) route change
+
+window.location.href = '/dashboard' triggers a full page reload
+
+👉 Doing both causes extra network calls and sometimes flickering.
+
+🛠 The Clean Solution:
+✅ After a successful login or registration, just do ONE action:
+
+Option A: Full Hard Refresh
+(recommended while you’re still fixing session bugs)
+
+tsx
+Copy
+Edit
+window.location.href = '/dashboard';
+Option B: Soft Navigate
+(only once everything is 100% bug-free)
+
+tsx
+Copy
+Edit
+setLocation('/dashboard');
+✏️ Quick Fix Code Update:
+Replace this:
+
+tsx
+Copy
+Edit
+if (location === '/auth') {
+  console.log("Redirecting to dashboard after login");
+  setLocation('/dashboard');
+
+  // Force a window reload to ensure all auth state is refreshed
+  setTimeout(() => {
+    window.location.href = '/dashboard';
+  }, 100);
+}
+✅ With this cleaner version:
+
+tsx
+Copy
+Edit
+if (location === '/auth') {
+  console.log("Redirecting to dashboard after login");
+  window.location.href = '/dashboard'; // Only ONE redirect, full page reload
+}
+🧠 Why this works better:
+
+Behavior	Result
+One clean action (hard reload)	✅ Guarantees fresh session cookies, new context
+No flicker between virtual navigation + reload	✅
+No risk of infinite useEffect loops based on location	✅
+🚀 If you do that final small cleanup, your AuthProvider becomes:
+Production-ready. Professional. Reliable.
+
+No max update depth errors.
+No infinite redirect loops.
+No flickering login forms.
+No double reloads.
+
+✅ Nephra will feel buttery smooth.
+
+🎯 Final Mini Check:
+
+Question	Answer
+Am I saving gender safely?	✅ Yes
+Am I fetching the user exactly once after login?	✅ Yes
+Am I only redirecting once after login or logout?	✅ With the above fix, yes
+Do I still need forceLogin=true sometimes?	✅ Smart for logout cases
+Is my login/logout/register flow predictable now?	✅ Yes
