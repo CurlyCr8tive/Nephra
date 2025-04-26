@@ -1,5 +1,6 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useUser } from "@/contexts/UserContext";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -7,59 +8,49 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useUser();
-  const redirectAttemptedRef = useRef(false);
-  
-  // Use a direct window.location approach instead of Redirect component
-  // This bypasses the React rendering cycle and avoids infinite loops
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+
+  // Only attempt a redirect after loading is complete and user is confirmed to be missing
   useEffect(() => {
-    // Only attempt redirect if:
-    // 1. We're not currently loading user data
-    // 2. No user is found after checking
-    // 3. We haven't already tried redirecting
-    if (!isLoading && !user && !redirectAttemptedRef.current) {
-      // Set flag to prevent multiple redirects
-      redirectAttemptedRef.current = true;
-      
-      console.log("ProtectedRoute: No user found, redirecting to /auth");
-      
-      // Use a longer timeout to ensure state has fully stabilized
-      // This prevents race conditions with localStorage and API calls
-      setTimeout(() => {
-        // If after timeout we still have no user, proceed with redirect
-        if (!sessionStorage.getItem('nephra_auth_redirect_pending')) {
-          sessionStorage.setItem('nephra_auth_redirect_pending', 'true');
-          window.location.replace("/auth");
-        }
-      }, 500);
+    // If we're not loading anymore and user is still null, schedule a redirect
+    if (!isLoading && !user) {
+      const timer = setTimeout(() => {
+        console.log("ProtectedRoute: No user found after waiting, proceeding with redirect");
+        setShouldRedirect(true);
+      }, 200); // small delay to ensure user state is stable
+
+      return () => clearTimeout(timer);
+    }
+    
+    // If user becomes available, make sure we don't redirect
+    if (user) {
+      setShouldRedirect(false);
     }
   }, [user, isLoading]);
 
-  // Reset the redirect flag if user is present
-  useEffect(() => {
-    if (user) {
-      redirectAttemptedRef.current = false;
-      sessionStorage.removeItem('nephra_auth_redirect_pending');
-    }
-  }, [user]);
-
-  // Show loading spinner while authenticating
-  if (isLoading || (!user && !redirectAttemptedRef.current)) {
+  // If still loading, show a loading spinner
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Don't render children if not authenticated
-  if (!user) {
+  // If we've determined we should redirect, do it once
+  if (shouldRedirect) {
+    // We use a direct browser redirect to avoid React rendering issues
+    window.location.replace("/auth");
+    
+    // Show a loading message while the redirect happens
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="ml-3 text-primary">Redirecting to login...</p>
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+        <span>Redirecting to login...</span>
       </div>
     );
   }
 
+  // Only render children if we have a valid user and not redirecting
   return <>{children}</>;
 }

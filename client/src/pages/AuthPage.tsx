@@ -70,17 +70,14 @@ export default function AuthPage() {
     },
   });
 
-  // Track redirect attempts to prevent infinite loops
-  const redirectAttemptedRef = useRef(false);
+  // Use state to track redirect status
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   
   // Use direct side effect to save data and redirect
   useEffect(() => {
-    // If the user is logged in
-    if (user && !redirectAttemptedRef.current) {
-      // Set flag to prevent multiple redirects
-      redirectAttemptedRef.current = true;
-      
-      // If the user has a stored session, save it for persistence
+    // Only proceed if user is loaded and we're not already redirecting
+    if (user && !shouldRedirect && !isLoading) {
+      // Save user data to localStorage for persistence
       try {
         localStorage.setItem('nephra_user_data', JSON.stringify(user));
         console.log("AuthPage: Saved user data to localStorage");
@@ -90,19 +87,25 @@ export default function AuthPage() {
       
       // Only redirect if not being forced to login, otherwise proceed to render the form
       if (!window.location.search.includes('forceLogin')) {
-        console.log("AuthPage: User already logged in, redirecting to dashboard");
+        console.log("AuthPage: User already logged in, scheduling redirect to dashboard");
         
-        // Use a longer timeout to ensure all user data is saved properly
-        setTimeout(() => {
-          // Use sessionStorage to track redirect state
-          if (!sessionStorage.getItem('nephra_dashboard_redirect_pending')) {
-            sessionStorage.setItem('nephra_dashboard_redirect_pending', 'true');
-            window.location.replace("/dashboard");
-          }
-        }, 500);
+        // Short timeout to ensure user data is saved properly
+        const timer = setTimeout(() => {
+          console.log("AuthPage: Proceeding with redirect to dashboard");
+          setShouldRedirect(true);
+        }, 200);
+        
+        return () => clearTimeout(timer);
       }
     }
-  }, [user]);
+  }, [user, isLoading, shouldRedirect]);
+  
+  // Handle the actual redirect after state change
+  useEffect(() => {
+    if (shouldRedirect) {
+      window.location.replace("/dashboard");
+    }
+  }, [shouldRedirect]);
 
   return (
     <div className="flex min-h-screen flex-col">

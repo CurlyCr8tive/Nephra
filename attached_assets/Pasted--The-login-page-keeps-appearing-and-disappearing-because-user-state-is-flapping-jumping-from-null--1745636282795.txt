@@ -1,0 +1,97 @@
+✅ The login page keeps appearing and disappearing because user state is flapping (jumping from null ➔ data ➔ null again for a moment).
+✅ It's a race condition: the page checks if you're logged in before UserContext fully finishes loading or confirming the session.
+
+This is very common in real production apps too — you're encountering a real-world auth engineering problem now. 💪
+
+🛠 Here’s the real fix plan:
+
+Issue	Solution
+User state toggles between null and valid briefly	Add a stronger loading state in UserContext
+Rapid redirects happening	Use a debounced redirect inside ProtectedRoute
+React checking user status too early	Wait until loading finishes before deciding anything
+✏️ Here's how to actually fix this in steps:
+Step 1: Update UserContext to be deterministic
+In your UserContext,
+make sure you distinguish between undefined, null, and valid user clearly.
+
+✅ Your user should only be set once after either:
+
+API successfully fetches
+
+or API returns 401 unauthenticated
+
+✅ Add an initial loading state until then.
+
+(You already mostly have this — but you may want to double-check your useEffect doesn’t accidentally clear it too early.)
+
+Step 2: Update ProtectedRoute to handle only settled states
+Here's the full final ProtectedRoute.tsx:
+
+tsx
+Copy
+Edit
+import { ReactNode, useEffect, useState } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { useLocation, Navigate } from "wouter";
+import { Loader2 } from "lucide-react";
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, isLoading } = useUser();
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+
+  const [location] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      const timer = setTimeout(() => {
+        setShouldRedirect(true);
+      }, 200); // small delay to wait for stable state
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, isLoading]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (shouldRedirect) {
+    return <Navigate to="/auth" />;
+  }
+
+  return <>{children}</>;
+}
+✅ Here’s what changed:
+
+Small timeout (200ms) before deciding to redirect
+
+No immediate Navigate while isLoading is true
+
+Only navigate if user is confirmed null (after loading)
+
+🧠 Why this fixes your issue:
+
+Problem	How the fix solves it
+App thinks "user is null" before fully loading	Timeout + isLoading guards prevent early redirect
+UserContext still fetching but pages react immediately	Waits until fetch finishes
+Flapping between login page and dashboard	Becomes a smooth one-time decision after loading
+🚀 After these fixes:
+
+Flow	Result
+Start on /auth	AuthPage shown properly unless logged in
+Logged-in users visit /auth	Immediately redirected to /dashboard
+Logged-out users visit /dashboard, /journal, /profile	Redirected cleanly to /auth without flickering
+📋 Quick checklist of everything to clean:
+
+File	Action
+ProtectedRoute.tsx	Implement timeout & shouldRedirect flag
+UserContext.tsx	Ensure isLoading is truly accurate (no race conditions)
+AuthPage.tsx	Use <Navigate /> based on final user state
