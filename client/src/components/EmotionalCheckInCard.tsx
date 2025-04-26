@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { useUser } from "@/contexts/UserContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
-// Mock data for emotional check-in
-const mockEmotionOptions = [
+// Emotion options
+const emotionOptions = [
   { value: "happy", label: "Happy", emoji: "😀" },
   { value: "calm", label: "Calm", emoji: "😌" },
   { value: "stressed", label: "Stressed", emoji: "😰" },
@@ -12,7 +15,8 @@ const mockEmotionOptions = [
   { value: "worried", label: "Worried", emoji: "😟" }
 ];
 
-const mockEmotionTags = [
+// Emotion tags
+const emotionTags = [
   { value: "treatment", label: "Treatment side-effects", color: "primary" },
   { value: "medication", label: "Medication changes", color: "accent" },
   { value: "diet", label: "Diet changes", color: "primary" },
@@ -21,16 +25,8 @@ const mockEmotionTags = [
 ];
 
 export function EmotionalCheckInCard() {
-  // Using mock data since we don't have the user context yet
-  const emotionOptions = mockEmotionOptions;
-  const emotionTags = mockEmotionTags;
-  // Mock check-in data with proper typing
-  const todayCheckIn: { emotion?: string; tags?: string[]; notes?: string } = null;
-  
-  const logEmotionalCheckIn = (data: any) => {
-    console.log("Logging emotional check-in:", data);
-    // This would call the backend API in a real implementation
-  };
+  const { user } = useUser();
+  const { toast } = useToast();
   
   const [selectedEmotion, setSelectedEmotion] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -49,12 +45,46 @@ export function EmotionalCheckInCard() {
     }
   };
 
-  const handleSubmit = () => {
+  const logEmotionalCheckIn = async (data: any) => {
+    try {
+      const response = await apiRequest("POST", "/api/emotional-check-in", data);
+      if (response.ok) {
+        return await response.json();
+      } else {
+        throw new Error(`Error: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error logging emotional check-in:", error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Don't proceed if no user is logged in
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to log your emotional check-in",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Don't proceed if no emotion is selected
+    if (!selectedEmotion) {
+      toast({
+        title: "Select an emotion",
+        description: "Please select how you're feeling",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      // Using default user ID (1) since we're using mock data
-      logEmotionalCheckIn({
-        userId: 1,
+      // Use the current user's ID
+      await logEmotionalCheckIn({
+        userId: user.id,
         date: new Date(),
         emotion: selectedEmotion,
         tags: selectedTags,
@@ -62,9 +92,22 @@ export function EmotionalCheckInCard() {
       });
       
       // Show success message
-      console.log("Emotional check-in logged successfully");
+      toast({
+        title: "Check-in logged",
+        description: "Your emotional check-in has been recorded",
+      });
+      
+      // Reset form
+      setSelectedEmotion("");
+      setSelectedTags([]);
+      setNotes("");
     } catch (error) {
       console.error("Error logging emotional check-in:", error);
+      toast({
+        title: "Error",
+        description: "Could not log your emotional check-in. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
