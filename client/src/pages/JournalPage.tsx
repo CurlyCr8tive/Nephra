@@ -161,15 +161,51 @@ export default function JournalPage() {
     refetchOnReconnect: true,
     retry: 3,
     initialData: [],
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchInterval: 60000, // Refetch every minute
   });
+  
+  // Attempt to fetch from both API endpoints for journal entries
+  const fetchJournalEntriesFromAllSources = async () => {
+    if (!user?.id) return;
+    
+    console.log('🔄 Fetching journal entries for user:', user.id);
+    
+    try {
+      // First try the main API
+      await refetchJournalEntries();
+      
+      // If no entries were found, try the fallback endpoint
+      if (journalEntries.length === 0) {
+        console.log('📝 No journal entries found in primary API, trying fallback API...');
+        try {
+          const response = await fetch(`/api/journal-entries/${user.id}`, {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0) {
+              console.log(`📝 Found ${data.length} journal entries from fallback API`);
+              // Manually update the query cache with the retrieved data
+              queryClient.setQueryData(['/api/journal-entries', user.id], data);
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Error fetching from fallback journal API:', fallbackError);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching journal entries:', error);
+    }
+  };
   
   // Fetch journal entries whenever the component mounts or user changes
   useEffect(() => {
     if (user?.id) {
-      console.log('🔄 Fetching journal entries for user:', user.id);
-      refetchJournalEntries();
+      fetchJournalEntriesFromAllSources();
     }
-  }, [user?.id, refetchJournalEntries]);
+  }, [user?.id]);
 
   // Log any journal loading errors
   useEffect(() => {
