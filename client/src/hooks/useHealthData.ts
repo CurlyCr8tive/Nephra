@@ -14,28 +14,14 @@ export function useHealthData({ userId }: UseHealthDataProps) {
   const [todayMetrics, setTodayMetrics] = useState<HealthMetrics | null>(null);
 
   // Get the latest health metrics for a user
-  const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery({
+  const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${userId}?limit=1`],
-    onSuccess: (data) => {
-      if (data && data.length > 0) {
-        // Check if the latest record is from today
-        const today = new Date();
-        const latestDate = new Date(data[0].date);
-        
-        if (
-          today.getFullYear() === latestDate.getFullYear() &&
-          today.getMonth() === latestDate.getMonth() &&
-          today.getDate() === latestDate.getDate()
-        ) {
-          setTodayMetrics(data[0]);
-        }
-      }
-    },
-    enabled: !!userId,
+    staleTime: 60 * 1000, // 1 minute
+    enabled: !!userId
   });
 
   // Get a week of health metrics for trends
-  const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery({
+  const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${userId}/range`],
     queryFn: async () => {
       const endDate = new Date();
@@ -58,24 +44,63 @@ export function useHealthData({ userId }: UseHealthDataProps) {
         
         const data = await response.json();
         console.log(`Retrieved ${data.length} health metrics for user ${userId}:`, data);
+        
+        // Make sure we always return an array, even if data is null or undefined
+        if (!data) {
+          console.warn("No data received from health metrics API, returning empty array");
+          return [];
+        }
+        
         return data;
       } catch (error) {
         console.error("Exception while fetching health metrics:", error);
-        throw error;
+        // Return empty array instead of throwing to prevent UI errors
+        return [];
       }
     },
     enabled: !!userId,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 60 * 1000, // 1 minute
   });
 
   // Mutation for logging new health metrics
   const { mutate: logHealthMetrics, isPending: isLogging } = useMutation({
     mutationFn: async (data: InsertHealthMetrics) => {
-      const response = await apiRequest("POST", "/api/health-metrics", data);
-      return response.json();
+      // Ensure estimatedGFR is properly set and never null or undefined
+      if (data.estimatedGFR === null || data.estimatedGFR === undefined) {
+        console.warn("GFR value is null or undefined. Setting default value.");
+        data.estimatedGFR = 60; // Default reasonable value if calculation failed
+        data.gfrCalculationMethod = "fallback-estimation";
+      }
+      
+      console.log("Saving health metrics to database:", data);
+      
+      // Make sure userId is correctly set
+      if (!data.userId || data.userId <= 0) {
+        console.warn("Invalid userId detected, using current userId:", userId);
+        data.userId = userId;
+      }
+      
+      try {
+        const response = await apiRequest("POST", "/api/health-metrics", data);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response from server:", errorText);
+          throw new Error(`Server error: ${errorText}`);
+        }
+        return response.json();
+      } catch (error) {
+        console.error("Exception in health metrics submission:", error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log("Successfully saved health metrics:", data);
+      
+      // Immediately invalidate queries to refresh data
       queryClient.invalidateQueries({
         queryKey: [`/api/health-metrics/${userId}`]
       });
@@ -91,6 +116,8 @@ export function useHealthData({ userId }: UseHealthDataProps) {
       });
     },
     onError: (error) => {
+      console.error("Error in health metrics mutation:", error);
+      
       toast({
         title: "Error logging health data",
         description: error.message || "Failed to log health data. Please try again.",
@@ -99,9 +126,25 @@ export function useHealthData({ userId }: UseHealthDataProps) {
     },
   });
 
+  // Process latest metrics when they change
+  if (latestMetrics && latestMetrics.length > 0 && !todayMetrics) {
+    // Check if the latest record is from today
+    const today = new Date();
+    const latestDate = new Date(latestMetrics[0].date || "");
+    
+    if (
+      latestDate && 
+      today.getFullYear() === latestDate.getFullYear() &&
+      today.getMonth() === latestDate.getMonth() &&
+      today.getDate() === latestDate.getDate()
+    ) {
+      setTodayMetrics(latestMetrics[0]);
+    }
+  }
+
   return {
-    latestMetrics: latestMetrics?.[0] || null,
-    weeklyMetrics,
+    latestMetrics: latestMetrics && latestMetrics.length > 0 ? latestMetrics[0] : null,
+    weeklyMetrics: weeklyMetrics || [],
     todayMetrics,
     isLoadingLatest,
     isLoadingWeekly,

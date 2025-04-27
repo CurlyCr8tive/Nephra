@@ -240,17 +240,27 @@ export default function TrackPage() {
     
     // Filter data within date range
     const filteredData = weeklyMetrics.filter(
-      (metric: HealthMetrics) => new Date(metric.date) >= startDate && new Date(metric.date) <= today
+      (metric: HealthMetrics) => {
+        if (!metric.date) return false;
+        const metricDate = new Date(metric.date);
+        return metricDate >= startDate && metricDate <= today;
+      }
     );
     
     // Sort by date
     const sortedData = filteredData.sort(
-      (a: HealthMetrics, b: HealthMetrics) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a: HealthMetrics, b: HealthMetrics) => {
+        if (!a.date || !b.date) return 0;
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      }
     );
     
     // Extract labels (dates) and data points
     const labels = sortedData.map(
-      (metric: HealthMetrics) => format(new Date(metric.date), dateRange === "7d" ? "EEE" : "MM/dd")
+      (metric: HealthMetrics) => {
+        if (!metric.date) return "";
+        return format(new Date(metric.date), dateRange === "7d" ? "EEE" : "MM/dd");
+      }
     );
     
     let dataPoints: number[];
