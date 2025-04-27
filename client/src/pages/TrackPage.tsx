@@ -135,9 +135,19 @@ export default function TrackPage() {
   const calculateEstimatedGFR = () => {
     if (!user) return 70; // Default if no user data
     
+    // Log all user data for diagnosis
+    console.log("User data for GFR calculation:", {
+      id: user.id,
+      age: user.age,
+      gender: user.gender,
+      diseaseStage: user.kidneyDiseaseStage,
+      height: user.height,
+      weight: user.weight,
+    });
+    
     const age = user.age || 40; // Default to 40 if not provided
-    // Get CKD stage from user profile data (it could be in a different property name)
-    const diseaseStage = 1; // Default to stage 1
+    // Get CKD stage from user profile data
+    const diseaseStage = user.kidneyDiseaseStage || 1; // Default to stage 1
     
     // Base GFR based on CKD stage (simplified for demo)
     let baseGFR = 90;
@@ -155,13 +165,15 @@ export default function TrackPage() {
     // First try from user object
     if (user.gender) {
       genderStr = String(user.gender).toLowerCase();
+      console.log("Using gender from user object:", genderStr);
     } 
     // Fallback to session storage
     else {
       try {
-        const savedGender = window.sessionStorage.getItem('nephra_user_gender');
+        const savedGender = window.localStorage.getItem('nephra_user_gender');
         if (savedGender) {
           genderStr = savedGender.toLowerCase();
+          console.log("Using gender from localStorage:", genderStr);
         }
       } catch (e) {
         console.error("Error reading gender from storage:", e);
@@ -184,7 +196,19 @@ export default function TrackPage() {
     // Ensure GFR stays within reasonable bounds
     adjustedGFR = Math.min(Math.max(adjustedGFR, 5), 120);
     
-    return Math.round(adjustedGFR);
+    const finalGFR = Math.round(adjustedGFR);
+    console.log("Calculated GFR:", finalGFR, "with factors:", {
+      baseGFR,
+      ageAdjustment,
+      genderFactor,
+      bpFactor,
+      hydrationFactor,
+      stressFactor,
+      painFactor,
+      fatigueFactor
+    });
+    
+    return finalGFR;
   };
   
   // Toggle medication taken status
