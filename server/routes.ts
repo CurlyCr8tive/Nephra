@@ -232,7 +232,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Check if minimum required data is available
           if (user.age && user.gender && user.weight && (user.height || user.height === 0)) {
-            // Use the advanced GFR calculator
+            // Get previous health metrics for trend analysis
+            let previousReadings = [];
+            try {
+              // Get up to 5 most recent readings
+              previousReadings = await storage.getHealthMetrics(user.id, 5);
+              console.log(`Found ${previousReadings.length} previous readings for trend analysis`);
+            } catch (err) {
+              console.warn("Failed to fetch previous health metrics for trend analysis:", err);
+              // Non-critical error, continue without trend analysis
+            }
+            
+            // Use the enhanced GFR calculator with trend analysis
             const gfrResult = estimateGfrScore(
               user.age,
               normalizedGender,
@@ -244,22 +255,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
               data.stressLevel,
               data.fatigueLevel || 5, // Default if not available
               data.painLevel,
-              data.creatinineLevel // May be undefined, which is fine
+              data.creatinineLevel, // May be undefined, which is fine
+              user.race, // Pass race for future enhancements
+              previousReadings.length > 0 ? previousReadings : undefined // Pass previous readings for trend analysis
             );
             
-            // Save both the GFR result and the method used
+            // Save both the GFR result, method, and trend information
             data.estimatedGFR = gfrResult.gfr_estimate;
             data.gfrCalculationMethod = gfrResult.method;
             
-            // Get interpretation and recommendations
-            const interpretation = interpretGfr(gfrResult.gfr_estimate);
-            const recommendation = getGfrRecommendation(gfrResult.gfr_estimate, gfrResult.method);
+            // Save trend information if available
+            if (gfrResult.trend) {
+              // Type assertion to avoid TypeScript errors
+              (data as any).gfrTrend = gfrResult.trend;
+              (data as any).gfrTrendDescription = gfrResult.trend_description;
+              (data as any).gfrChangePercent = gfrResult.percent_change;
+              (data as any).gfrAbsoluteChange = gfrResult.absolute_change;
+              (data as any).gfrLongTermTrend = gfrResult.long_term_trend;
+              (data as any).gfrStability = gfrResult.stability;
+            }
             
-            console.log("Advanced GFR Estimation:", {
+            // Get interpretation and recommendations with trend info
+            const interpretation = interpretGfr(gfrResult.gfr_estimate);
+            
+            // Include trend info in recommendation if available
+            const trendInfo = gfrResult.trend ? {
+              trend: gfrResult.trend,
+              trend_description: gfrResult.trend_description,
+              long_term_trend: gfrResult.long_term_trend
+            } : undefined;
+            
+            const recommendation = getGfrRecommendation(
+              gfrResult.gfr_estimate, 
+              gfrResult.method,
+              trendInfo
+            );
+            
+            console.log("Enhanced GFR Estimation with Trend Analysis:", {
               gfr: gfrResult.gfr_estimate,
               method: gfrResult.method,
+              confidence: gfrResult.confidence,
               stage: interpretation.stage,
-              description: interpretation.description
+              description: interpretation.description,
+              trend: gfrResult.trend,
+              trend_description: gfrResult.trend_description
             });
           } else {
             // Fallback to the original calculator if height is missing

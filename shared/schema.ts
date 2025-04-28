@@ -129,6 +129,14 @@ export const healthMetrics = pgTable("health_metrics", {
   gfrCalculationMethod: text("gfr_calculation_method"), // "creatinine-based" or "symptom-and-vital-based"
   creatinineLevel: doublePrecision("creatinine_level"), // in mg/dL
   hydrationLevel: integer("hydration_level"), // 1-10 scale
+  
+  // GFR trend analysis fields
+  gfrTrend: text("gfr_trend"), // "stable", "possible decline", "possible improvement", etc.
+  gfrTrendDescription: text("gfr_trend_description"), // Descriptive text explaining the trend
+  gfrChangePercent: doublePrecision("gfr_change_percent"), // Percentage change from previous readings
+  gfrAbsoluteChange: doublePrecision("gfr_absolute_change"), // Absolute change in GFR value
+  gfrLongTermTrend: text("gfr_long_term_trend"), // Long-term trend analysis
+  gfrStability: text("gfr_stability"), // Assessment of GFR stability over time
 });
 
 // Emotional check-ins table
