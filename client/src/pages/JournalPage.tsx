@@ -154,8 +154,48 @@ export default function JournalPage() {
     refetch: refetchJournalEntries,
     error: journalError
   } = useQuery<JournalEntry[]>({
-    queryKey: ['/api/journal-entries', user?.id],
+    queryKey: ['/api/journal-entries'],
     enabled: !!user?.id,
+    queryFn: async () => {
+      if (!user) return [];
+      
+      console.log('📊 Fetching journal entries with new endpoint');
+      
+      try {
+        // First try the authenticated endpoint
+        let response = await fetch('/api/journal-entries', {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        // If that fails, fall back to the user ID-specific endpoint
+        if (!response.ok) {
+          console.log('📋 Falling back to user ID endpoint for journal entries');
+          response = await fetch(`/api/journal-entries/${user.id}`, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching journal entries: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          console.log(`📝 Retrieved ${data.length} journal entries`);
+          // Sort entries by date, newest first
+          return [...data].sort((a, b) => 
+            new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+          );
+        } else {
+          console.error("Invalid journal entries format:", data);
+          return [];
+        }
+      } catch (error) {
+        console.error("Error in journal entries query:", error);
+        return []; // Return empty array on error to prevent breaking the UI
+      }
+    },
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     refetchOnReconnect: true,
@@ -165,21 +205,23 @@ export default function JournalPage() {
     refetchInterval: 60000, // Refetch every minute
   });
   
-  // Attempt to fetch from both API endpoints for journal entries
+  // Attempt to fetch journal entries from various sources with fallbacks
   const fetchJournalEntriesFromAllSources = async () => {
     if (!user?.id) return;
     
     console.log('🔄 Fetching journal entries for user:', user.id);
     
     try {
-      // First try the main API
+      // Try the main API endpoint (authenticated endpoint)
       await refetchJournalEntries();
       
-      // If no entries were found, try the fallback endpoint
+      // If no entries were found, try the fallback endpoint with explicit user ID
       if (journalEntries.length === 0) {
         console.log('📝 No journal entries found in primary API, trying fallback API...');
         try {
+          // Make a direct fetch to the user ID-specific endpoint
           const response = await fetch(`/api/journal-entries/${user.id}`, {
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include'
           });
           
@@ -187,8 +229,14 @@ export default function JournalPage() {
             const data = await response.json();
             if (data && data.length > 0) {
               console.log(`📝 Found ${data.length} journal entries from fallback API`);
+              
+              // Sort entries by date before updating the cache
+              const sortedData = [...data].sort((a, b) => 
+                new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+              );
+              
               // Manually update the query cache with the retrieved data
-              queryClient.setQueryData(['/api/journal-entries', user.id], data);
+              queryClient.setQueryData(['/api/journal-entries'], sortedData);
             }
           }
         } catch (fallbackError) {
@@ -237,7 +285,7 @@ export default function JournalPage() {
     onSuccess: (data) => {
       if (user && user.id) {
         // Invalidate using the same query key format as our useQuery
-        queryClient.invalidateQueries({ queryKey: ['/api/journal-entries', user.id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
         console.log('✅ Successfully saved journal entry, refreshing entries');
       }
       
@@ -610,7 +658,16 @@ export default function JournalPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="p-4">
-                      <div className="text-sm mb-3 whitespace-pre-wrap">{entry.content}</div>
+                      <div className="text-sm mb-3 whitespace-pre-wrap">
+                        {/* Check for null or truncated content */}
+                        {entry.content ? 
+                          entry.content.length > 500 ? 
+                            `${entry.content.substring(0, 500)}...` : 
+                            entry.content
+                          : 
+                          "No content available"
+                        }
+                      </div>
                       {entry.sentiment && (
                         <div className="text-xs text-muted-foreground p-2 bg-muted rounded-md">
                           <strong>Mood:</strong> {entry.sentiment}

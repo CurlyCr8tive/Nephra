@@ -784,14 +784,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get journal entries for the authenticated user
+  app.get("/api/journal-entries", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      
+      const userId = req.user.id;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      console.log(`Fetching journal entries for authenticated user ID: ${userId}`);
+      const results = await storage.getJournalEntries(userId, limit);
+      console.log(`Found ${results.length} journal entries for user ${userId}`);
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching journal entries:", error);
+      res.status(500).json({ error: "Failed to fetch journal entries" });
+    }
+  });
+
+  // Get journal entries for a specific user ID (fallback method)
   app.get("/api/journal-entries/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user ID format" });
+      }
+      
+      console.log(`Fetching journal entries for specific user ID: ${userId}`);
       const results = await storage.getJournalEntries(userId, limit);
+      console.log(`Found ${results.length} journal entries for user ${userId}`);
+      
       res.json(results);
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      console.error("Error fetching journal entries:", error);
+      res.status(500).json({ error: "Failed to fetch journal entries" });
     }
   });
   
