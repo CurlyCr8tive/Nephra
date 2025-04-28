@@ -66,14 +66,15 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
   }, [user]);
   
-  // Use the health data hook only if we have a user ID
-  // Default to ID 1 for demo purposes if user is null (for testing only)
-  const userId = user?.id || 1;
+  // Use the health data hook with the current user ID
+  // Do not use a fallback ID as it causes data to be saved to the wrong user
+  // If the app is used without being logged in, show an appropriate message
+  const userId = user?.id;
   
   // Log the current user context info
   useEffect(() => {
     console.log("HealthLogging component - User context:", 
-      user ? `Logged in as ${user.username} (ID: ${user.id})` : "Not authenticated, using default ID 1");
+      user ? `Logged in as ${user.username} (ID: ${user.id})` : "Not authenticated, please login to save health data");
   }, [user]);
   
   const healthDataHook = useHealthData({ userId });
@@ -401,7 +402,12 @@ export default function HealthLogging(props: HealthLoggingProps) {
       // Verify we have a user ID to work with
       if (!userId) {
         console.error("No valid user ID available for saving health metrics");
-        throw new Error("Valid user ID is required");
+        toast({
+          title: "Not logged in",
+          description: "You must be logged in to save health data. Please login and try again.",
+          variant: "destructive"
+        });
+        return; // Exit early without throwing to show toast instead of error
       }
       
       console.log("📤 Preparing health metrics submission for userId:", userId);

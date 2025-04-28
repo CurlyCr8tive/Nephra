@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface UseHealthDataProps {
-  userId: number;
+  userId?: number;
 }
 
 export function useHealthData({ userId }: UseHealthDataProps) {
@@ -80,8 +80,13 @@ export function useHealthData({ userId }: UseHealthDataProps) {
       
       // Make sure userId is correctly set
       if (!data.userId || data.userId <= 0) {
-        console.warn("Invalid userId detected, using current userId:", userId);
-        data.userId = userId;
+        if (userId) {
+          console.log("Setting userId from context:", userId);
+          data.userId = userId;
+        } else {
+          console.error("No valid userId available to save health metrics");
+          throw new Error("You must be logged in to save health metrics");
+        }
       }
       
       try {
