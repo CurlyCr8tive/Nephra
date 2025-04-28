@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // GFR estimation endpoint - calculate without saving
+  // GFR estimation endpoint with trend analysis - calculate without saving
   app.post("/api/estimate-gfr", async (req, res) => {
     try {
       console.log("Received GFR estimation request:", req.body);
@@ -343,7 +343,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stress, 
         fatigue, 
         pain, 
-        creatinine 
+        creatinine,
+        race,
+        userId
       } = req.body;
       
       // Validate required parameters
@@ -354,7 +356,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Calculate GFR
+      // Get previous health metrics for trend analysis if userId is provided
+      let previousReadings = [];
+      if (userId) {
+        try {
+          // Get up to 5 most recent readings
+          previousReadings = await storage.getHealthMetrics(parseInt(userId), 5);
+          console.log(`Found ${previousReadings.length} previous readings for trend analysis`);
+        } catch (err) {
+          console.warn("Failed to fetch previous health metrics for trend analysis:", err);
+          // Non-critical error, continue without trend analysis
+        }
+      }
+      
+      // Calculate GFR with enhanced model
       const gfrResult = estimateGfrScore(
         age,
         gender.toLowerCase(),
@@ -366,20 +381,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stress || 5,
         fatigue || 5,
         pain || 3,
-        creatinine
+        creatinine,
+        race,
+        previousReadings.length > 0 ? previousReadings : undefined
       );
       
-      // Get interpretation and recommendations
+      // Get interpretation and detailed recommendations with trend info
       const interpretation = interpretGfr(gfrResult.gfr_estimate);
-      const recommendation = getGfrRecommendation(gfrResult.gfr_estimate, gfrResult.method);
       
-      // Return comprehensive result
+      // Include trend info in recommendation if available
+      const trendInfo = gfrResult.trend ? {
+        trend: gfrResult.trend,
+        trend_description: gfrResult.trend_description,
+        long_term_trend: gfrResult.long_term_trend
+      } : undefined;
+      
+      const recommendation = getGfrRecommendation(
+        gfrResult.gfr_estimate, 
+        gfrResult.method, 
+        trendInfo
+      );
+      
+      // Return comprehensive result with trend analysis
       res.json({
         gfr: gfrResult.gfr_estimate,
         method: gfrResult.method,
+        confidence: gfrResult.confidence,
+        calculation: gfrResult.calculation,
         stage: interpretation.stage,
         description: interpretation.description,
-        recommendation
+        recommendation,
+        trend: gfrResult.trend,
+        trend_description: gfrResult.trend_description,
+        absolute_change: gfrResult.absolute_change,
+        percent_change: gfrResult.percent_change,
+        long_term_trend: gfrResult.long_term_trend,
+        stability: gfrResult.stability
       });
     } catch (error) {
       console.error("Error in GFR estimation:", error);
