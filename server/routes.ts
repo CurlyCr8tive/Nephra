@@ -216,6 +216,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Normalize gender value to handle potential case issues
           const normalizedGender = user.gender ? String(user.gender).toLowerCase() : '';
           
+          // Log extra height information to debug our condition
+          console.log("User height data:", {
+            height: user.height,
+            heightType: typeof user.height,
+            isZero: user.height === 0,
+            isFalsy: !user.height,
+            heightEmpty: user.height === null || user.height === undefined
+          });
+          
           console.log("Estimating GFR with advanced calculator", {
             age: user.age,
             gender: normalizedGender,
@@ -231,7 +240,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           // Check if minimum required data is available
-          if (user.age && user.gender && user.weight && (user.height || user.height === 0)) {
+          // Updated condition to use a more reliable height check
+          if (user.age && user.gender && user.weight && user.height !== null && user.height !== undefined) {
             // Get previous health metrics for trend analysis
             let previousReadings = [];
             try {

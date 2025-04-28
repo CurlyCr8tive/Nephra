@@ -306,6 +306,29 @@ export function HealthTrendsCard() {
         <div>
           <p className="text-sm text-neutral-600">Weekly average</p>
           <p className="font-bold text-lg">{calculateAverage()}</p>
+          
+          {/* Show GFR trend information when GFR tab is active */}
+          {activeTab === "gfr" && weeklyMetrics && weeklyMetrics.length > 0 && weeklyMetrics[0].gfrTrend && (
+            <div className="mt-2 text-sm flex flex-col gap-1">
+              <p className={`font-medium 
+                ${weeklyMetrics[0].gfrTrend === 'significant_improvement' || weeklyMetrics[0].gfrTrend === 'moderate_improvement' ? 'text-green-600' : 
+                  weeklyMetrics[0].gfrTrend === 'stable' ? 'text-blue-600' : 
+                  weeklyMetrics[0].gfrTrend === 'possible_decline' ? 'text-amber-600' : 
+                  'text-red-600'}`}>
+                {weeklyMetrics[0].gfrTrendDescription}
+              </p>
+              {weeklyMetrics[0].gfrChangePercent && (
+                <p className="text-xs text-neutral-600">
+                  {weeklyMetrics[0].gfrChangePercent > 0 ? '+' : ''}{weeklyMetrics[0].gfrChangePercent.toFixed(1)}% change
+                  {weeklyMetrics[0].gfrAbsoluteChange && 
+                    ` (${weeklyMetrics[0].gfrAbsoluteChange > 0 ? '+' : ''}${weeklyMetrics[0].gfrAbsoluteChange.toFixed(1)} points)`}
+                </p>
+              )}
+              {weeklyMetrics[0].gfrLongTermTrend && (
+                <p className="text-xs text-neutral-600">Long-term: {weeklyMetrics[0].gfrLongTermTrend}</p>
+              )}
+            </div>
+          )}
         </div>
         <Link href="/trends">
           <Button variant="ghost" className="text-primary text-sm flex items-center">
