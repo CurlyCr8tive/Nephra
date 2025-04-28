@@ -251,9 +251,18 @@ export default function JournalPage() {
   // Fetch journal entries whenever the component mounts or user changes
   useEffect(() => {
     if (user?.id) {
+      console.log('🔄 JournalPage mounted, attempting to fetch journal entries...');
       fetchJournalEntriesFromAllSources();
     }
   }, [user?.id]);
+  
+  // Switch to history tab to see journal entries
+  useEffect(() => {
+    if (activeTab === 'history' && user?.id) {
+      console.log('📚 History tab selected, refreshing journal entries...');
+      fetchJournalEntriesFromAllSources();
+    }
+  }, [activeTab]);
 
   // Log any journal loading errors
   useEffect(() => {
@@ -679,7 +688,16 @@ export default function JournalPage() {
                             <Avatar className="h-7 w-7 bg-primary">
                               <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                             </Avatar>
-                            <div className="text-sm text-muted-foreground">{entry.aiResponse}</div>
+                            <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {/* Check for null or truncated AI response */}
+                              {entry.aiResponse ? 
+                                entry.aiResponse.length > 300 ? 
+                                  `${entry.aiResponse.substring(0, 300)}...` : 
+                                  entry.aiResponse
+                                : 
+                                "No AI response available"
+                              }
+                            </div>
                           </div>
                         </div>
                       )}
