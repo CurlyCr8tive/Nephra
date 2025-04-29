@@ -397,7 +397,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       setEstimatedGFR(gfr);
       
       // Verify we have a user ID to work with
-      if (!userId) {
+      if (!user?.id) {
         console.error("No valid user ID available for saving health metrics");
         toast({
           title: "Not logged in",
@@ -407,7 +407,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
         return; // Exit early without throwing to show toast instead of error
       }
       
-      console.log("📤 Preparing health metrics submission for userId:", userId);
+      console.log("📤 Preparing health metrics submission for userId:", user.id);
       
       // Validate required fields
       if (systolicBP === "" || diastolicBP === "") {
@@ -437,7 +437,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Prepare the health metrics data to save for our API
       const metricsData = {
-        userId,
+        userId: user.id,
         date: entryDate, // Send as Date object
         hydration,
         systolicBP: Number(systolicBP),
@@ -457,15 +457,15 @@ export default function HealthLogging(props: HealthLoggingProps) {
       // Add additional debugging to see what's happening with the submission
       console.log("📊 DEBUG - Health metrics submission details:", {
         loggedInUser: user?.username,
-        userId: userId,
-        hasValidUserId: userId !== undefined && userId !== null,
-        userIdType: typeof userId,
+        userId: user.id,
+        hasValidUserId: user.id !== undefined && user.id !== null,
+        userIdType: typeof user.id,
         metricsUserId: metricsData.userId
       });
       
       // Create Supabase-specific data format for direct database saving
       const supabaseData = {
-        user_id: userId,
+        user_id: user.id,
         created_at: entryDateISO, // Use ISO string for Supabase
         bp_systolic: Number(systolicBP),
         bp_diastolic: Number(diastolicBP),
@@ -525,7 +525,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Create Python-style data format for the new endpoint
       const pythonStyleData = {
-        user_id: userId,
+        user_id: user.id,
         pain_score: painLevel,
         stress_score: stressLevel,
         fatigue_score: fatigueLevel,
@@ -1047,7 +1047,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
                   ) : healthDataHook.weeklyMetrics && healthDataHook.weeklyMetrics.length > 0 ? (
                     <HealthCalendar 
                       healthData={healthDataHook.weeklyMetrics} 
-                      userId={userId}
+                      userId={user?.id}
                     />
                   ) : (
                     <div>

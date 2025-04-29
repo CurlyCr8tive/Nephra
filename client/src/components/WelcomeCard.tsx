@@ -17,15 +17,8 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   // Always use authenticated user ID - useHealthData now gets this automatically
   const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData();
   
-  // Create a fallback with your actual values but only use if no real data is available
-  const latestMetrics = realMetrics || {
-    // Use your actual most recent values here
-    hydration: 1.2,
-    systolicBP: 155, 
-    diastolicBP: 95,
-    estimatedGFR: 22, // Stage 4 value
-    date: new Date()
-  };
+  // Never use fallback values, only use real metrics from authenticated user
+  const latestMetrics = realMetrics;
 
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
@@ -49,11 +42,11 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
     return { text: "Stage 2", color: "text-error" };
   };
 
-  // Get GFR classification with fallback to normal range if no data
-  const gfrClass = getGFRClass(latestMetrics?.estimatedGFR || 90);
+  // Get GFR classification without fallbacks
+  const gfrClass = getGFRClass(latestMetrics?.estimatedGFR);
   
-  // Get BP classification with fallback to normal range if no data
-  const bpClass = getBPClass(latestMetrics?.systolicBP || 120, latestMetrics?.diastolicBP || 80);
+  // Get BP classification without fallbacks
+  const bpClass = getBPClass(latestMetrics?.systolicBP, latestMetrics?.diastolicBP);
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
