@@ -17,6 +17,45 @@ export function useHealthData() {
   // Get the latest health metrics for the current user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${userId}?limit=1`],
+    queryFn: async () => {
+      // Safety check - only proceed if we have a user ID
+      if (!userId) {
+        console.log("No authenticated user ID available, skipping latest metrics fetch");
+        return [];
+      }
+      
+      console.log(`Explicitly fetching latest health metrics for authenticated user ID ${userId}`);
+      
+      try {
+        // Make a fetch call with credentials to ensure cookies are sent
+        const response = await fetch(
+          `/api/health-metrics/${userId}?limit=1`, 
+          { credentials: "include" }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error fetching latest metrics for user ${userId}:`, errorText);
+          return []; // Return empty array instead of throwing
+        }
+        
+        const data = await response.json();
+        console.log(`Retrieved ${data?.length || 0} latest health metrics for user ${userId}:`);
+        
+        if (data && data.length > 0) {
+          console.log("Latest metrics data:", data[0]);
+        } else {
+          console.log("No health metrics found for this user.");
+        }
+        
+        // Make sure we always return an array, even if data is null or undefined
+        return data || [];
+      } catch (error) {
+        console.error("Exception while fetching latest health metrics:", error);
+        // Return empty array instead of throwing to prevent UI errors
+        return [];
+      }
+    },
     staleTime: 60 * 1000, // 1 minute
     enabled: !!userId, // Only enabled when we have a valid user ID
     placeholderData: []
