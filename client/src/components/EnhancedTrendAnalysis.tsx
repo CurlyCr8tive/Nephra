@@ -418,16 +418,8 @@ export function EnhancedTrendAnalysis() {
                     </span>
                   </div>
                   <Progress 
-                    value={Math.min(100, (latestMetric.estimatedGFR / 90) * 100)} 
-                    className="h-2" 
-                    indicatorClassName={`
-                      ${latestMetric.estimatedGFR >= 90 ? 'bg-green-500' :
-                        latestMetric.estimatedGFR >= 60 ? 'bg-emerald-500' :
-                        latestMetric.estimatedGFR >= 45 ? 'bg-yellow-500' :
-                        latestMetric.estimatedGFR >= 30 ? 'bg-orange-500' :
-                        latestMetric.estimatedGFR >= 15 ? 'bg-red-500' :
-                        'bg-red-700'}
-                    `} 
+                    value={Math.min(100, ((latestMetric.estimatedGFR || 0) / 90) * 100)} 
+                    className={`h-2`}
                   />
                 </div>
               )}
