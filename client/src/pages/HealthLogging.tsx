@@ -474,7 +474,29 @@ export default function HealthLogging(props: HealthLoggingProps) {
         // Important: We don't return early anymore, allowing the save to continue
       }
       
-      console.log("📤 Preparing health metrics submission for userId:", user.id);
+      // Get user ID from different sources to ensure we always have one
+      // 1. First try the context user
+      // 2. Try localStorage cached user
+      // 3. Use a hardcoded fallback only as last resort
+      let effectiveUserId = user?.id;
+      
+      // If no user ID from context, try localStorage
+      if (!effectiveUserId) {
+        try {
+          const cachedUserData = localStorage.getItem('nephra_user');
+          if (cachedUserData) {
+            const cachedUser = JSON.parse(cachedUserData);
+            effectiveUserId = cachedUser.id;
+            console.log("Using cached user ID from localStorage:", effectiveUserId);
+          }
+        } catch (e) {
+          console.error("Error getting user ID from localStorage:", e);
+        }
+      }
+      
+      // Get user ID safely for logging
+      const safeUserId = user ? user.id : (effectiveUserId || 'fallback');
+      console.log("📤 Preparing health metrics submission for userId:", safeUserId);
       
       // Validate required fields
       if (systolicBP === "" || diastolicBP === "") {
@@ -501,12 +523,6 @@ export default function HealthLogging(props: HealthLoggingProps) {
       const entryTags = generateTags();
       const entryDate = new Date(); // Keep as Date object for the API
       const entryDateISO = entryDate.toISOString(); // ISO string for Supabase
-      
-      // Get user ID from different sources to ensure we always have one
-      // 1. First try the context user
-      // 2. Try localStorage cached user
-      // 3. Use a hardcoded fallback only as last resort
-      let effectiveUserId = user?.id;
       
       // If no user ID from context, try localStorage
       if (!effectiveUserId) {
