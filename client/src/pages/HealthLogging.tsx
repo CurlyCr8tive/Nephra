@@ -593,7 +593,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
                 .filter(med => med.taken)
                 .map(med => ({ name: med.name, dosage: med.dosage, frequency: med.frequency }))
             },
-            userId: effectiveUserId || user?.id || 3, // Ensure we always have a userId
+            userId: effectiveUserId || (user ? user.id : 3), // Ensure we always have a userId
             apiKey: "nephra-health-data-key" // Simple security mechanism
           }),
         });
@@ -668,7 +668,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Create Python-style data format for the new endpoint
       const pythonStyleData = {
-        user_id: effectiveUserId || user?.id || 3, // Use same userId as in other objects
+        user_id: effectiveUserId || (user ? user.id : 3), // Use same userId as in other objects
         pain_score: painLevel,
         stress_score: stressLevel,
         fatigue_score: fatigueLevel,

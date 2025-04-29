@@ -14,10 +14,12 @@ const router = express.Router();
  */
 router.post("/direct-health-log", async (req: Request, res: Response) => {
   try {
+    console.log("🔐 DIRECT ENDPOINT: Received request with body:", req.body);
     const { healthData, userId, apiKey } = req.body;
     
     // Simple security check
     if (apiKey !== "nephra-health-data-key") {
+      console.error("🔑 API Key validation failed:", apiKey);
       return res.status(401).json({ 
         error: "Unauthorized", 
         message: "Invalid API key" 
@@ -25,6 +27,7 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
     }
     
     if (!healthData || !userId) {
+      console.error("📋 Missing required data:", { hasHealthData: !!healthData, hasUserId: !!userId });
       return res.status(400).json({ 
         error: "Missing required data",
         message: "Both userId and healthData are required"
@@ -32,6 +35,21 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
     }
     
     console.log(`🔐 DIRECT API: Processing health data for user ${userId}`);
+    
+    // For testing - just return success without actually saving
+    // This helps us verify if the endpoint is reachable
+    console.log("✅ DIRECT API TEST: Simulating successful health data save");
+    
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      message: "Health data received successfully (test mode)",
+      userId: userId,
+      dataSize: JSON.stringify(healthData).length
+    });
+    
+    /* 
+    // Will re-enable this code after verifying the endpoint is reachable
     
     // Format data for our storage system
     const formattedData = {
@@ -62,6 +80,7 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
       message: "Health data saved successfully",
       id: savedId
     });
+    */
   } catch (error) {
     console.error("❌ DIRECT API ERROR:", error);
     return res.status(500).json({
