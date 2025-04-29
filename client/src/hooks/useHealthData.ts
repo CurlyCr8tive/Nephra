@@ -15,28 +15,31 @@ export function useHealthData({ userId }: UseHealthDataProps) {
 
   // Get the latest health metrics for a user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId || 1}?limit=1`],
+    queryKey: [`/api/health-metrics/${userId}?limit=1`],
     staleTime: 60 * 1000, // 1 minute
-    enabled: true, // Always enabled with fallback to demo user (ID 1)
+    enabled: !!userId, // Only enabled when we have a valid user ID
     placeholderData: []
   });
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId || 1}/range`],
+    queryKey: [`/api/health-metrics/${userId}/range`],
     queryFn: async () => {
-      // Always use a valid ID (use demo user ID 1 as fallback)
-      const safeUserId = userId || 1;
+      // Only fetch if we have a valid user ID
+      if (!userId) {
+        console.log("No user ID available, skipping weekly metrics fetch");
+        return [];
+      }
       
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
       
-      console.log(`Fetching data for user ID ${safeUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      console.log(`Fetching data for user ID ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
       try {
         const response = await fetch(
-          `/api/health-metrics/${safeUserId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
+          `/api/health-metrics/${userId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
           { credentials: "include" }
         );
         
@@ -47,7 +50,7 @@ export function useHealthData({ userId }: UseHealthDataProps) {
         }
         
         const data = await response.json();
-        console.log(`Retrieved ${data?.length || 0} health metrics for user ${safeUserId}`);
+        console.log(`Retrieved ${data?.length || 0} health metrics for user ${userId}`);
         
         // Make sure we always return an array, even if data is null or undefined
         return data || [];
@@ -58,7 +61,7 @@ export function useHealthData({ userId }: UseHealthDataProps) {
       }
     },
     placeholderData: [],
-    enabled: true, // Always enabled with fallback ID
+    enabled: !!userId, // Only enabled when we have a valid user ID
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 1,

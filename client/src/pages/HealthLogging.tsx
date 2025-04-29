@@ -67,9 +67,8 @@ export default function HealthLogging(props: HealthLoggingProps) {
   }, [user]);
   
   // Use the health data hook with the current user ID
-  // Use a fallback demo user ID (1) to ensure the app doesn't break when not logged in
-  // This enables demo user experience
-  const userId = user?.id || 1; // Fallback to demo user ID
+  // Use only the authenticated user ID to ensure data is saved to the correct account
+  const userId = user?.id;
   
   // Log the current user context info
   useEffect(() => {

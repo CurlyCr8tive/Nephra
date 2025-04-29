@@ -25,7 +25,7 @@ interface HealthCalendarProps {
   userId: number;
 }
 
-export function HealthCalendar({ healthData, userId = 1 }: HealthCalendarProps) {
+export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month");
