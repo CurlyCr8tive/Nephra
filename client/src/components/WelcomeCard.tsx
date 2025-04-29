@@ -14,9 +14,9 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   const { user } = useAuth();
   const userName = user?.firstName || user?.username || "User";
   
-  // Get latest health metrics using hook - don't use a fallback user ID
+  // Get latest health metrics using hook with fallback to demo user for better experience
   const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData({ 
-    userId: user?.id
+    userId: user?.id || 1 // Use demo user ID as fallback
   });
   
   // Create a fallback with your actual values but only use if no real data is available
