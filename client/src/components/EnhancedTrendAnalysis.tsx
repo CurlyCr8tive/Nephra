@@ -525,14 +525,13 @@ export function EnhancedTrendAnalysis() {
                       latestMetric.systolicBP >= 130 || latestMetric.diastolicBP >= 80 ? 60 :
                       latestMetric.systolicBP >= 120 && latestMetric.diastolicBP < 80 ? 40 : 20
                     } 
-                    className="h-2" 
-                    indicatorClassName={`
-                      ${latestMetric.systolicBP >= 180 || latestMetric.diastolicBP >= 120 ? 'bg-red-700' :
-                        latestMetric.systolicBP >= 140 || latestMetric.diastolicBP >= 90 ? 'bg-red-500' :
-                        latestMetric.systolicBP >= 130 || latestMetric.diastolicBP >= 80 ? 'bg-orange-500' :
-                        latestMetric.systolicBP >= 120 && latestMetric.diastolicBP < 80 ? 'bg-yellow-500' :
-                        'bg-green-500'}
-                    `}
+                    className={`h-2 ${
+                      latestMetric.systolicBP >= 180 || latestMetric.diastolicBP >= 120 ? 'bg-red-700' :
+                      latestMetric.systolicBP >= 140 || latestMetric.diastolicBP >= 90 ? 'bg-red-500' :
+                      latestMetric.systolicBP >= 130 || latestMetric.diastolicBP >= 80 ? 'bg-orange-500' :
+                      latestMetric.systolicBP >= 120 && latestMetric.diastolicBP < 80 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>Normal</span>
@@ -629,14 +628,13 @@ export function EnhancedTrendAnalysis() {
                   </div>
                   <Progress 
                     value={Math.min(100, (latestMetric.hydration / 2.5) * 100)} 
-                    className="h-2" 
-                    indicatorClassName={`
-                      ${latestMetric.hydration >= 2.5 ? 'bg-blue-700' :
-                        latestMetric.hydration >= 2.0 ? 'bg-blue-500' :
-                        latestMetric.hydration >= 1.5 ? 'bg-blue-400' :
-                        latestMetric.hydration >= 1.0 ? 'bg-yellow-500' :
-                        'bg-red-500'}
-                    `}
+                    className={`h-2 ${
+                      latestMetric.hydration >= 2.5 ? 'bg-blue-700' :
+                      latestMetric.hydration >= 2.0 ? 'bg-blue-500' :
+                      latestMetric.hydration >= 1.5 ? 'bg-blue-400' :
+                      latestMetric.hydration >= 1.0 ? 'bg-yellow-500' :
+                      'bg-red-500'
+                    }`}
                   />
                 </div>
               )}
@@ -710,15 +708,14 @@ export function EnhancedTrendAnalysis() {
               {latestMetric?.stressLevel !== undefined && (
                 <div className="space-y-1">
                   <Progress 
-                    value={(latestMetric.stressLevel / 10) * 100} 
-                    className="h-2" 
-                    indicatorClassName={`
-                      ${latestMetric.stressLevel >= 8 ? 'bg-red-600' :
-                        latestMetric.stressLevel >= 6 ? 'bg-orange-500' :
-                        latestMetric.stressLevel >= 4 ? 'bg-yellow-500' :
-                        latestMetric.stressLevel >= 2 ? 'bg-yellow-400' :
-                        'bg-green-500'}
-                    `}
+                    value={(latestMetric.stressLevel! / 10) * 100} 
+                    className={`h-2 ${
+                      latestMetric.stressLevel! >= 8 ? 'bg-red-600' :
+                      latestMetric.stressLevel! >= 6 ? 'bg-orange-500' :
+                      latestMetric.stressLevel! >= 4 ? 'bg-yellow-500' :
+                      latestMetric.stressLevel! >= 2 ? 'bg-yellow-400' :
+                      'bg-green-500'
+                    }`}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>Minimal</span>
@@ -799,15 +796,14 @@ export function EnhancedTrendAnalysis() {
               {latestMetric?.painLevel !== undefined && (
                 <div className="space-y-1">
                   <Progress 
-                    value={(latestMetric.painLevel / 10) * 100} 
-                    className="h-2" 
-                    indicatorClassName={`
-                      ${latestMetric.painLevel >= 8 ? 'bg-red-700' :
-                        latestMetric.painLevel >= 6 ? 'bg-red-500' :
-                        latestMetric.painLevel >= 4 ? 'bg-orange-500' :
-                        latestMetric.painLevel >= 2 ? 'bg-yellow-500' :
-                        'bg-green-500'}
-                    `}
+                    value={(latestMetric.painLevel! / 10) * 100} 
+                    className={`h-2 ${
+                      latestMetric.painLevel! >= 8 ? 'bg-red-700' :
+                      latestMetric.painLevel! >= 6 ? 'bg-red-500' :
+                      latestMetric.painLevel! >= 4 ? 'bg-orange-500' :
+                      latestMetric.painLevel! >= 2 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>None</span>
@@ -888,15 +884,14 @@ export function EnhancedTrendAnalysis() {
               {latestMetric?.fatigueLevel !== undefined && (
                 <div className="space-y-1">
                   <Progress 
-                    value={(latestMetric.fatigueLevel / 10) * 100} 
-                    className="h-2" 
-                    indicatorClassName={`
-                      ${latestMetric.fatigueLevel >= 8 ? 'bg-purple-800' :
-                        latestMetric.fatigueLevel >= 6 ? 'bg-purple-600' :
-                        latestMetric.fatigueLevel >= 4 ? 'bg-purple-500' :
-                        latestMetric.fatigueLevel >= 2 ? 'bg-purple-400' :
-                        'bg-green-500'}
-                    `}
+                    value={(latestMetric.fatigueLevel! / 10) * 100} 
+                    className={`h-2 ${
+                      latestMetric.fatigueLevel! >= 8 ? 'bg-purple-800' :
+                      latestMetric.fatigueLevel! >= 6 ? 'bg-purple-600' :
+                      latestMetric.fatigueLevel! >= 4 ? 'bg-purple-500' :
+                      latestMetric.fatigueLevel! >= 2 ? 'bg-purple-400' :
+                      'bg-green-500'
+                    }`}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>None</span>
