@@ -20,38 +20,72 @@ export function useHealthData() {
     queryFn: async () => {
       // Safety check - only proceed if we have a user ID
       if (!userId) {
-        console.log("No authenticated user ID available, skipping latest metrics fetch");
+        console.log("⚠️ No authenticated user ID available, skipping latest metrics fetch");
         return [];
       }
       
-      console.log(`Explicitly fetching latest health metrics for authenticated user ID ${userId}`);
+      console.log(`🔍 Explicitly fetching latest health metrics for authenticated user ID ${userId}`);
       
       try {
+        // Output auth status
+        console.log(`📊 Auth status for health metrics request: ${document.cookie.includes('connect.sid') ? 'Has session cookie' : 'No session cookie'}`);
+        
         // Make a fetch call with credentials to ensure cookies are sent
         const response = await fetch(
           `/api/health-metrics/${userId}?limit=1`, 
-          { credentials: "include" }
+          { 
+            credentials: "include",
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          }
         );
+        
+        console.log(`🔄 Health metrics API response status: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`Error fetching latest metrics for user ${userId}:`, errorText);
+          console.error(`❌ Error fetching latest metrics for user ${userId}:`, errorText);
+          
+          // Log details about the request for debugging
+          console.error(`Request details: GET /api/health-metrics/${userId}?limit=1`);
+          
           return []; // Return empty array instead of throwing
         }
         
         const data = await response.json();
-        console.log(`Retrieved ${data?.length || 0} latest health metrics for user ${userId}:`);
+        console.log(`✅ Retrieved ${data?.length || 0} latest health metrics for user ${userId}`);
         
         if (data && data.length > 0) {
-          console.log("Latest metrics data:", data[0]);
+          console.log("📋 Latest metrics data:", data[0]);
+          
+          // Log important health values
+          console.log("🩺 Key health values:", {
+            hydration: data[0].hydration,
+            systolicBP: data[0].systolicBP,
+            diastolicBP: data[0].diastolicBP,
+            estimatedGFR: data[0].estimatedGFR,
+            painLevel: data[0].painLevel,
+            stressLevel: data[0].stressLevel,
+            fatigueLevel: data[0].fatigueLevel
+          });
         } else {
-          console.log("No health metrics found for this user.");
+          console.log("⚠️ No health metrics found for this user. Adding a test log would help.");
+          
+          // Output a structured log about the empty data
+          console.warn({
+            issue: "missing_health_data",
+            userId: userId,
+            endpoint: `/api/health-metrics/${userId}?limit=1`,
+            timestamp: new Date().toISOString()
+          });
         }
         
         // Make sure we always return an array, even if data is null or undefined
         return data || [];
       } catch (error) {
-        console.error("Exception while fetching latest health metrics:", error);
+        console.error("❌ Exception while fetching latest health metrics:", error);
         // Return empty array instead of throwing to prevent UI errors
         return [];
       }

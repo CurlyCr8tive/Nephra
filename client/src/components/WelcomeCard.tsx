@@ -13,9 +13,24 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   // Get real user name and data from context
   const { user } = useUser();
   
-  // Always use firstName if available directly from the user profile
-  // No need for regex extraction as the real firstName field should be populated
-  const userName = user?.firstName || user?.username?.split(' ')[0] || "User";
+  // Enhanced name extraction logic
+  // Try multiple sources in priority order to get the best user name
+  let userName = "User"; // Default fallback
+  
+  if (user?.firstName) {
+    // Use firstName if available (ideal case)
+    userName = user.firstName;
+  } else if (user?.username) {
+    // Extract a name-like value from username
+    // If username contains a dot or underscore, split and capitalize first part
+    if (user.username.includes('.') || user.username.includes('_')) {
+      const firstPart = user.username.split(/[._]/)[0];
+      userName = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
+    } else {
+      // Otherwise just use the first part of the username
+      userName = user.username.split(' ')[0];
+    }
+  }
   
   // Log user data to verify we're using the correct fields
   console.log("WelcomeCard user data:", {

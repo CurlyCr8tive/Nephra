@@ -30,6 +30,14 @@ export function HealthCalendar({ healthData, userId = null }: HealthCalendarProp
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month");
   
+  // Log health data for debugging
+  console.log("HealthCalendar rendering with:", {
+    dataCount: healthData?.length || 0,
+    userId: userId,
+    selectedDate: selectedDate.toISOString().split('T')[0],
+    viewMode
+  });
+  
   // Function to get health data for a specific date
   const getHealthDataForDate = (date: Date | null): HealthMetrics | undefined => {
     if (!date) return undefined;
