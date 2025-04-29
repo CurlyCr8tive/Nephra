@@ -190,28 +190,92 @@ export function useHealthData() {
           const errorText = await response.text();
           console.error("Error response from server:", errorText);
           
-          // Try alternative direct endpoint if standard endpoint fails
-          console.log("⚠️ Standard endpoint failed, trying direct endpoint...");
+          // Try multiple alternative endpoints with different approaches
+          console.log("⚠️ Standard endpoint failed, trying direct endpoints...");
           
-          const directResponse = await fetch("/api/direct-health-log", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              healthData: data,
-              userId: userId,
-              apiKey: "nephra-health-data-key" 
-            }),
-          });
-          
-          if (directResponse.ok) {
-            const result = await directResponse.json();
-            console.log("✅ Health data saved successfully via direct endpoint!");
-            return result;
+          // Try approach 1: Direct health log endpoint
+          try {
+            console.log("🔄 Attempt 1: Using direct-health-log endpoint");
+            const directResponse = await fetch("/api/direct-health-log", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                healthData: data,
+                userId: userId,
+                apiKey: "nephra-health-data-key" 
+              }),
+            });
+            
+            if (directResponse.ok) {
+              const result = await directResponse.json();
+              console.log("✅ Health data saved successfully via direct endpoint!");
+              return result;
+            } else {
+              console.warn("⚠️ Direct endpoint failed, status:", directResponse.status);
+            }
+          } catch (directError) {
+            console.error("❌ Direct endpoint error:", directError);
           }
           
-          // If both methods fail, throw error
+          // Try approach 2: Emergency endpoint
+          try {
+            console.log("🔄 Attempt 2: Using emergency-health-log endpoint");
+            const emergencyResponse = await fetch("/api/emergency-health-log", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                healthData: data,
+                userId: userId,
+                apiKey: "nephra-health-data-key" 
+              }),
+            });
+            
+            if (emergencyResponse.ok) {
+              const result = await emergencyResponse.json();
+              console.log("✅ Health data saved successfully via emergency endpoint!");
+              return result;
+            } else {
+              console.warn("⚠️ Emergency endpoint failed, status:", emergencyResponse.status);
+            }
+          } catch (emergencyError) {
+            console.error("❌ Emergency endpoint error:", emergencyError);
+          }
+          
+          // Try approach 3: XHR request instead of fetch
+          try {
+            console.log("🔄 Attempt 3: Using XHR request to emergency endpoint");
+            return new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open("POST", "/api/emergency-health-log");
+              xhr.setRequestHeader("Content-Type", "application/json");
+              xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  console.log("✅ Health data saved successfully via XHR!");
+                  resolve(JSON.parse(xhr.responseText));
+                } else {
+                  console.warn("⚠️ XHR request failed, status:", xhr.status);
+                  reject(new Error("XHR request failed"));
+                }
+              };
+              xhr.onerror = function() {
+                console.error("❌ XHR network error");
+                reject(new Error("XHR network error"));
+              };
+              xhr.send(JSON.stringify({
+                healthData: data,
+                userId: userId,
+                apiKey: "nephra-health-data-key" 
+              }));
+            });
+          } catch (xhrError) {
+            console.error("❌ XHR request error:", xhrError);
+          }
+                    
+          // If all methods fail, throw the original error
           throw new Error(`Server error: ${errorText}`);
         }
         

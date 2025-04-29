@@ -4,6 +4,15 @@ import { supabase } from "./supabase-service";
 
 const router = express.Router();
 
+// Enable CORS preflight for all routes in this router
+router.options('*', (req, res) => {
+  // Enable CORS for health data endpoints to prevent preflight issues
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, Authorization');
+  res.sendStatus(200);
+});
+
 /**
  * Direct health data submission endpoint
  * POST /api/direct-health-log
