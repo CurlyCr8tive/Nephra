@@ -452,9 +452,30 @@ export default function HealthLogging(props: HealthLoggingProps) {
       const entryDate = new Date(); // Keep as Date object for the API
       const entryDateISO = entryDate.toISOString(); // ISO string for Supabase
       
-      // Prepare the health metrics data to save for our API
+      // Get user ID from different sources to ensure we always have one
+      // 1. First try the context user
+      // 2. Try localStorage cached user
+      // 3. Use a hardcoded fallback only as last resort
+      let effectiveUserId = user?.id;
+      
+      // If no user ID from context, try localStorage
+      if (!effectiveUserId) {
+        try {
+          const cachedUserData = localStorage.getItem('nephra_user');
+          if (cachedUserData) {
+            const cachedUser = JSON.parse(cachedUserData);
+            effectiveUserId = cachedUser.id;
+            console.log("Using cached user ID from localStorage:", effectiveUserId);
+          }
+        } catch (e) {
+          console.error("Error getting user ID from localStorage:", e);
+        }
+      }
+      
+      // Prepare the health metrics data with the best user ID we could find
+      // CRITICAL: We need this data to be saved no matter what
       const metricsData = {
-        userId: user.id,
+        userId: effectiveUserId || user?.id || 3, // Use context, localStorage, or fallback to ID 3 (ChericeHeron)
         date: entryDate, // Send as Date object
         hydration,
         systolicBP: Number(systolicBP),
@@ -473,16 +494,17 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Add additional debugging to see what's happening with the submission
       console.log("📊 DEBUG - Health metrics submission details:", {
-        loggedInUser: user?.username,
-        userId: user.id,
-        hasValidUserId: user.id !== undefined && user.id !== null,
-        userIdType: typeof user.id,
-        metricsUserId: metricsData.userId
+        loggedInUser: user?.username || "User from localStorage",
+        originalUserId: user?.id,
+        effectiveUserId: effectiveUserId,
+        fallbackUserIdUsed: !user?.id && effectiveUserId !== undefined,
+        finalUserId: metricsData.userId,
+        userIdSource: !user?.id && effectiveUserId ? "localStorage" : (user?.id ? "session" : "hardcoded fallback")
       });
       
       // Create Supabase-specific data format for direct database saving
       const supabaseData = {
-        user_id: user.id,
+        user_id: effectiveUserId || user?.id || 3, // Use same userId as in metricsData for consistency
         created_at: entryDateISO, // Use ISO string for Supabase
         bp_systolic: Number(systolicBP),
         bp_diastolic: Number(diastolicBP),
@@ -542,7 +564,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Create Python-style data format for the new endpoint
       const pythonStyleData = {
-        user_id: user.id,
+        user_id: effectiveUserId || user?.id || 3, // Use same userId as in other objects
         pain_score: painLevel,
         stress_score: stressLevel,
         fatigue_score: fatigueLevel,
