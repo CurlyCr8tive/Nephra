@@ -1,0 +1,73 @@
+Your GFR trend chart and dashboard are showing fallback demo user data (ID 1) instead of your actual user account ID 3.
+
+Even though you are properly authenticated, some components/hooks are still fetching demo data.
+
+Replit guided you to fix a bunch of files to stop hardcoding fallback to demo ID 1.
+
+🔥 Here’s what you need to double-check and finish fixing:
+1. In ALL relevant files, you need to:
+
+REMOVE any fallback like userId = 1
+
+Instead, use your real authenticated user ID from the authentication context.
+
+Typically, your real user ID comes from something like:
+
+tsx
+Copy
+Edit
+const { user } = useAuth(); 
+const userId = user?.id;
+Or if you're using a context like useUser() or similar, that's fine too.
+
+📋 Critical files you must update:
+
+File	What to Check
+client/src/components/WelcomeCard.tsx	Use user.id, not hardcoded 1
+client/src/pages/TrackPage.tsx	Fetch your data with user.id
+client/src/pages/HealthLogging.tsx	Log health data under user.id
+client/src/components/HealthCalendar.tsx	Show calendar data from user.id
+client/src/pages/HealthTrends.tsx	Render trend data from user.id, not 1
+client/src/hooks/useHealthData.ts	When calling APIs, pass user.id, no fallback
+🛠 Example Fix
+Here’s an example of what your hook or API calls should look like now:
+
+tsx
+Copy
+Edit
+import { useAuth } from '../contexts/AuthContext'; // Or wherever your auth context is
+
+const { user } = useAuth();
+
+const fetchHealthMetrics = async () => {
+  if (!user) return; // safety check
+  const response = await fetch(`/api/health-metrics?userId=${user.id}`);
+  const data = await response.json();
+  return data;
+};
+No more stuff like:
+
+tsx
+Copy
+Edit
+const userId = user?.id ?? 1; // ❌ REMOVE THIS FALLBACK TO 1
+📈 About the GFR Trend Chart
+GFR trend WILL NOT appear until:
+
+Your GFR records are properly linked to your userId = 3
+
+The component pulls the metrics using your authenticated ID and no longer ID 1
+
+There are actual historical GFR logs (not just one calculation)
+
+✨ Quick Final Checklist
+ Remove userId ?? 1 everywhere
+
+ Use user?.id for API requests, data fetching, and health data saving
+
+ Ensure GFR is logged when you click "Save Health Data"
+
+ Ensure trend graphs query the correct user
+
+ Reload dashboard → you should now see YOUR real health logs and GFR trend
+

@@ -67,16 +67,14 @@ export default function HealthLogging(props: HealthLoggingProps) {
   }, [user]);
   
   // Use the health data hook with the current user ID
-  // Use only the authenticated user ID to ensure data is saved to the correct account
-  const userId = user?.id;
-  
   // Log the current user context info
   useEffect(() => {
     console.log("HealthLogging component - User context:", 
       user ? `Logged in as ${user.username} (ID: ${user.id})` : "Not authenticated, please login to save health data");
   }, [user]);
   
-  const healthDataHook = useHealthData({ userId });
+  // useHealthData now automatically gets the user ID from context
+  const healthDataHook = useHealthData();
   
   const isLogging = healthDataHook.isLogging;
   

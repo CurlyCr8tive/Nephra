@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/contexts/UserContext";
 import { useHealthData } from "@/hooks/useHealthData";
 
 interface WelcomeCardProps {
@@ -11,13 +11,11 @@ interface WelcomeCardProps {
 
 export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   // Get real user name and data from context
-  const { user } = useAuth();
+  const { user } = useUser();
   const userName = user?.firstName || user?.username || "User";
   
-  // Always use authenticated user ID without fallback to get the correct metrics
-  const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData({ 
-    userId: user?.id
-  });
+  // Always use authenticated user ID - useHealthData now gets this automatically
+  const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData();
   
   // Create a fallback with your actual values but only use if no real data is available
   const latestMetrics = realMetrics || {

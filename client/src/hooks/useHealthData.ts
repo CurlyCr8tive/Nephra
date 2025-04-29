@@ -3,17 +3,18 @@ import { HealthMetrics, InsertHealthMetrics } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
-interface UseHealthDataProps {
-  userId?: number;
-}
-
-export function useHealthData({ userId }: UseHealthDataProps) {
+export function useHealthData() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useUser(); // Get authenticated user from UserContext
   const [todayMetrics, setTodayMetrics] = useState<HealthMetrics | null>(null);
+  
+  // Safely access the authenticated user ID
+  const userId = user?.id;
 
-  // Get the latest health metrics for a user
+  // Get the latest health metrics for the current user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${userId}?limit=1`],
     staleTime: 60 * 1000, // 1 minute
@@ -25,9 +26,9 @@ export function useHealthData({ userId }: UseHealthDataProps) {
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${userId}/range`],
     queryFn: async () => {
-      // Only fetch if we have a valid user ID
+      // Safety check - only proceed if we have a user ID
       if (!userId) {
-        console.log("No user ID available, skipping weekly metrics fetch");
+        console.log("No authenticated user ID available, skipping weekly metrics fetch");
         return [];
       }
       
@@ -35,7 +36,7 @@ export function useHealthData({ userId }: UseHealthDataProps) {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
       
-      console.log(`Fetching data for user ID ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      console.log(`Fetching data for authenticated user ID ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
       try {
         const response = await fetch(
@@ -71,6 +72,11 @@ export function useHealthData({ userId }: UseHealthDataProps) {
   // Mutation for logging new health metrics
   const { mutate: logHealthMetrics, isPending: isLogging } = useMutation({
     mutationFn: async (data: InsertHealthMetrics) => {
+      // Safety check - only proceed if we have a user ID
+      if (!userId) {
+        throw new Error("You must be logged in to save health metrics");
+      }
+      
       // Ensure estimatedGFR is properly set and never null or undefined
       if (data.estimatedGFR === null || data.estimatedGFR === undefined) {
         console.warn("GFR value is null or undefined. Setting default value.");
@@ -78,18 +84,10 @@ export function useHealthData({ userId }: UseHealthDataProps) {
         data.gfrCalculationMethod = "fallback-estimation";
       }
       
-      console.log("Saving health metrics to database:", data);
+      // Always set the userId to the authenticated user
+      data.userId = userId;
       
-      // Make sure userId is correctly set
-      if (!data.userId) {
-        if (userId) {
-          console.log("Setting userId from context:", userId);
-          data.userId = userId;
-        } else {
-          console.error("No valid userId available to save health metrics");
-          throw new Error("You must be logged in to save health metrics");
-        }
-      }
+      console.log("Saving health metrics for user:", userId);
       
       try {
         const response = await apiRequest("POST", "/api/health-metrics", data);

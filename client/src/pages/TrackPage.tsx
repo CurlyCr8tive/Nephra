@@ -67,15 +67,13 @@ export default function TrackPage() {
   const { user } = useUser();
   
   // Safely access user ID without fallback to ensure correct data is shown
-  const userId = user?.id;
-  
-  // Get health data with a safe fallback
+  // No need to manually pass userId anymore, useHealthData gets it from context
   const { 
     weeklyMetrics = [], 
     isLoadingWeekly = false,
     logHealthMetrics,
     isLogging = false
-  } = useHealthData({ userId });
+  } = useHealthData();
   
   // Function to save health data
   const saveHealthData = async () => {
