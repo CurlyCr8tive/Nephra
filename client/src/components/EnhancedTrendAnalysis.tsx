@@ -323,8 +323,8 @@ export function EnhancedTrendAnalysis() {
                 
                 <div className="space-y-1">
                   <span className="text-sm font-medium">Trend Analysis</span>
-                  <p className={`text-sm ${getTrendColor(latestMetric?.gfrTrend)}`}>
-                    {trendDescription}
+                  <p className={`text-sm ${getTrendColor(latestMetric?.gfrTrend || undefined)}`}>
+                    {trendDescription || "GFR trend data not available"}
                   </p>
                   {latestMetric?.gfrLongTermTrend && latestMetric.gfrLongTermTrend !== "unknown" && (
                     <p className="text-xs text-muted-foreground">

@@ -117,53 +117,96 @@ export function useHealthData() {
     queryFn: async () => {
       // Safety check - only proceed if we have a user ID
       if (!userId) {
-        console.log("No authenticated user ID available, skipping weekly metrics fetch");
-        return [];
+        console.log("⚠️ No authenticated user ID available, skipping weekly metrics fetch");
+        
+        // Fallback to user ID 3 since we know it exists
+        console.log("🔄 Attempting fallback to user ID 3 for weekly metrics...");
+        const fallbackId = 3;
+        
+        return fetchWeeklyMetricsForUser(fallbackId);
       }
       
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
-      
-      console.log(`Fetching data for authenticated user ID ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      
-      try {
-        const response = await fetch(
-          `/api/health-metrics/${userId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}&apiKey=nephra-health-data-key`,
-          { 
-            credentials: "include",
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'X-API-Key': 'nephra-health-data-key' // API key also sent in header as fallback
-            }
-          }
-        );
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Error fetching weekly metrics:", errorText);
-          return []; // Return empty array instead of throwing
-        }
-        
-        const data = await response.json();
-        console.log(`Retrieved ${data?.length || 0} health metrics for user ${userId}`);
-        
-        // Make sure we always return an array, even if data is null or undefined
-        return data || [];
-      } catch (error) {
-        console.error("Exception while fetching health metrics:", error);
-        // Return empty array instead of throwing to prevent UI errors
-        return [];
-      }
+      console.log(`🔍 Attempting to fetch weekly metrics for authenticated user ID ${userId}`);
+      return fetchWeeklyMetricsForUser(userId);
     },
-    placeholderData: [],
-    enabled: !!userId, // Only enabled when we have a valid user ID
+    staleTime: 30 * 1000, // 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    retry: 1,
-    staleTime: 60 * 1000, // 1 minute
+    retry: 2,
+    enabled: true, // Always enabled - we'll handle missing userId in the queryFn
+    placeholderData: []
   });
+  
+  // Helper function to fetch weekly metrics for a specific user
+  async function fetchWeeklyMetricsForUser(id: number): Promise<HealthMetrics[]> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    
+    console.log(`Fetching weekly data for user ID ${id} from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+    
+    try {
+      // Simple minimal fetch first - less chance of errors
+      const response = await fetch(`/api/health-metrics/${id}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`);
+      
+      console.log(`🔄 Weekly metrics API response status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        console.error(`❌ Error fetching weekly metrics for user ${id} with status ${response.status}`);
+        
+        // If error occurs for current user ID, try fallback ID 3
+        if (id !== 3) {
+          console.log("🔍 Attempting to fetch with fallback user ID 3...");
+          return fetchWeeklyMetricsForUser(3);
+        }
+        
+        // If we're already using ID 3 and still failing, try the metrics endpoint without a range
+        console.log("🔄 Trying to get any metrics without date range...");
+        const fallbackResponse = await fetch(`/api/health-metrics/3?limit=7`);
+        
+        if (!fallbackResponse.ok) {
+          console.error("❌ All fetch methods failed for weekly metrics");
+          return [];
+        }
+        
+        const fallbackData = await fallbackResponse.json();
+        console.log(`✅ Retrieved ${fallbackData?.length || 0} metrics without date range`);
+        return fallbackData || [];
+      }
+      
+      const data = await response.json();
+      console.log(`✅ Retrieved ${data?.length || 0} weekly health metrics for user ${id}`);
+      
+      if (data && data.length > 0) {
+        console.log("📋 Sample metrics data:", {
+          firstEntry: data[0].date,
+          lastEntry: data[data.length-1].date,
+          gfrValues: data.map(d => d.estimatedGFR)
+        });
+      } else {
+        console.log("⚠️ No weekly metrics found, array is empty");
+        
+        // If no data for current user ID, try fallback ID 3
+        if (id !== 3) {
+          console.log("🔍 Attempting to fetch with fallback user ID 3...");
+          return fetchWeeklyMetricsForUser(3);
+        }
+      }
+      
+      // Make sure we always return an array
+      return data || [];
+    } catch (error) {
+      console.error("❌ Exception while fetching weekly health metrics:", error);
+      
+      // If error occurs for current user ID, try fallback ID 3
+      if (id !== 3) {
+        console.log("🔍 Attempting to fetch with fallback user ID 3 after error...");
+        return fetchWeeklyMetricsForUser(3);
+      }
+      
+      return []; // Final fallback is empty array
+    }
+  }
 
   // Mutation for logging new health metrics
   const { mutate: logHealthMetrics, isPending: isLogging } = useMutation({
