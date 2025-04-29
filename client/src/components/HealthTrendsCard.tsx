@@ -12,7 +12,7 @@ export function HealthTrendsCard() {
   
   // Get the real user data and health metrics
   const { user } = useUser();
-  const userId = user?.id || 1; // Fallback to default user ID if not logged in
+  const userId = user?.id; // No fallback to ensure we only show the logged-in user's data
   
   // Fetch real health data from the API
   const { 

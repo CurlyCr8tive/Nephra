@@ -457,6 +457,15 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       console.log("Health metrics data to submit:", metricsData);
       
+      // Add additional debugging to see what's happening with the submission
+      console.log("📊 DEBUG - Health metrics submission details:", {
+        loggedInUser: user?.username,
+        userId: userId,
+        hasValidUserId: userId !== undefined && userId !== null,
+        userIdType: typeof userId,
+        metricsUserId: metricsData.userId
+      });
+      
       // Create Supabase-specific data format for direct database saving
       const supabaseData = {
         user_id: userId,

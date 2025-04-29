@@ -66,12 +66,8 @@ export default function TrackPage() {
   // Get user context
   const { user } = useUser();
   
-  // Safely access user, fallback to a default userId if not available
-  let userId = 1; // Default fallback
-  
-  if (user?.id) {
-    userId = user.id;
-  }
+  // Safely access user ID without fallback to ensure data integrity
+  const userId = user?.id;
   
   // Get health data with a safe fallback
   const { 
