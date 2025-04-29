@@ -7,6 +7,7 @@ import AICompanionCard from "@/components/AICompanionCard";
 import HealthTrendsCard from "@/components/HealthTrendsCard";
 import TransplantRoadmapCard from "@/components/TransplantRoadmapCard";
 import { EnhancedTrendAnalysis } from "@/components/EnhancedTrendAnalysis";
+import HealthStatusCard from "@/components/HealthStatusCard";
 import HealthLogging from "@/pages/HealthLogging";
 import { useHealthData } from "@/hooks/useHealthData";
 import { useUser } from "@/contexts/UserContext";

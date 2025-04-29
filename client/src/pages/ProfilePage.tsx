@@ -123,6 +123,7 @@ export default function ProfilePage() {
     age: number | null;
     gender: string | null;
     weight: number | null;
+    height: number | null; // Height in cm
     race: string | null;
     kidneyDiseaseType: string | null;
     kidneyDiseaseStage: number | null;
@@ -158,7 +159,8 @@ export default function ProfilePage() {
     email: z.string().email("Invalid email address").optional().or(z.literal("")),
     age: z.number().min(0).max(120).optional().nullable(),
     gender: z.string().optional(),
-    weight: z.number().min(0).optional().nullable(),
+    weight: z.number().min(0).optional().nullable(), 
+    height: z.number().min(0).max(300).optional().nullable(), // Height in cm (max 300 cm)
     race: z.string().optional(),
     kidneyDiseaseType: z.string().optional(),
     kidneyDiseaseStage: z.number().min(1).max(5).optional().nullable(),
@@ -200,6 +202,7 @@ export default function ProfilePage() {
       age: null,
       gender: "",
       weight: null,
+      height: null,
       race: "",
       kidneyDiseaseType: "",
       kidneyDiseaseStage: null,
@@ -232,6 +235,7 @@ export default function ProfilePage() {
         age: profileData.age || null,
         gender: profileData.gender || "",
         weight: profileData.weight || null,
+        height: profileData.height || null,
         race: profileData.race || "",
         kidneyDiseaseType: profileData.kidneyDiseaseType || "",
         kidneyDiseaseStage: profileData.kidneyDiseaseStage || null,
@@ -635,6 +639,27 @@ export default function ProfilePage() {
                                   <Input 
                                     type="number" 
                                     placeholder="Weight" 
+                                    {...field} 
+                                    disabled={!isEditing}
+                                    value={field.value || ""}
+                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="height"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Height (cm)</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    placeholder="Height" 
                                     {...field} 
                                     disabled={!isEditing}
                                     value={field.value || ""}
