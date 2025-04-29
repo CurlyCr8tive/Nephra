@@ -35,19 +35,20 @@ export function HealthStatusCard() {
 
   // Function to format blood pressure text
   const formatBP = (systolic: number | null | undefined, diastolic: number | null | undefined) => {
-    if (!systolic || !diastolic) return "Not recorded";
+    if (systolic === null || systolic === undefined || diastolic === null || diastolic === undefined) 
+      return "Not recorded";
     return `${systolic}/${diastolic} mmHg`;
   };
   
   // Function to format hydration text
   const formatHydration = (hydration: number | null | undefined) => {
-    if (!hydration) return "Not recorded";
+    if (hydration === null || hydration === undefined) return "Not recorded";
     return `${hydration.toFixed(1)}L`;
   };
   
   // Function to format GFR text
   const formatGFR = (gfr: number | null | undefined) => {
-    if (!gfr) return "Not recorded";
+    if (gfr === null || gfr === undefined) return "Not recorded";
     return `${gfr.toFixed(0)} mL/min/1.73m²`;
   };
 
@@ -64,7 +65,7 @@ export function HealthStatusCard() {
           {/* Kidney Stage */}
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Kidney Disease Stage:</span>
-            <span className={`font-semibold text-sm ${getStageColor(user?.kidneyDiseaseStage)}`}>
+            <span className={`font-semibold text-sm ${getStageColor(user?.kidneyDiseaseStage || null)}`}>
               {user?.kidneyDiseaseStage ? getKidneyStageText(user.kidneyDiseaseStage) : "Not specified"}
             </span>
           </div>

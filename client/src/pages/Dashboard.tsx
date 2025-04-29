@@ -60,6 +60,7 @@ export default function Dashboard() {
         ) : (
           <div className="px-4 py-4">
             <WelcomeCard onLogClick={handleLogClick} />
+            <HealthStatusCard />
             <EmotionalCheckInCard />
             
             {/* Show enhanced analysis if there's data, otherwise show basic trends */}
