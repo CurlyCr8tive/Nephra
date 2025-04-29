@@ -9,18 +9,17 @@ import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { HealthMetrics } from "@shared/schema";
 
 export default function HealthTrends() {
-  // Safely access user, fallback to a default userId if not available
-  // This approach is more resilient than throwing an error
-  let userId = 1; // Default fallback userId
+  // Safely access user without any fallback to ensure proper data ownership
+  let userId = undefined;
   let user = null;
   
   try {
     const userContext = useUser();
     user = userContext.user;
-    userId = user?.id || 1;
+    userId = user?.id; // No fallback - only show data for the actual logged-in user
   } catch (error) {
     console.error("UserContext not available:", error);
-    // Continue with default userId
+    // Continue without userId, which will disable data fetching until user is authenticated
   }
   
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("7d");

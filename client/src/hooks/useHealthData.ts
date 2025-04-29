@@ -79,7 +79,7 @@ export function useHealthData({ userId }: UseHealthDataProps) {
       console.log("Saving health metrics to database:", data);
       
       // Make sure userId is correctly set
-      if (!data.userId || data.userId <= 0) {
+      if (!data.userId) {
         if (userId) {
           console.log("Setting userId from context:", userId);
           data.userId = userId;
