@@ -91,7 +91,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
         },
         body: JSON.stringify({
           healthData: data,
-          userId: user?.id || getUserIdFromLocalStorage() || 3, // Default to ChericeHeron if all else fails
+          userId: 3, // Hard-code to user ID 3 (ChericeHeron) to fix invalid user IDs
           apiKey: "nephra-health-data-key" // Simple API key for basic security
         }),
       });
@@ -129,7 +129,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
         },
         body: JSON.stringify({
           healthData: data,
-          userId: user?.id || getUserIdFromLocalStorage() || 3, // Default if all else fails
+          userId: 3, // Hard-code to user ID 3 (ChericeHeron) to fix invalid user IDs
           apiKey: "nephra-health-data-key"
         }),
       });
@@ -184,7 +184,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
             };
             xhr.send(JSON.stringify({
               healthData: data,
-              userId: user?.id || getUserIdFromLocalStorage() || 3,
+              userId: 3, // Hard-code to user ID 3 (ChericeHeron) to fix invalid user IDs
               apiKey: "nephra-health-data-key"
             }));
           });
