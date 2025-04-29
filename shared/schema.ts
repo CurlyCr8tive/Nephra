@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -215,6 +215,111 @@ export const educationResources = pgTable("education_resources", {
   sortOrder: integer("sort_order"),
 });
 
+// Community support features
+
+// Community forums - categories table
+export const forumCategories = pgTable("forum_categories", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 50 }),
+  color: varchar("color", { length: 20 }),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Community forums - topics table
+export const forumTopics = pgTable("forum_topics", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").references(() => forumCategories.id),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  userId: integer("user_id").references(() => users.id),
+  views: integer("views").default(0),
+  isPinned: boolean("is_pinned").default(false),
+  isLocked: boolean("is_locked").default(false),
+  lastReplyAt: timestamp("last_reply_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Community forums - replies/posts table
+export const forumReplies = pgTable("forum_replies", {
+  id: serial("id").primaryKey(),
+  topicId: integer("topic_id").references(() => forumTopics.id),
+  content: text("content").notNull(),
+  userId: integer("user_id").references(() => users.id),
+  isVerified: boolean("is_verified").default(false), // Verified by medical professional
+  isHelpful: boolean("is_helpful").default(false),  // Marked helpful by admin/mod
+  parentReplyId: integer("parent_reply_id"), // For nested replies
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Forum likes/reactions table
+export const forumReactions = pgTable("forum_reactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  replyId: integer("reply_id").references(() => forumReplies.id),
+  topicId: integer("topic_id").references(() => forumTopics.id),
+  reactionType: varchar("reaction_type", { length: 20 }), // like, heart, hug, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Support groups table
+export const supportGroups = pgTable("support_groups", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  type: varchar("type", { length: 30 }).notNull(), // virtual, in-person, hybrid
+  location: jsonb("location"), // For in-person groups: { city, state, country, address, coordinates }
+  meetingSchedule: jsonb("meeting_schedule"), // { frequency, day, time, duration, timezone }
+  maxMembers: integer("max_members"),
+  isPrivate: boolean("is_private").default(false),
+  creatorId: integer("creator_id").references(() => users.id),
+  thumbnail: varchar("thumbnail", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Support group membership table
+export const supportGroupMembers = pgTable("support_group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").references(() => supportGroups.id),
+  userId: integer("user_id").references(() => users.id),
+  role: varchar("role", { length: 20 }).default("member"), // admin, moderator, member
+  joinedAt: timestamp("joined_at").defaultNow(),
+  status: varchar("status", { length: 20 }).default("active"), // active, pending, banned
+});
+
+// Support group events/meetings table
+export const supportGroupEvents = pgTable("support_group_events", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").references(() => supportGroups.id),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  location: jsonb("location"), // Virtual or physical location details
+  maxAttendees: integer("max_attendees"),
+  creatorId: integer("creator_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User-to-user direct messaging table
+export const directMessages = pgTable("direct_messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").references(() => users.id),
+  recipientId: integer("recipient_id").references(() => users.id),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Create insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -253,6 +358,56 @@ export const insertEducationResourceSchema = createInsertSchema(educationResourc
   id: true,
 });
 
+// Community feature insert schemas
+export const insertForumCategorySchema = createInsertSchema(forumCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertForumTopicSchema = createInsertSchema(forumTopics).omit({
+  id: true,
+  views: true,
+  createdAt: true,
+  updatedAt: true,
+  lastReplyAt: true,
+});
+
+export const insertForumReplySchema = createInsertSchema(forumReplies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertForumReactionSchema = createInsertSchema(forumReactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupportGroupSchema = createInsertSchema(supportGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSupportGroupMemberSchema = createInsertSchema(supportGroupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertSupportGroupEventSchema = createInsertSchema(supportGroupEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDirectMessageSchema = createInsertSchema(directMessages).omit({
+  id: true,
+  isRead: true,
+  readAt: true,
+  createdAt: true,
+});
+
 // Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -280,3 +435,28 @@ export type MedicalDocument = typeof medicalDocuments.$inferSelect;
 
 export type InsertEducationResource = z.infer<typeof insertEducationResourceSchema>;
 export type EducationResource = typeof educationResources.$inferSelect;
+
+// Community feature types
+export type InsertForumCategory = z.infer<typeof insertForumCategorySchema>;
+export type ForumCategory = typeof forumCategories.$inferSelect;
+
+export type InsertForumTopic = z.infer<typeof insertForumTopicSchema>;
+export type ForumTopic = typeof forumTopics.$inferSelect;
+
+export type InsertForumReply = z.infer<typeof insertForumReplySchema>;
+export type ForumReply = typeof forumReplies.$inferSelect;
+
+export type InsertForumReaction = z.infer<typeof insertForumReactionSchema>;
+export type ForumReaction = typeof forumReactions.$inferSelect;
+
+export type InsertSupportGroup = z.infer<typeof insertSupportGroupSchema>;
+export type SupportGroup = typeof supportGroups.$inferSelect;
+
+export type InsertSupportGroupMember = z.infer<typeof insertSupportGroupMemberSchema>;
+export type SupportGroupMember = typeof supportGroupMembers.$inferSelect;
+
+export type InsertSupportGroupEvent = z.infer<typeof insertSupportGroupEventSchema>;
+export type SupportGroupEvent = typeof supportGroupEvents.$inferSelect;
+
+export type InsertDirectMessage = z.infer<typeof insertDirectMessageSchema>;
+export type DirectMessage = typeof directMessages.$inferSelect;
