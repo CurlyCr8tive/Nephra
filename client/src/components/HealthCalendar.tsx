@@ -22,10 +22,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface HealthCalendarProps {
   healthData: HealthMetrics[];
-  userId: number;
+  userId?: number | null;
 }
 
-export function HealthCalendar({ healthData, userId }: HealthCalendarProps) {
+export function HealthCalendar({ healthData, userId = null }: HealthCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("month");

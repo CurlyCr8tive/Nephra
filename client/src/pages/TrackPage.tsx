@@ -105,7 +105,7 @@ export default function TrackPage() {
     const calculatedGFR = calculateEstimatedGFR();
     
     const healthData = {
-      userId,
+      userId: user?.id, // Use directly from user object
       // Use a Date object instead of ISO string
       date: new Date(),
       hydration,
@@ -603,7 +603,7 @@ export default function TrackPage() {
                 {/* Health Calendar Component */}
                 <HealthCalendar 
                   healthData={weeklyMetrics} 
-                  userId={userId} 
+                  userId={user?.id} 
                 />
               </div>
             </TabsContent>

@@ -31,8 +31,8 @@ export default function HealthTrends() {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
   
-  // Get health data with a safe fallback
-  const { weeklyMetrics = [], isLoadingWeekly = false } = useHealthData({ userId });
+  // Get health data - useHealthData now gets userId from context automatically
+  const { weeklyMetrics = [], isLoadingWeekly = false } = useHealthData();
 
   // Format data based on date range
   const getDateRangeData = () => {
