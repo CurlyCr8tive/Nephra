@@ -15,31 +15,28 @@ export function useHealthData({ userId }: UseHealthDataProps) {
 
   // Get the latest health metrics for a user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId || 'none'}?limit=1`],
+    queryKey: [`/api/health-metrics/${userId || 1}?limit=1`],
     staleTime: 60 * 1000, // 1 minute
-    enabled: !!userId,
-    placeholderData: [], // Empty array if no data
-    retry: false // Don't retry if not authorized
+    enabled: true, // Always enabled with fallback to demo user (ID 1)
+    placeholderData: []
   });
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId || 'none'}/range`],
+    queryKey: [`/api/health-metrics/${userId || 1}/range`],
     queryFn: async () => {
-      if (!userId) {
-        console.warn("No userId available, returning empty array");
-        return [];
-      }
-
+      // Always use a valid ID (use demo user ID 1 as fallback)
+      const safeUserId = userId || 1;
+      
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
       
-      console.log(`Fetching data for user ID ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      console.log(`Fetching data for user ID ${safeUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
       try {
         const response = await fetch(
-          `/api/health-metrics/${userId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
+          `/api/health-metrics/${safeUserId}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
           { credentials: "include" }
         );
         
@@ -50,26 +47,21 @@ export function useHealthData({ userId }: UseHealthDataProps) {
         }
         
         const data = await response.json();
-        console.log(`Retrieved ${data.length} health metrics for user ${userId}:`, data);
+        console.log(`Retrieved ${data?.length || 0} health metrics for user ${safeUserId}`);
         
         // Make sure we always return an array, even if data is null or undefined
-        if (!data) {
-          console.warn("No data received from health metrics API, returning empty array");
-          return [];
-        }
-        
-        return data;
+        return data || [];
       } catch (error) {
         console.error("Exception while fetching health metrics:", error);
         // Return empty array instead of throwing to prevent UI errors
         return [];
       }
     },
-    placeholderData: [], // Empty array if no data
-    enabled: true, // Always enable, but return empty if no userId
+    placeholderData: [],
+    enabled: true, // Always enabled with fallback ID
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    retry: false, // Don't retry if not authorized
+    retry: 1,
     staleTime: 60 * 1000, // 1 minute
   });
 
