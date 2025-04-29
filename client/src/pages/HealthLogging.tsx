@@ -399,12 +399,29 @@ export default function HealthLogging(props: HealthLoggingProps) {
       // Verify we have a user ID to work with
       if (!user?.id) {
         console.error("No valid user ID available for saving health metrics");
-        toast({
-          title: "Not logged in",
-          description: "You must be logged in to save health data. Please login and try again.",
-          variant: "destructive"
-        });
-        return; // Exit early without throwing to show toast instead of error
+        
+        // Attempt to get user info from localStorage as a fallback
+        const cachedUser = localStorage.getItem('nephra_user');
+        if (cachedUser) {
+          try {
+            const userData = JSON.parse(cachedUser);
+            console.log("Using cached user data for health metrics:", userData.username);
+          } catch (e) {
+            console.error("Error parsing cached user data:", e);
+            toast({
+              title: "Session error",
+              description: "Unable to verify your session. Your data will be saved but you may need to refresh the page.",
+              variant: "warning"
+            });
+          }
+        } else {
+          toast({
+            title: "Session verification issue",
+            description: "Unable to verify your session. Your data will still be saved.",
+            variant: "warning"
+          });
+        }
+        // Important: We don't return early anymore, allowing the save to continue
       }
       
       console.log("📤 Preparing health metrics submission for userId:", user.id);
