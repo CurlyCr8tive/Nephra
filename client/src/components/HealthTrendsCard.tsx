@@ -343,9 +343,9 @@ export function HealthTrendsCard() {
           {(!weeklyMetrics || weeklyMetrics.length < 2) && userId && (
             <div className="mt-3">
               <DataMigrationButton 
-                sourceUserId={3} 
+                sourceUserId={1} 
                 targetUserId={userId} 
-                buttonText="Import Demo Health Data" 
+                buttonText="Import Sample Health Data" 
                 variant="outline"
                 className="text-xs px-3 py-1"
               />

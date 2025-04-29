@@ -538,10 +538,10 @@ export default function HealthLogging(props: HealthLoggingProps) {
         }
       }
       
-      // Prepare the health metrics data with the best user ID we could find
-      // CRITICAL: We need this data to be saved no matter what
+      // Prepare the health metrics data with the authenticated user ID
+      // CRITICAL: We should only save data for authenticated users
       const metricsData = {
-        userId: effectiveUserId || user?.id || 3, // Use context, localStorage, or fallback to ID 3 (ChericeHeron)
+        userId: effectiveUserId || user?.id, // Use context or localStorage, but never fallback to a demo ID
         date: entryDate, // Send as Date object
         hydration,
         systolicBP: Number(systolicBP),
@@ -570,7 +570,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Create Supabase-specific data format for direct database saving
       const supabaseData = {
-        user_id: effectiveUserId || user?.id || 3, // Use same userId as in metricsData for consistency
+        user_id: effectiveUserId || user?.id, // Use same userId as in metricsData for consistency
         created_at: entryDateISO, // Use ISO string for Supabase
         bp_systolic: Number(systolicBP),
         bp_diastolic: Number(diastolicBP),
@@ -609,7 +609,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
                 .filter(med => med.taken)
                 .map(med => ({ name: med.name, dosage: med.dosage, frequency: med.frequency }))
             },
-            userId: effectiveUserId || (user ? user.id : 3), // Ensure we always have a userId
+            userId: effectiveUserId || (user ? user.id : null), // Never fallback to a demo user ID
             apiKey: "nephra-health-data-key", // Simple security mechanism
             testMode: true // Use test mode to verify endpoint connectivity
           }),
@@ -685,7 +685,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Create Python-style data format for the new endpoint
       const pythonStyleData = {
-        user_id: effectiveUserId || (user ? user.id : 3), // Use same userId as in other objects
+        user_id: effectiveUserId || (user ? user.id : null), // Never fallback to a demo user ID
         pain_score: painLevel,
         stress_score: stressLevel,
         fatigue_score: fatigueLevel,
