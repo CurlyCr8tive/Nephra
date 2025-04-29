@@ -649,6 +649,52 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // 2. Standard API call approach as backup data path
       try {
+        console.log("📊 CRITICAL FIX: Last resort attempt to save health data with:", {
+          url: "/api/health-metrics",
+          userId: metricsData.userId,
+          method: "POST",
+          includesCredentials: true,
+          dataPayloadSize: JSON.stringify(metricsData).length
+        });
+        
+        // Simpler approach - try a direct XMLHttpRequest instead of fetch
+        // This can sometimes work when fetch fails for session reasons
+        const savePromise = new Promise((resolve, reject) => {
+          try {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/health-metrics", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.withCredentials = true;
+            
+            xhr.onload = function() {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const result = JSON.parse(xhr.responseText);
+                  console.log("XHR success:", result);
+                  resolve(result);
+                } catch (parseError) {
+                  console.error("XHR parse error:", parseError);
+                  resolve({ success: true, message: "Data saved but response couldn't be parsed" });
+                }
+              } else {
+                console.error("XHR error response:", xhr.status, xhr.responseText);
+                reject(new Error(`Server responded with status: ${xhr.status}`));
+              }
+            };
+            
+            xhr.onerror = function() {
+              console.error("XHR network error");
+              reject(new Error("Network error occurred"));
+            };
+            
+            xhr.send(JSON.stringify(metricsData));
+          } catch (xhrError) {
+            console.error("XHR setup error:", xhrError);
+            reject(xhrError);
+          }
+        });
+        
+        // Also try the original fetch approach as a fallback
         const response = await fetch("/api/health-metrics", {
           method: "POST",
           headers: {
@@ -658,31 +704,73 @@ export default function HealthLogging(props: HealthLoggingProps) {
           body: JSON.stringify(metricsData),
         });
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Health metrics API error response:", errorText);
-          
-          // If all saving methods failed, throw an error to fail the entire operation
-          if (!supabaseSaveSuccessful && !pythonEndpointSuccessful) {
-            throw new Error(errorText || "Failed to save health data via any available method");
-          }
-        } else {
-          const result = await response.json();
-          console.log("✅ Health metrics saved successfully with ID:", result.id);
-          
-          // Show success state and notification
-          setSaveSuccess(true);
-          toast({
-            title: "Health data saved",
-            description: "Your health metrics have been recorded and GFR calculated.",
-            duration: 3000
+        // Handle both XMLHttpRequest result and fetch result
+        try {
+          // Try to get result from either the XHR promise or the fetch response
+          const xhrResultPromise = savePromise.catch(err => {
+            console.error("XHR method failed:", err);
+            return null; // Return null so we can check if it succeeded later
           });
           
-          // Reset success state after a delay
-          setTimeout(() => setSaveSuccess(false), 3000);
+          // Wait for the XHR result with a timeout
+          const xhrResult = await Promise.race([
+            xhrResultPromise,
+            new Promise(resolve => setTimeout(() => resolve(null), 2000))
+          ]);
           
-          if (onClose) onClose();
-          return result;
+          // Handle XHR success first if available
+          if (xhrResult) {
+            console.log("✅ Health metrics saved via XHR with result:", xhrResult);
+            
+            // Show success state and notification
+            setSaveSuccess(true);
+            toast({
+              title: "Health data saved",
+              description: "Your health metrics have been recorded and GFR calculated.",
+              duration: 3000
+            });
+            
+            // Reset success state after a delay
+            setTimeout(() => setSaveSuccess(false), 3000);
+            
+            if (onClose) onClose();
+            return xhrResult;
+          }
+          
+          // Otherwise check the fetch response
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Health metrics API error response:", errorText);
+            
+            // If all saving methods failed, throw an error to fail the entire operation
+            if (!supabaseSaveSuccessful && !pythonEndpointSuccessful) {
+              throw new Error(errorText || "Failed to save health data via any available method");
+            }
+          } else {
+            const result = await response.json();
+            console.log("✅ Health metrics saved successfully with ID:", result.id);
+            
+            // Show success state and notification
+            setSaveSuccess(true);
+            toast({
+              title: "Health data saved",
+              description: "Your health metrics have been recorded and GFR calculated.",
+              duration: 3000
+            });
+            
+            // Reset success state after a delay
+            setTimeout(() => setSaveSuccess(false), 3000);
+            
+            if (onClose) onClose();
+            return result;
+          }
+        } catch (e) {
+          console.error("Error trying to handle both XHR and fetch results:", e);
+          
+          // Check if any previous methods succeeded
+          if (!supabaseSaveSuccessful && !pythonEndpointSuccessful) {
+            throw e; // Re-throw to trigger the outer catch
+          }
         }
       } catch (apiError) {
         console.error("API error:", apiError);
