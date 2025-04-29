@@ -610,7 +610,8 @@ export default function HealthLogging(props: HealthLoggingProps) {
                 .map(med => ({ name: med.name, dosage: med.dosage, frequency: med.frequency }))
             },
             userId: effectiveUserId || (user ? user.id : 3), // Ensure we always have a userId
-            apiKey: "nephra-health-data-key" // Simple security mechanism
+            apiKey: "nephra-health-data-key", // Simple security mechanism
+            testMode: true // Use test mode to verify endpoint connectivity
           }),
         });
         
