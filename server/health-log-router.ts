@@ -5,6 +5,70 @@ import { supabase } from "./supabase-service";
 const router = express.Router();
 
 /**
+ * Direct health data submission endpoint
+ * POST /api/direct-health-log
+ * 
+ * This is a simplified endpoint that bypasses complex authentication
+ * mechanisms and directly inserts health data into storage.
+ * It uses a simple API key-based approach for authorization.
+ */
+router.post("/direct-health-log", async (req: Request, res: Response) => {
+  try {
+    const { healthData, userId, apiKey } = req.body;
+    
+    // Simple security check
+    if (apiKey !== "nephra-health-data-key") {
+      return res.status(401).json({ 
+        error: "Unauthorized", 
+        message: "Invalid API key" 
+      });
+    }
+    
+    if (!healthData || !userId) {
+      return res.status(400).json({ 
+        error: "Missing required data",
+        message: "Both userId and healthData are required"
+      });
+    }
+    
+    console.log(`🔐 DIRECT API: Processing health data for user ${userId}`);
+    
+    // Format data for our storage system
+    const formattedData = {
+      userId: parseInt(userId),
+      date: new Date(),
+      systolicBP: healthData.systolicBP || healthData.bp_systolic,
+      diastolicBP: healthData.diastolicBP || healthData.bp_diastolic,
+      hydration: healthData.hydration || healthData.hydration_level,
+      painLevel: healthData.painLevel || healthData.pain_level,
+      stressLevel: healthData.stressLevel || healthData.stress_level,
+      fatigueLevel: healthData.fatigueLevel || healthData.fatigue_level,
+      notes: healthData.notes || "",
+      estimatedGFR: healthData.estimatedGFR || healthData.estimated_gfr,
+      // Add other fields as needed
+    };
+    
+    // Directly save to storage
+    const savedData = await storage.createHealthMetrics(formattedData);
+    
+    console.log(`✅ DIRECT API: Successfully saved health data with ID ${savedData.id}`);
+    
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      message: "Health data saved successfully",
+      id: savedData.id
+    });
+  } catch (error) {
+    console.error("❌ DIRECT API ERROR:", error);
+    return res.status(500).json({
+      error: "Failed to save health data",
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
  * Log health data
  * POST /api/log-health
  * 
