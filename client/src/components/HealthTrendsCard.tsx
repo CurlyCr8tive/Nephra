@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import Chart from "chart.js/auto";
 import { useHealthData } from "@/hooks/useHealthData";
 import { useUser } from "@/contexts/UserContext";
+import { DataMigrationButton } from "@/components/DataMigrationButton";
 
 export function HealthTrendsCard() {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
@@ -335,6 +336,19 @@ export function HealthTrendsCard() {
               {weeklyMetrics[0].gfrLongTermTrend && (
                 <p className="text-xs text-neutral-600">Long-term: {weeklyMetrics[0].gfrLongTermTrend}</p>
               )}
+            </div>
+          )}
+          
+          {/* Only show import data button when there are no metrics or not enough metrics for trending */}
+          {(!weeklyMetrics || weeklyMetrics.length < 2) && userId && (
+            <div className="mt-3">
+              <DataMigrationButton 
+                sourceUserId={3} 
+                targetUserId={userId} 
+                buttonText="Import Demo Health Data" 
+                variant="outline"
+                className="text-xs px-3 py-1"
+              />
             </div>
           )}
         </div>
