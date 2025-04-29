@@ -15,15 +15,22 @@ export function useHealthData({ userId }: UseHealthDataProps) {
 
   // Get the latest health metrics for a user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId}?limit=1`],
+    queryKey: [`/api/health-metrics/${userId || 'none'}?limit=1`],
     staleTime: 60 * 1000, // 1 minute
-    enabled: !!userId
+    enabled: !!userId,
+    placeholderData: [], // Empty array if no data
+    retry: false // Don't retry if not authorized
   });
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId}/range`],
+    queryKey: [`/api/health-metrics/${userId || 'none'}/range`],
     queryFn: async () => {
+      if (!userId) {
+        console.warn("No userId available, returning empty array");
+        return [];
+      }
+
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
@@ -39,7 +46,7 @@ export function useHealthData({ userId }: UseHealthDataProps) {
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Error fetching weekly metrics:", errorText);
-          throw new Error(`Failed to fetch weekly metrics: ${errorText}`);
+          return []; // Return empty array instead of throwing
         }
         
         const data = await response.json();
@@ -58,11 +65,11 @@ export function useHealthData({ userId }: UseHealthDataProps) {
         return [];
       }
     },
-    enabled: !!userId,
+    placeholderData: [], // Empty array if no data
+    enabled: true, // Always enable, but return empty if no userId
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    retry: 3,
-    retryDelay: 1000,
+    retry: false, // Don't retry if not authorized
     staleTime: 60 * 1000, // 1 minute
   });
 

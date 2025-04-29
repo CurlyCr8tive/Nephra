@@ -124,10 +124,11 @@ export function HealthTrendsCard() {
       return labels;
     }
 
-    // Extract dates from metrics and format them
-    return weeklyMetrics.map(metric => 
-      new Date(metric.date).toLocaleDateString('en-US', { weekday: 'short' })
-    );
+    // Extract dates from metrics and format them, handling null values
+    return weeklyMetrics.map(metric => {
+      if (!metric.date) return '';
+      return new Date(metric.date).toLocaleDateString('en-US', { weekday: 'short' });
+    });
   };
 
   const getChartData = () => {
