@@ -12,7 +12,12 @@ interface WelcomeCardProps {
 export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   // Get real user name and data from context
   const { user } = useUser();
-  const userName = user?.firstName || user?.username || "User";
+  
+  // Extract first name from username for "ChericeHeron" -> "Cherice"
+  const extractedFirstName = user?.username ? user.username.replace(/([A-Z][a-z]+).*/, '$1') : null;
+  
+  // Use firstName if available, otherwise try to extract it from username, or just use username
+  const userName = user?.firstName || extractedFirstName || user?.username || "User";
   
   // Always use authenticated user ID - useHealthData now gets this automatically
   const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData();
