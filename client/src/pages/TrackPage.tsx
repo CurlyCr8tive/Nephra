@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import Chart from "chart.js/auto";
 import { format, subDays, startOfDay, endOfDay, isSameDay } from "date-fns";
 import { HealthMetrics } from "@shared/schema";
+import DirectApiConnectionTest from "@/components/DirectApiConnectionTest";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -773,6 +774,15 @@ export default function TrackPage() {
                         </>
                       ) : "Save Health Data"}
                     </Button>
+                  </div>
+                  
+                  {/* Connection Test Tool */}
+                  <div className="mt-8 pt-4 border-t border-slate-200">
+                    <h3 className="font-medium text-lg mb-2">Troubleshooting</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      If you're having trouble saving your health data, try the connection test below.
+                    </p>
+                    <DirectApiConnectionTest />
                   </div>
                 </div>
               </div>
