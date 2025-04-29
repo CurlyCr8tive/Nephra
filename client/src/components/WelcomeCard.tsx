@@ -13,11 +13,17 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   // Get real user name and data from context
   const { user } = useUser();
   
-  // Extract first name from username for "ChericeHeron" -> "Cherice"
-  const extractedFirstName = user?.username ? user.username.replace(/([A-Z][a-z]+).*/, '$1') : null;
+  // Always use firstName if available directly from the user profile
+  // No need for regex extraction as the real firstName field should be populated
+  const userName = user?.firstName || user?.username?.split(' ')[0] || "User";
   
-  // Use firstName if available, otherwise try to extract it from username, or just use username
-  const userName = user?.firstName || extractedFirstName || user?.username || "User";
+  // Log user data to verify we're using the correct fields
+  console.log("WelcomeCard user data:", {
+    userId: user?.id,
+    firstName: user?.firstName, 
+    username: user?.username,
+    displayName: userName
+  });
   
   // Always use authenticated user ID - useHealthData now gets this automatically
   const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData();

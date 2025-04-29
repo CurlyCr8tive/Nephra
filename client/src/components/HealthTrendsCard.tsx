@@ -10,15 +10,22 @@ export function HealthTrendsCard() {
   const chartInstance = useRef<Chart | null>(null);
   const [activeTab, setActiveTab] = useState<"hydration" | "bp" | "gfr">("hydration");
   
-  // Get the real user data and health metrics
+  // Get the real user data from context
   const { user } = useUser();
-  const userId = user?.id; // No fallback to ensure we only show the logged-in user's data
+  const userId = user?.id; // Get authenticated user ID, with no fallback
   
-  // Fetch real health data from the API
+  // Log user info for debugging
+  console.log("HealthTrendsCard authenticated user:", {
+    id: userId,
+    username: user?.username,
+    firstName: user?.firstName
+  });
+  
+  // Fetch real health data from the API - useHealthData internally uses the authenticated user ID
   const { 
     weeklyMetrics, 
     isLoadingWeekly 
-  } = useHealthData({ userId });
+  } = useHealthData();
 
   useEffect(() => {
     if (chartRef.current && weeklyMetrics && !isLoadingWeekly) {
