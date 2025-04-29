@@ -33,7 +33,7 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   };
 
   // Function to determine BP classification
-  const getBPClass = (systolic?: number, diastolic?: number) => {
+  const getBPClass = (systolic: number | null | undefined, diastolic: number | null | undefined) => {
     if (!systolic || !diastolic) return { text: "Unknown", color: "text-neutral-500" };
     
     if (systolic < 120 && diastolic < 80) return { text: "Normal", color: "text-success" };

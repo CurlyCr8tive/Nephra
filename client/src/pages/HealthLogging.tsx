@@ -1054,7 +1054,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
                       <p className="text-muted-foreground text-center mb-4">No health data yet. Start logging to see your health calendar!</p>
                       <HealthCalendar 
                         healthData={[]} 
-                        userId={userId}
+                        userId={user?.id}
                       />
                     </div>
                   )}
