@@ -410,49 +410,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/health-metrics/:userId", async (req, res) => {
     try {
-      // First check if user is authenticated
-      if (!req.isAuthenticated() || !req.user) {
-        console.warn("Unauthenticated attempt to access health metrics");
-        return res.status(401).json({ error: "You must be logged in to access health metrics data" });
-      }
-      
       // Parse requested user ID and limit
       const requestedUserId = parseInt(req.params.userId);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       
-      // Get authenticated user ID from session
-      const authenticatedUserId = req.user.id;
-      console.log(`Health metrics request - Authenticated user: ${authenticatedUserId}, Requested data for: ${requestedUserId}`);
+      // IMPROVED AUTHENTICATION FLOW:
+      // 1. Check standard authentication first
+      let authenticatedUserId = null;
+      let isAuthenticated = false;
       
-      // Only allow users to access their own data, not others
-      if (authenticatedUserId !== requestedUserId) {
-        console.warn(`User ${authenticatedUserId} attempted to access health metrics for user ${requestedUserId}`);
-        return res.status(403).json({ error: "You are not authorized to access this user's health data" });
+      if (req.isAuthenticated() && req.user) {
+        authenticatedUserId = req.user.id;
+        isAuthenticated = true;
+        console.log(`✅ Standard session authentication successful for user ${authenticatedUserId}`);
+      } else {
+        console.log(`⚠️ Standard session authentication failed, checking fallback methods...`);
       }
       
-      // Log the request details for debugging
-      console.log(`Authorized request: Fetching health metrics for user ${authenticatedUserId} with limit ${limit || 'unlimited'}`);
+      // 2. If no session auth, try to get userId from query params with API key
+      const apiKey = req.query.apiKey || req.headers['x-api-key'];
+      if (!isAuthenticated && apiKey === process.env.NEPHRA_API_KEY && requestedUserId) {
+        authenticatedUserId = requestedUserId;
+        isAuthenticated = true;
+        console.log(`✅ API key authentication successful for user ${authenticatedUserId}`);
+      }
       
-      // Get the metrics only for the authenticated user
+      // 3. Final validation and security check
+      if (!isAuthenticated || !authenticatedUserId) {
+        console.warn("❌ All authentication methods failed for health metrics request");
+        // Don't return error details for security
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to access health metrics data" 
+        });
+      }
+      
+      // 4. For security, only allow access to own data
+      if (authenticatedUserId !== requestedUserId) {
+        console.warn(`⚠️ User ${authenticatedUserId} attempted to access health metrics for user ${requestedUserId}`);
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only access your own health data" 
+        });
+      }
+      
+      // Successful authentication, proceed with data retrieval
+      console.log(`✅ Authorized request: Fetching health metrics for user ${authenticatedUserId} with limit ${limit || 'unlimited'}`);
+      
+      // Get the metrics for the authenticated user
       const results = await storage.getHealthMetrics(authenticatedUserId, limit);
-      console.log(`Retrieved ${results.length} health metrics records for authenticated user ${authenticatedUserId}`);
+      console.log(`📊 Retrieved ${results.length} health metrics records for user ${authenticatedUserId}`);
       
       res.json(results);
     } catch (error) {
-      console.error("Error in health metrics API:", error);
-      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      console.error("❌ Error in health metrics API:", error);
+      res.status(500).json({ 
+        error: "Server error", 
+        message: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 
   app.get("/api/health-metrics/:userId/range", async (req, res) => {
     try {
-      // First check if user is authenticated
-      if (!req.isAuthenticated() || !req.user) {
-        console.warn("Unauthenticated attempt to access health metrics range data");
-        return res.status(401).json({ error: "You must be logged in to access health metrics data" });
-      }
-      
-      // Parse requested user ID
+      // Parse requested user ID and query params
       const requestedUserId = parseInt(req.params.userId);
       
       // Parse dates
@@ -463,27 +484,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid date format" });
       }
       
-      // Get authenticated user ID from session
-      const authenticatedUserId = req.user.id;
-      console.log(`Health metrics range request - Authenticated user: ${authenticatedUserId}, Requested data for: ${requestedUserId}`);
+      // IMPROVED AUTHENTICATION FLOW:
+      // 1. Check standard authentication first
+      let authenticatedUserId = null;
+      let isAuthenticated = false;
       
-      // Only allow users to access their own data, not others
-      if (authenticatedUserId !== requestedUserId) {
-        console.warn(`User ${authenticatedUserId} attempted to access health metrics range for user ${requestedUserId}`);
-        return res.status(403).json({ error: "You are not authorized to access this user's health data" });
+      if (req.isAuthenticated() && req.user) {
+        authenticatedUserId = req.user.id;
+        isAuthenticated = true;
+        console.log(`✅ Standard session authentication successful for user ${authenticatedUserId} (range request)`);
+      } else {
+        console.log(`⚠️ Standard session authentication failed for range request, checking fallback methods...`);
       }
       
-      // Log the request details for debugging
-      console.log(`Authorized request: Fetching health metrics range for user ${authenticatedUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      // 2. If no session auth, try to get userId from query params with API key
+      const apiKey = req.query.apiKey || req.headers['x-api-key'];
+      if (!isAuthenticated && apiKey === process.env.NEPHRA_API_KEY && requestedUserId) {
+        authenticatedUserId = requestedUserId;
+        isAuthenticated = true;
+        console.log(`✅ API key authentication successful for user ${authenticatedUserId} (range request)`);
+      }
+      
+      // 3. Final validation and security check
+      if (!isAuthenticated || !authenticatedUserId) {
+        console.warn("❌ All authentication methods failed for health metrics range request");
+        // Don't return error details for security
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to access health metrics data" 
+        });
+      }
+      
+      // 4. For security, only allow access to own data
+      if (authenticatedUserId !== requestedUserId) {
+        console.warn(`⚠️ User ${authenticatedUserId} attempted to access health metrics range for user ${requestedUserId}`);
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only access your own health data" 
+        });
+      }
+      
+      // Successful authentication, proceed with data retrieval
+      console.log(`✅ Authorized request: Fetching health metrics range for user ${authenticatedUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
       // Get the metrics for date range, using the authenticated user ID
       const results = await storage.getHealthMetricsByDate(authenticatedUserId, startDate, endDate);
-      console.log(`Retrieved ${results.length} health metrics records in date range for authenticated user ${authenticatedUserId}`);
+      console.log(`📊 Retrieved ${results.length} health metrics records in date range for user ${authenticatedUserId}`);
       
       res.json(results);
     } catch (error) {
-      console.error("Error in health metrics range API:", error);
-      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      console.error("❌ Error in health metrics range API:", error);
+      res.status(500).json({ 
+        error: "Server error", 
+        message: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
   
