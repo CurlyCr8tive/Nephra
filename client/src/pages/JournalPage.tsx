@@ -45,7 +45,24 @@ export default function JournalPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam && ['write', 'chat', 'history'].includes(tabParam)) {
+    
+    // Redirect chat tab to the dedicated Chat page
+    if (tabParam === 'chat') {
+      // If we have an initial query in localStorage, preserve it for the Chat page
+      const initialQuery = localStorage.getItem('nephraInitialQuery');
+      
+      toast({
+        title: "Opening Chat",
+        description: "Redirecting to the dedicated chat page for better experience",
+      });
+      
+      // Redirect to the Chat page
+      setLocation('/chat');
+      return;
+    }
+    
+    // Set the active tab for other valid tabs
+    if (tabParam && ['write', 'history'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
     
@@ -69,23 +86,7 @@ export default function JournalPage() {
         console.error('Error parsing emotion data:', error);
       }
     }
-    
-    // Check if we have an initial query for the chat tab
-    const initialQuery = localStorage.getItem('nephraInitialQuery');
-    if (initialQuery && activeTab === 'chat') {
-      // Add the initial query to the conversation and input field
-      setFollowUpPrompt(initialQuery);
-      
-      // Add user message to conversation immediately for better UX
-      if (conversation.length === 0) {
-        setConversation([
-          { role: 'user', content: initialQuery }
-        ]);
-      }
-      // Clear the localStorage data
-      localStorage.removeItem('nephraInitialQuery');
-    }
-  }, [location]);
+  }, [location, setLocation, toast]);
   
   // Auto-submit the initial query if provided via localStorage
   useEffect(() => {
@@ -400,9 +401,8 @@ export default function JournalPage() {
         <h1 className="text-2xl font-bold mb-4">Journal & Check-In</h1>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="write">Write</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
           
@@ -543,87 +543,7 @@ export default function JournalPage() {
             )}
           </TabsContent>
           
-          <TabsContent value="chat" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">Your Kidney Health Assistant</CardTitle>
-                  <p className="text-sm text-muted-foreground">Chat directly with your AI assistance</p>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-4 mb-4 min-h-[300px]">
-                  {conversation.length > 0 ? (
-                    conversation.map((message, index) => (
-                      <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-2 max-w-[80%]`}>
-                          <Avatar className={`h-8 w-8 ${message.role === 'ai' ? 'bg-primary' : 'bg-muted'}`}>
-                            <AvatarFallback>
-                              {message.role === 'ai' ? 
-                                <Bot className="h-4 w-4" /> : 
-                                (user && user.firstName ? user.firstName.charAt(0) : 'U')
-                              }
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} max-w-full overflow-x-hidden`}>
-                            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-[300px] text-center text-muted-foreground">
-                      <Bot className="h-12 w-12 mb-4 opacity-50" />
-                      <p className="max-w-sm">Start a conversation with your AI health assistant. Ask questions about your kidney health, symptoms, or treatment options.</p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-end gap-2">
-                  <Textarea
-                    placeholder={conversation.length === 0 ? "Type a message to start a conversation..." : "Ask a follow-up question..."}
-                    className="min-h-[60px] flex-1"
-                    value={followUpPrompt}
-                    onChange={(e) => setFollowUpPrompt(e.target.value)}
-                  />
-                  <Button 
-                    size="icon" 
-                    className="h-10 w-10" 
-                    onClick={handleFollowUpSubmit}
-                    disabled={isSubmittingFollowUp || !followUpPrompt.trim()}
-                  >
-                    {isSubmittingFollowUp ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">AI Provider</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-2">
-                  {aiProviders.map((provider) => (
-                    <Button
-                      key={provider.id}
-                      variant={selectedAIProvider === provider.id ? "default" : "outline"}
-                      className="justify-start h-auto py-2 px-3"
-                      onClick={() => setSelectedAIProvider(provider.id)}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium">{provider.name}</div>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Chat tab has been removed - functionality redirected to dedicated Chat page */}
           
           <TabsContent value="history">
             {isLoadingJournalEntries ? (
