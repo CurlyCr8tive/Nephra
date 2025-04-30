@@ -41,17 +41,12 @@ export default function AIChatView() {
               
               console.log('📦 Found cached AI response, adding to chat history');
               
-              // Add both the user message and AI response to chat history 
+              // Add the user message and AI response to chat history
               // This will display as if it were a normal exchange
               const updatedHistory = [
                 ...history,
                 {
-                  id: Date.now() - 1, // Ensure unique ID
-                  userId: user.id,
-                  userMessage: cachedResponse.userMessage,
-                  timestamp: new Date(cachedResponse.timestamp)
-                },
-                {
+                  // Create a single entry with both user message and AI response
                   id: Date.now(),
                   userId: user.id,
                   userMessage: cachedResponse.userMessage,
@@ -172,8 +167,31 @@ export default function AIChatView() {
     const formattedHistory: JSX.Element[] = [];
     
     chatHistory.forEach((chat, index) => {
-      // If the entry has userMessage, add user message
-      if (chat.userMessage) {
+      // If the entry has both userMessage and aiResponse (combined entry from cached response)
+      if (chat.userMessage && chat.aiResponse) {
+        // First add the user message
+        formattedHistory.push(
+          <div key={`user-${index}`} className="flex justify-end mb-4">
+            <div className="bg-primary text-white rounded-lg p-3 max-w-[80%]">
+              <p className="text-sm">{chat.userMessage}</p>
+            </div>
+          </div>
+        );
+        
+        // Then add the AI response
+        formattedHistory.push(
+          <div key={`ai-${index}`} className="flex mb-4">
+            <div className="bg-primary bg-opacity-10 rounded-full p-2 self-start mr-2">
+              <span className="material-icons text-primary text-sm">smart_toy</span>
+            </div>
+            <div className="bg-neutral-100 rounded-lg p-3 max-w-[80%]">
+              <p className="text-sm whitespace-pre-line">{chat.aiResponse}</p>
+            </div>
+          </div>
+        );
+      } 
+      // Handle entries with only userMessage (user's input)
+      else if (chat.userMessage && !chat.aiResponse) {
         formattedHistory.push(
           <div key={`user-${index}`} className="flex justify-end mb-4">
             <div className="bg-primary text-white rounded-lg p-3 max-w-[80%]">
@@ -182,9 +200,8 @@ export default function AIChatView() {
           </div>
         );
       }
-      
-      // If the entry has aiResponse, add AI response
-      if (chat.aiResponse) {
+      // Handle entries with only aiResponse (AI's response)
+      else if (chat.aiResponse && !chat.userMessage) {
         formattedHistory.push(
           <div key={`ai-${index}`} className="flex mb-4">
             <div className="bg-primary bg-opacity-10 rounded-full p-2 self-start mr-2">

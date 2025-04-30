@@ -10,9 +10,29 @@ export function AICompanionCard() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [suggestion, setSuggestion] = useState({
-    message: "I notice your stress levels have been higher this week. This can affect your blood pressure. Would you like some simple relaxation techniques?",
-    timestamp: "20m ago"
+  // Array of potential suggestions for different kidney health needs
+  const suggestions = [
+    {
+      message: "I notice your stress levels have been higher this week. This can affect your blood pressure. Would you like some simple relaxation techniques?",
+      timestamp: "20m ago",
+      query: "Yes, I would like some simple relaxation techniques to help with my stress levels."
+    },
+    {
+      message: "Your hydration tracking shows inconsistency this week. Would you like personalized hydration tips for kidney health?",
+      timestamp: "10m ago",
+      query: "I need kidney-friendly hydration tips and reminders."
+    },
+    {
+      message: "Your recent GFR readings indicate mild changes. Would you like to review lifestyle factors that could be affecting your kidney function?",
+      timestamp: "5m ago",
+      query: "What lifestyle factors affect GFR and kidney function?"
+    }
+  ];
+  
+  // Choose a random suggestion when the component mounts
+  const [suggestion, setSuggestion] = useState(() => {
+    const randomIndex = Math.floor(Math.random() * suggestions.length);
+    return suggestions[randomIndex];
   });
   
   const handleAcceptSuggestion = async () => {
@@ -28,28 +48,30 @@ export function AICompanionCard() {
 
     setIsLoading(true);
     try {
-      // This specific query will trigger our special relaxation techniques prompt
-      // on the server side which has been configured to detect this exact phrasing
-      const chatQuery = "Yes, I would like some simple relaxation techniques to help with my stress levels.";
+      // Use the selected suggestion's query instead of a hardcoded one
+      const chatQuery = suggestion.query;
       
       // Create the response directly - this simulates what would happen if the
       // relaxation techniques were generated, but ensures the user always sees them
       // even if the API call somehow fails
-      const relaxationTechniques = `Here are some relaxation techniques that may help with your stress levels:
+      const relaxationTechniques = `Here are some kidney-friendly relaxation techniques that may help with your stress levels:
 
-1. **Deep Breathing Exercise**: 
-   Sit comfortably with your back straight. Breathe in slowly through your nose for a count of 4, hold for 1-2 seconds, then exhale slowly through your mouth for a count of 6. Repeat for 3-5 minutes. This is particularly helpful for kidney patients as it can help lower blood pressure.
+1. **Deep Breathing for Blood Pressure Management**: 
+   Sit comfortably with your back straight. Breathe in slowly through your nose for a count of 4, hold for 1-2 seconds, then exhale slowly through your mouth for a count of 6. Repeat for 3-5 minutes. This technique can help lower your blood pressure, which is particularly important for kidney health.
 
-2. **Progressive Muscle Relaxation**: 
-   Starting at your feet and moving upward, tense each muscle group for 5 seconds, then relax for 30 seconds. Notice the difference between tension and relaxation. This helps reduce physical manifestations of stress.
+2. **Gentle Progressive Muscle Relaxation**: 
+   Starting at your feet and moving upward, gently tense each muscle group for 5 seconds, then relax for 30 seconds. This reduces physical stress without straining your body, which is important if you have kidney-related fatigue.
 
 3. **5-4-3-2-1 Grounding Technique**: 
-   Acknowledge 5 things you see, 4 things you can touch, 3 things you hear, 2 things you smell, and 1 thing you taste. This mindfulness exercise helps bring you back to the present moment when stress feels overwhelming.
+   When anxiety about health issues rises, acknowledge 5 things you see, 4 things you can touch, 3 things you hear, 2 things you smell, and 1 thing you taste. This mindfulness exercise helps reduce stress hormones that can affect kidney function.
 
-4. **Guided Imagery**: 
-   Close your eyes and imagine a peaceful place (like a beach or garden). Engage all your senses - what do you see, hear, smell, and feel in this place? This can help lower stress hormones and promote relaxation.
+4. **Kidney-Supportive Visualization**: 
+   Close your eyes and imagine fresh, clean water flowing through your body, supporting your kidneys' natural cleansing process. Visualize your kidneys functioning optimally, filtering effectively, and maintaining balance in your body.
 
-Remember to practice these regularly, even when you're not feeling stressed. As someone with kidney health concerns, managing stress is an important part of your overall health management. Would you like more specific techniques or information about how stress affects kidney health?`;
+5. **Short Meditation for Fluid Balance**: 
+   Take 5 minutes to sit quietly and focus on your breathing. As you breathe, imagine your body maintaining perfect fluid balance - not too much, not too little. This can help you connect with your hydration needs.
+
+Remember that stress management is especially important for kidney health, as stress hormones can affect blood pressure and kidney function. Would you like more specific information about how stress directly impacts kidney health?`;
       
       // Add both the user's query and our pre-prepared relaxation response to localStorage
       localStorage.setItem('nephraInitialQuery', chatQuery);
@@ -70,9 +92,25 @@ Remember to practice these regularly, even when you're not feeling stressed. As 
         console.error("API call failed but using pre-defined relaxation techniques:", apiError);
       }
       
+      // Create a toast message that's specific to the suggestion type
+      let toastTitle = "Information ready";
+      let toastDescription = "Opening chat with your personalized information";
+      
+      // Customize the toast message based on the suggestion
+      if (suggestion.query.includes("relaxation")) {
+        toastTitle = "Relaxation techniques ready";
+        toastDescription = "Opening chat with kidney-friendly relaxation techniques";
+      } else if (suggestion.query.includes("hydration")) {
+        toastTitle = "Hydration tips ready";
+        toastDescription = "Opening chat with kidney-friendly hydration advice";
+      } else if (suggestion.query.includes("GFR") || suggestion.query.includes("kidney function")) {
+        toastTitle = "Kidney health information ready";
+        toastDescription = "Opening chat with lifestyle factors for kidney function";
+      }
+      
       toast({
-        title: "Relaxation techniques ready",
-        description: "Opening chat with your personalized techniques",
+        title: toastTitle,
+        description: toastDescription,
       });
       
       // Check if user is still logged in before redirecting
