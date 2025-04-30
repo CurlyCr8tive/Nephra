@@ -28,37 +28,60 @@ export function AICompanionCard() {
 
     setIsLoading(true);
     try {
-      // The chatQuery that will be used in the chat tab
+      // The chatQuery that will be used in the chat tab - this is the specific request
+      // that will trigger our special relaxation techniques prompt
       const chatQuery = "Yes, I would like some simple relaxation techniques to help with my stress levels.";
-      
-      // Pre-cache the response for faster UX - this initializes the conversation
-      // but the JournalPage will also handle the actual submission
-      try {
-        // Only fire this request if we're sure we have a valid user
-        if (user && user.id) {
-          const response = await getChatCompletion(
-            user.id,
-            chatQuery
-          );
-          console.log("Pre-cached AI response for faster loading");
-        }
-      } catch (preloadErr) {
-        // Silently fail pre-caching - the JournalPage will retry anyway
-        console.warn("Failed to pre-cache AI response, will retry in chat tab", preloadErr);
-      }
       
       // Store the query in localStorage to be used in the chat tab
       // This is the key integration point that connects the card to the Journal page
       localStorage.setItem('nephraInitialQuery', chatQuery);
       
-      // Check if user is still logged in before redirecting
-      if (user && user.id) {
-        // Redirect to journal page with chat tab active
+      try {
+        // Only fire this request if we're sure we have a valid user
+        if (user && user.id) {
+          console.log("Starting pre-cache request for relaxation techniques");
+          
+          const response = await getChatCompletion(
+            user.id,
+            chatQuery
+          );
+          
+          if (response && response.message) {
+            console.log("✅ Successfully pre-cached AI response:", response.message.substring(0, 50) + "...");
+            
+            // Store the response directly in localStorage for instant display in the chat
+            localStorage.setItem('nephraLastResponse', JSON.stringify({
+              userMessage: chatQuery,
+              aiResponse: response.message,
+              timestamp: new Date().toISOString()
+            }));
+            
+            // Show success toast
+            toast({
+              title: "Relaxation techniques ready",
+              description: "Opening chat with your personalized techniques",
+            });
+          } else {
+            // Handle unexpected response format
+            console.warn("AI response format unexpected:", response);
+            toast({
+              title: "Opening chat assistant",
+              description: "Your request will be processed in the chat.",
+            });
+          }
+        }
+      } catch (preloadErr) {
+        console.error("Failed to pre-cache AI response:", preloadErr);
         toast({
           title: "Opening chat assistant",
-          description: "Preparing your relaxation techniques...",
+          description: "Your request will be processed in the chat.",
         });
-        setLocation("/journal?tab=chat");
+      }
+      
+      // Check if user is still logged in before redirecting
+      if (user && user.id) {
+        // Redirect to chat page (more direct than journal page with tab param)
+        setLocation("/chat");
       } else {
         toast({
           title: "Session expired",

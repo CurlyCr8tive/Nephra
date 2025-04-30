@@ -809,6 +809,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, userMessage } = req.body;
       
+      console.log(`Processing AI chat request for user ${userId} with message: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`);
+      
+      // Check if this is a request for relaxation techniques
+      const isRelaxationRequest = userMessage.toLowerCase().includes("relaxation") || 
+                                 userMessage.toLowerCase().includes("stress") ||
+                                 userMessage.toLowerCase().includes("yes, i would like some simple relaxation techniques");
+      
+      // Enhanced system prompt for relaxation techniques
+      const systemPrompt = isRelaxationRequest 
+        ? "You are a supportive AI health companion for people with kidney disease. The user is asking about relaxation techniques to manage stress. Provide 3-5 specific, practical relaxation techniques that are appropriate for kidney patients. Include deep breathing exercises, progressive muscle relaxation, guided imagery, and mindfulness practices. Be empathetic and encouraging, but clear that you are not a medical professional."
+        : "You are a supportive AI health companion for people with kidney disease. Provide empathetic, informative responses. Focus on emotional support and practical advice while being clear that you are not a medical professional and serious concerns should be discussed with healthcare providers.";
+      
       try {
         // Send message to OpenAI
         // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -817,7 +829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           messages: [
             {
               role: "system",
-              content: "You are a supportive AI health companion for people with kidney disease. Provide empathetic, informative responses. Focus on emotional support and practical advice while being clear that you are not a medical professional and serious concerns should be discussed with healthcare providers."
+              content: systemPrompt
             },
             {
               role: "user",

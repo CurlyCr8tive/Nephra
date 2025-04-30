@@ -12,15 +12,32 @@ export async function getChatCompletion(userId: number, userMessage: string): Pr
   };
 }> {
   try {
+    console.log(`🚀 Sending chat request for user ${userId} with message length: ${userMessage.length} chars`);
+    
     const response = await apiRequest("POST", "/api/ai-chat", {
       userId,
       userMessage
     });
     
-    return await response.json();
+    if (!response.ok) {
+      // Try to extract the error message from the response
+      try {
+        const errorData = await response.json();
+        console.error("AI service error:", errorData);
+        throw new Error(errorData.message || `Server responded with status: ${response.status}`);
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+    }
+    
+    const data = await response.json();
+    console.log(`✅ Received AI response with length: ${data.message.length} chars`);
+    return data;
   } catch (error) {
     console.error("Error sending message to AI:", error);
-    throw new Error("Failed to get AI response");
+    // More descriptive error message that includes the original error
+    throw new Error(`Failed to get AI response: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
