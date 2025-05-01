@@ -24,23 +24,29 @@ export function useHealthData() {
         return [];
       }
       
-      console.log(`🔍 Explicitly fetching latest health metrics for authenticated user ID ${userId}`);
+      console.log(`🔍 DEBUG: Explicitly fetching latest health metrics for authenticated user ID ${userId}`);
       
       try {
         // Make a simple direct fetch to the endpoint - avoids any potential browser issues
-        const response = await fetch(`/api/health-metrics/${userId}?limit=1`, { 
+        const url = `/api/health-metrics/${userId}?limit=1`;
+        console.log(`🔄 DEBUG: Fetching from URL: ${url}`);
+        
+        const response = await fetch(url, { 
           credentials: "include",
           cache: "no-store" // Force fresh data
         });
         
-        console.log(`🔄 Health metrics API response status: ${response.status} ${response.statusText}`);
+        console.log(`🔄 DEBUG: Health metrics API response status: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
           console.error(`❌ Error fetching latest metrics for user ${userId} with status ${response.status}`);
           
           // Try alternative direct approach with hardcoded user ID as fallback
-          console.log("🔄 Attempting fallback fetch method with explicit ID...");
-          const directResponse = await fetch(`/api/health-metrics/3?limit=1`);
+          console.log("🔄 DEBUG: Attempting fallback fetch method with explicit ID 3...");
+          const directUrl = `/api/health-metrics/3?limit=1`;
+          console.log(`🔄 DEBUG: Fetching from fallback URL: ${directUrl}`);
+          
+          const directResponse = await fetch(directUrl);
           
           if (!directResponse.ok) {
             console.error("❌ All fetch methods failed. Cannot retrieve health metrics.");
@@ -48,18 +54,19 @@ export function useHealthData() {
           }
           
           const directData = await directResponse.json();
-          console.log(`✅ Retrieved ${directData?.length || 0} metrics via fallback method`);
+          console.log(`✅ DEBUG: Retrieved ${directData?.length || 0} metrics via fallback method`);
+          console.log("📋 DEBUG: Fallback metrics data:", directData && directData.length > 0 ? directData[0] : "No data");
           return directData || [];
         }
         
         const data = await response.json();
-        console.log(`✅ Retrieved ${data?.length || 0} latest health metrics for user ${userId}`);
+        console.log(`✅ DEBUG: Retrieved ${data?.length || 0} latest health metrics for user ${userId}`);
         
         if (data && data.length > 0) {
-          console.log("📋 Latest metrics data:", data[0]);
+          console.log("📋 DEBUG: Latest metrics data:", data[0]);
           
           // Log important health values
-          console.log("🩺 Key health values:", {
+          console.log("🩺 DEBUG: Key health values:", {
             hydration: data[0].hydration,
             systolicBP: data[0].systolicBP,
             diastolicBP: data[0].diastolicBP,
@@ -69,41 +76,45 @@ export function useHealthData() {
             fatigueLevel: data[0].fatigueLevel
           });
         } else {
-          console.log("⚠️ No health metrics found for this user.");
+          console.log("⚠️ DEBUG: No health metrics found for this user.");
           
           // Try the alternative direct endpoint with hardcoded ID 3
-          console.log("🔍 Attempting to fetch with hardcoded user ID 3...");
+          console.log("🔍 DEBUG: Attempting to fetch with hardcoded user ID 3...");
           try {
             const directResponse = await fetch(`/api/health-metrics/3?limit=1`);
             const directData = await directResponse.json();
             
             if (directData && directData.length > 0) {
-              console.log("✅ Successfully retrieved data using hardcoded ID:", directData.length, "records");
+              console.log("✅ DEBUG: Successfully retrieved data using hardcoded ID:", directData.length, "records");
+              console.log("📋 DEBUG: Hardcoded ID metrics data:", directData[0]);
               return directData;
+            } else {
+              console.log("⚠️ DEBUG: No health metrics found for hardcoded ID 3");
             }
           } catch (fallbackError) {
-            console.error("❌ Fallback fetch also failed:", fallbackError);
+            console.error("❌ DEBUG: Fallback fetch also failed:", fallbackError);
           }
         }
         
         // Make sure we always return an array, even if data is null or undefined
         return data || [];
       } catch (error) {
-        console.error("❌ Exception while fetching latest health metrics:", error);
+        console.error("❌ DEBUG: Exception while fetching latest health metrics:", error);
         
         // Last-resort fallback: try a direct GET request to the endpoint with hardcoded ID
         try {
-          console.log("🔄 Final attempt to get health metrics...");
+          console.log("🔄 DEBUG: Final attempt to get health metrics...");
           const lastResponse = await fetch(`/api/health-metrics/3?limit=1`);
           const lastData = await lastResponse.json();
+          console.log("✅ DEBUG: Final attempt result:", lastData && lastData.length > 0 ? "Data found" : "No data found");
           return lastData || [];
         } catch (finalError) {
-          console.error("❌ All fetch methods failed:", finalError);
+          console.error("❌ DEBUG: All fetch methods failed:", finalError);
           return []; // Return empty array as ultimate fallback
         }
       }
     },
-    staleTime: 30 * 1000, // 30 seconds - fetch more frequently
+    staleTime: 10 * 1000, // 10 seconds - fetch more frequently for debugging
     refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
     retry: 3, // Retry failed requests 3 times
@@ -181,7 +192,7 @@ export function useHealthData() {
         console.log("📋 Sample metrics data:", {
           firstEntry: data[0].date,
           lastEntry: data[data.length-1].date,
-          gfrValues: data.map(d => d.estimatedGFR)
+          gfrValues: data.map((d: any) => d.estimatedGFR)
         });
       } else {
         console.log("⚠️ No weekly metrics found, array is empty");
