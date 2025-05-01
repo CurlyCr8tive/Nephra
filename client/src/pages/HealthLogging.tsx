@@ -15,6 +15,9 @@ import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/hooks/use-toast";
 import { HealthCalendar } from "@/components/HealthCalendar";
+import { UnitToggle, type UnitSystem } from "@/components/UnitToggle";
+import { FeetInchesInput } from "@/components/FeetInchesInput";
+import { poundsToKg, kgToPounds, feetAndInchesToCm, cmToFeetAndInches } from "@/lib/unit-conversions";
 
 interface HealthLoggingProps extends Partial<RouteComponentProps> {
   onClose?: () => void;
@@ -248,6 +251,14 @@ export default function HealthLogging(props: HealthLoggingProps) {
   
   // State for serum creatinine input (for CKD-EPI formula)
   const [serumCreatinine, setSerumCreatinine] = useState<number | "">("");
+  
+  // Unit system and measurements
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>("metric");
+  const [weight, setWeight] = useState<number | "">("");
+  const [weightLbs, setWeightLbs] = useState<number | "">("");
+  const [heightCm, setHeightCm] = useState<number | "">("");
+  const [heightFeet, setHeightFeet] = useState<number>(5);
+  const [heightInches, setHeightInches] = useState<number>(8);
 
   /**
    * Calculate eGFR using the CKD-EPI 2021 equation (without race as a factor)
@@ -462,6 +473,58 @@ export default function HealthLogging(props: HealthLoggingProps) {
     return Math.round(adjustedGFR);
   };
   
+  // Handle unit system changes
+  const handleUnitChange = (system: UnitSystem) => {
+    setUnitSystem(system);
+    
+    // Convert weight between kg and lbs
+    if (system === "imperial" && weight !== "") {
+      // Convert kg to lbs
+      const weightInLbs = kgToPounds(Number(weight));
+      setWeightLbs(Math.round(weightInLbs));
+    } else if (system === "metric" && weightLbs !== "") {
+      // Convert lbs to kg
+      const weightInKg = poundsToKg(Number(weightLbs));
+      setWeight(Math.round(weightInKg * 10) / 10); // Round to 1 decimal place
+    }
+    
+    // Convert height between cm and feet/inches
+    if (system === "imperial" && heightCm !== "") {
+      // Convert cm to feet/inches
+      const { feet, inches } = cmToFeetAndInches(Number(heightCm));
+      setHeightFeet(feet);
+      setHeightInches(inches);
+    } else if (system === "metric" && (heightFeet !== null || heightInches !== null)) {
+      // Convert feet/inches to cm
+      const heightInCm = feetAndInchesToCm(heightFeet || 0, heightInches || 0);
+      setHeightCm(Math.round(heightInCm));
+    }
+  };
+  
+  // Handle weight input changes based on current unit system
+  const handleWeightChange = (value: number | "") => {
+    if (unitSystem === "metric") {
+      setWeight(value);
+      if (value !== "") {
+        setWeightLbs(Math.round(kgToPounds(Number(value))));
+      } else {
+        setWeightLbs("");
+      }
+    } else {
+      setWeightLbs(value);
+      if (value !== "") {
+        setWeight(Math.round(poundsToKg(Number(value)) * 10) / 10);
+      } else {
+        setWeight("");
+      }
+    }
+  };
+  
+  // Handle height input changes for feet/inches
+  const handleHeightChange = (heightCmValue: number) => {
+    setHeightCm(heightCmValue);
+  };
+  
   // Update estimated GFR when health metrics change
   useEffect(() => {
     // Calculate GFR with more relaxed requirements to handle corner cases
@@ -486,7 +549,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.age, user?.gender, user?.kidneyDiseaseStage, 
-      hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel]);
+      hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel, weight, heightCm]);
   
   /**
    * Enhanced function to prepare and submit health data
