@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect, useCallback 
 import { User } from "@shared/schema";
 import { useLocation } from "wouter";
 
-type StorageKey = 'nephra_user_gender' | 'nephra_user_id' | 'nephra_last_refresh';
+type StorageKey = 'nephra_user_gender' | 'nephra_user_id' | 'nephra_last_refresh' | 'nephra_unit_system';
 
 // Helper functions for session storage to maintain critical data between page loads
 const saveToStorage = (key: StorageKey, value: string) => {
@@ -412,7 +412,9 @@ export function UserProvider({ children, value }: UserProviderProps) {
     isLoading,
     error,
     refreshUserData,
-    forceUpdateGender
+    forceUpdateGender,
+    unitSystem,
+    setUnitSystem
   };
   
   return (

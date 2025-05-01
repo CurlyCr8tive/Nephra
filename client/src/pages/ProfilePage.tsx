@@ -35,6 +35,9 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
+import UnitToggle from "@/components/UnitToggle";
+import { formatWeight, formatHeight } from "@/lib/unit-conversions";
+import FeetInchesInput from "@/components/FeetInchesInput";
 
 export default function ProfilePage() {
   // Use userId state to dynamically fetch profile data
@@ -74,8 +77,8 @@ export default function ProfilePage() {
   // Get real user data from auth context
   const { user: authUser } = useAuth();
   
-  // Also get user data from UserContext for gender operations
-  const { user: userContext, forceUpdateGender, refreshUserData } = useUser();
+  // Also get user data from UserContext for gender operations and unit preferences
+  const { user: userContext, forceUpdateGender, refreshUserData, unitSystem } = useUser();
   
   // Update userId and user state when authUser changes
   useEffect(() => {
@@ -655,16 +658,25 @@ export default function ProfilePage() {
                             name="height"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Height (cm)</FormLabel>
+                                <FormLabel>Height {unitSystem === 'metric' ? '(cm)' : '(ft/in)'}</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    placeholder="Height" 
-                                    {...field} 
-                                    disabled={!isEditing}
-                                    value={field.value || ""}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
-                                  />
+                                  {unitSystem === 'metric' ? (
+                                    <Input 
+                                      type="number" 
+                                      placeholder="Height in cm" 
+                                      {...field} 
+                                      disabled={!isEditing}
+                                      value={field.value || ""}
+                                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
+                                    />
+                                  ) : (
+                                    <FeetInchesInput 
+                                      value={field.value} 
+                                      onChange={field.onChange}
+                                      disabled={!isEditing}
+                                      error={form.formState.errors.height?.message}
+                                    />
+                                  )}
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1011,6 +1023,32 @@ export default function ProfilePage() {
                       {/* Health Preferences Tab */}
                       <TabsContent value="preferences" className="space-y-4">
                         <div className="space-y-6">
+                          {/* Measurement Unit Preferences */}
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Measurement Units</h3>
+                            <div className="bg-muted p-4 rounded-lg">
+                              <div className="flex flex-col space-y-2">
+                                <p className="text-sm text-muted-foreground mb-2">
+                                  Choose your preferred measurement system. This affects how health 
+                                  metrics are displayed throughout the app.
+                                </p>
+                                <UnitToggle className="mt-2" />
+                                
+                                {/* Show current examples */}
+                                <div className="grid grid-cols-2 gap-4 mt-4 text-sm text-muted-foreground">
+                                  <div>
+                                    <p>Height: {profileData?.height ? formatHeight(profileData.height, "metric") : "—"}</p>
+                                    <p>Weight: {profileData?.weight ? formatWeight(profileData.weight, "metric") : "—"}</p>
+                                  </div>
+                                  <div>
+                                    <p>Height: {profileData?.height ? formatHeight(profileData.height, "imperial") : "—"}</p>
+                                    <p>Weight: {profileData?.weight ? formatWeight(profileData.weight, "imperial") : "—"}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
                           <div>
                             <h3 className="text-lg font-semibold mb-4">Water Intake Goals</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
