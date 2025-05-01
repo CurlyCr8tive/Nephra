@@ -402,6 +402,19 @@ export default function HealthLogging(props: HealthLoggingProps) {
       return null;
     }
     
+    // Check for weight and height
+    // These are optional but can improve the accuracy of the estimation
+    let weightValue = null;
+    let heightValue = null;
+    
+    if (weight !== "") {
+      weightValue = typeof weight === 'string' ? parseFloat(weight) : weight;
+    }
+    
+    if (heightCm !== "") {
+      heightValue = typeof heightCm === 'string' ? parseFloat(heightCm) : heightCm;
+    }
+    
     // Check for kidney disease stage (with fallback to stage 2 for demo)
     const diseaseStage = user.kidneyDiseaseStage || 2;
     
@@ -460,10 +473,40 @@ export default function HealthLogging(props: HealthLoggingProps) {
     const stressFactor = 1 - (stressLevel / 20);
     const painFactor = 1 - (painLevel / 20);
     
+    // Body composition factors (optional)
+    let bmiFactor = 1.0;
+    
+    // Calculate BMI if both weight and height are available
+    if (weightValue !== null && heightValue !== null && heightValue > 0) {
+      // BMI = weight(kg) / (height(m))²
+      const heightInMeters = heightValue / 100;
+      const bmi = weightValue / (heightInMeters * heightInMeters);
+      
+      console.log(`Calculated BMI: ${bmi.toFixed(1)}`);
+      
+      // Adjust GFR based on BMI (simplified model)
+      // Obesity can sometimes mask early kidney disease by hyperfiltration
+      if (bmi > 30) {
+        // For obese patients (BMI > 30), slight increase in initial stages 
+        // (reflects hyperfiltration that may mask early CKD)
+        if (diseaseStage <= 2) {
+          bmiFactor = 1.05;
+        } 
+        // But potential decrease in later stages
+        else {
+          bmiFactor = 0.95;
+        }
+      } 
+      // Underweight may indicate poor health affecting kidneys
+      else if (bmi < 18.5) {
+        bmiFactor = 0.95;
+      }
+    }
+    
     // Calculate adjusted GFR (without race factor - aligned with CKD-EPI 2021)
     let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor * 
                       bpFactor * hydrationFactor * 
-                      stressFactor * painFactor;
+                      stressFactor * painFactor * bmiFactor;
     
     // Ensure result is within reasonable bounds for the disease stage
     adjustedGFR = Math.min(adjustedGFR, 120);
@@ -669,6 +712,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
         stressLevel,
         fatigueLevel,
         estimatedGFR: gfr || undefined,
+        // Include weight and height if provided
+        weight_kg: weight !== "" ? Number(weight) : undefined,
+        height_cm: heightCm !== "" ? Number(heightCm) : undefined,
         tags: entryTags,
         medications: medications
           .filter(med => med.taken)
@@ -698,6 +744,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
         stress_level: stressLevel,
         fatigue_level: fatigueLevel,
         estimated_gfr: gfr || null,
+        // Include weight and height if provided (in metric units)
+        weight_kg: weight !== "" ? Number(weight) : null,
+        height_cm: heightCm !== "" ? Number(heightCm) : null,
         tags: entryTags,
         medications_taken: medications
           .filter(med => med.taken)
@@ -814,6 +863,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
         bp_diastolic: Number(diastolicBP),
         hydration_level: hydration,
         estimated_gfr: gfr || null,
+        // Include weight and height if provided (in metric units for Python processing)
+        weight_kg: weight !== "" ? Number(weight) : null,
+        height_cm: heightCm !== "" ? Number(heightCm) : null,
         tags: entryTags,
         medications_taken: medications
           .filter(med => med.taken)
@@ -1220,6 +1272,86 @@ export default function HealthLogging(props: HealthLoggingProps) {
                     rightLabel="Exhausted"
                     color="accent"
                   />
+                </div>
+                
+                {/* Units Toggle */}
+                <div className="mb-4">
+                  <UnitToggle 
+                    value={unitSystem}
+                    onChange={handleUnitChange}
+                    label="Measurement Units"
+                    tooltipText="Choose between metric (kg, cm) or imperial (lb, ft/in) units for your measurements."
+                    className="mb-2"
+                  />
+                </div>
+                
+                {/* Weight Input with Unit Conversion */}
+                <div className="mb-4">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-2">
+                      <InfoCircledIcon className="h-4 w-4 text-blue-500" />
+                      <Label htmlFor="weight" className="font-medium text-sm">
+                        Weight {unitSystem === "metric" ? "(kg)" : "(lb)"}
+                      </Label>
+                    </div>
+                    <Input
+                      id="weight"
+                      type="number"
+                      placeholder={unitSystem === "metric" ? "Enter weight in kg" : "Enter weight in pounds"}
+                      min="1"
+                      max={unitSystem === "metric" ? "200" : "440"}
+                      step={unitSystem === "metric" ? "0.1" : "1"}
+                      value={unitSystem === "metric" ? (weight === "" ? "" : weight) : (weightLbs === "" ? "" : weightLbs)}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? "" : Number(e.target.value);
+                        handleWeightChange(value);
+                      }}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                
+                {/* Height Input with Unit Conversion */}
+                <div className="mb-4">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-2">
+                      <InfoCircledIcon className="h-4 w-4 text-blue-500" />
+                      <Label htmlFor="height" className="font-medium text-sm">
+                        Height {unitSystem === "metric" ? "(cm)" : "(ft/in)"}
+                      </Label>
+                    </div>
+                    
+                    {unitSystem === "metric" ? (
+                      <Input
+                        id="height"
+                        type="number"
+                        placeholder="Enter height in cm"
+                        min="50"
+                        max="250"
+                        step="1"
+                        value={heightCm === "" ? "" : heightCm}
+                        onChange={(e) => {
+                          const value = e.target.value === "" ? "" : Number(e.target.value);
+                          setHeightCm(value);
+                          
+                          if (value !== "") {
+                            const { feet, inches } = cmToFeetAndInches(Number(value));
+                            setHeightFeet(feet);
+                            setHeightInches(inches);
+                          }
+                        }}
+                        className="w-full"
+                      />
+                    ) : (
+                      <FeetInchesInput
+                        control={{
+                          _formValues: { feet: heightFeet, inches: heightInches },
+                          ...{} as any // Simplified for this implementation
+                        }}
+                        onHeightChange={handleHeightChange}
+                      />
+                    )}
+                  </div>
                 </div>
                 
                 {/* Serum Creatinine Input for CKD-EPI Formula */}
