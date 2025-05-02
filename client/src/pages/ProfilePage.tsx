@@ -75,8 +75,8 @@ export default function ProfilePage() {
   // Get real user data from auth context
   const { user: authUser } = useAuth();
   
-  // Also get user data from UserContext for gender operations
-  const { user: userContext, forceUpdateGender, refreshUserData } = useUser();
+  // Get user data from UserContext for gender and unit system operations
+  const { user: userContext, forceUpdateGender, refreshUserData, unitSystem, setUnitSystem } = useUser();
   
   // Update userId and user state when authUser changes
   useEffect(() => {
@@ -1012,6 +1012,23 @@ export default function ProfilePage() {
                       {/* Health Preferences Tab */}
                       <TabsContent value="preferences" className="space-y-4">
                         <div className="space-y-6">
+                          {/* Unit System Preference */}
+                          <div>
+                            <h3 className="text-lg font-semibold mb-4">Measurement System</h3>
+                            <div className="mb-6">
+                              <UnitToggle
+                                value={unitSystem}
+                                onChange={setUnitSystem}
+                                label="Preferred Measurement System"
+                                tooltipText="Choose your preferred measurement system for weight, height, and other values across the application"
+                                className="mb-2"
+                              />
+                              <p className="text-sm text-muted-foreground mt-2">
+                                This setting affects all measurements throughout the application.
+                              </p>
+                            </div>
+                          </div>
+                          
                           <div>
                             <h3 className="text-lg font-semibold mb-4">Water Intake Goals</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
