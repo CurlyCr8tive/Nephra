@@ -16,7 +16,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/hooks/use-toast";
 import { HealthCalendar } from "@/components/HealthCalendar";
 import { UnitToggle, type UnitSystem } from "@/components/UnitToggle";
-import { FeetInchesInput } from "@/components/FeetInchesInput";
+import { SimpleFeetInchesInput } from "@/components/SimpleFeetInchesInput";
 import { poundsToKg, kgToPounds, feetAndInchesToCm, cmToFeetAndInches, formatKg, formatPounds, formatCm, formatFeetInches } from "@/lib/unit-conversions";
 
 interface HealthLoggingProps extends Partial<RouteComponentProps> {
@@ -523,10 +523,33 @@ export default function HealthLogging(props: HealthLoggingProps) {
     const stressFactor = 1 - (stressLevel / 20);
     const painFactor = 1 - (painLevel / 20);
     
+    // Calculate BMI if both weight and height are available
+    let bmiFactor = 1.0;
+    if (weightKg !== null && heightCm !== null && heightCm > 0) {
+      // BMI = weight(kg) / height(m)²
+      const heightInMeters = heightCm / 100;
+      const bmi = weightKg / (heightInMeters * heightInMeters);
+      
+      console.log(`📏 Calculated BMI: ${bmi.toFixed(1)} from weight: ${weightKg}kg and height: ${heightCm}cm`);
+      
+      // Adjust GFR based on BMI (simplified for demo)
+      // Normal BMI range is roughly 18.5-24.9
+      if (bmi < 18.5) {
+        // Underweight - slight negative adjustment
+        bmiFactor = 0.95;
+      } else if (bmi > 30) {
+        // Obesity - stronger negative adjustment
+        bmiFactor = 0.9;
+      } else if (bmi > 25) {
+        // Overweight - mild negative adjustment
+        bmiFactor = 0.97;
+      }
+    }
+    
     // Calculate adjusted GFR (without race factor - aligned with CKD-EPI 2021)
     let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor * 
                       bpFactor * hydrationFactor * 
-                      stressFactor * painFactor;
+                      stressFactor * painFactor * bmiFactor;
     
     // Ensure result is within reasonable bounds for the disease stage
     adjustedGFR = Math.min(adjustedGFR, 120);
@@ -560,7 +583,9 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.age, user?.gender, user?.kidneyDiseaseStage, 
-      hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel]);
+      hydration, systolicBP, diastolicBP, painLevel, stressLevel, fatigueLevel,
+      weightKg, heightCm, // Add weight and height to dependencies
+      serumCreatinine]);
   
   /**
    * Enhanced function to prepare and submit health data
@@ -1199,7 +1224,7 @@ export default function HealthLogging(props: HealthLoggingProps) {
                       <span className="text-sm text-muted-foreground whitespace-nowrap">cm</span>
                     </div>
                   ) : (
-                    <FeetInchesInput
+                    <SimpleFeetInchesInput
                       feet={feet}
                       inches={inches}
                       onChange={handleHeightInFeetInchesChange}
