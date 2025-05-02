@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
+import { UnitToggle, UnitSystem } from "@/components/UnitToggle";
 
 export default function ProfilePage() {
   // Use userId state to dynamically fetch profile data
