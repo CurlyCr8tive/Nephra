@@ -40,6 +40,8 @@ interface UserContextType {
   error: Error | null;
   refreshUserData: () => void;
   forceUpdateGender: (gender: string) => void; // Function to explicitly set gender
+  unitSystem: UnitSystem; // User's preferred unit system
+  setUnitSystem: (system: UnitSystem) => void; // Function to update unit system preference
 }
 
 // Create context with default values to avoid undefined checks
@@ -55,6 +57,10 @@ const UserContext = createContext<UserContextType>({
   },
   forceUpdateGender: () => {
     console.warn("forceUpdateGender called outside of UserProvider context. This operation won't have any effect.");
+  },
+  unitSystem: "metric", // Default to metric units
+  setUnitSystem: () => {
+    console.warn("setUnitSystem called outside of UserProvider context. This operation won't have any effect.");
   }
 });
 
@@ -80,6 +86,35 @@ export function UserProvider({ children, value }: UserProviderProps) {
     
     return null;
   });
+  
+  // Unit system preference state
+  const [unitSystem, setUnitSystemInternal] = useState<UnitSystem>(() => {
+    // Try to use value from props first
+    if (value?.unitSystem !== undefined) return value.unitSystem;
+    
+    // Otherwise check if we have a unit system preference in storage
+    const savedUnitSystem = getFromStorage('nephra_unit_system');
+    if (savedUnitSystem && (savedUnitSystem === 'metric' || savedUnitSystem === 'imperial')) {
+      console.log("Found saved unit system preference in storage:", savedUnitSystem);
+      return savedUnitSystem as UnitSystem;
+    }
+    
+    // Default to metric if nothing found
+    return "metric";
+  });
+  
+  // Function to update unit system preference
+  const setUnitSystem = useCallback((newUnitSystem: UnitSystem) => {
+    console.log("Updating unit system preference to:", newUnitSystem);
+    
+    // Save to storage for persistence
+    saveToStorage('nephra_unit_system', newUnitSystem);
+    
+    // Update state
+    setUnitSystemInternal(newUnitSystem);
+    
+    // Could add server update here if we want to persist this in the user profile
+  }, []);
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -355,7 +390,9 @@ export function UserProvider({ children, value }: UserProviderProps) {
     isLoading,
     error,
     refreshUserData,
-    forceUpdateGender
+    forceUpdateGender,
+    unitSystem: value?.unitSystem !== undefined ? value.unitSystem : unitSystem,
+    setUnitSystem: value?.setUnitSystem || setUnitSystem
   };
   
   return (
