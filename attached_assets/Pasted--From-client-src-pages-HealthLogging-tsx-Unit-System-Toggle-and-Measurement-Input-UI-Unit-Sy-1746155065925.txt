@@ -1,0 +1,97 @@
+// From client/src/pages/HealthLogging.tsx - Unit System Toggle and Measurement Input UI
+{/* Unit System Toggle */}
+<div className="mb-6">
+  <div className="flex items-center justify-between mb-2">
+    <h3 className="font-medium text-sm">Measurement Units</h3>
+    <UnitToggle 
+      value={unitSystem} 
+      onChange={setUnitSystem} 
+    />
+  </div>
+  <p className="text-xs text-muted-foreground">
+    Switch between metric (kg, cm) and imperial (lbs, ft/in) units.
+  </p>
+</div>
+
+{/* Weight Input with unit conversion */}
+<div className="mb-6">
+  <div className="flex items-center gap-2 mb-2">
+    <Label htmlFor="weight" className="font-medium text-sm">Weight</Label>
+  </div>
+  <div className="flex items-center gap-2">
+    <Input
+      id="weight"
+      type="number"
+      placeholder={unitSystem === "metric" ? "e.g. 70" : "e.g. 154"}
+      min={unitSystem === "metric" ? "20" : "44"}
+      max={unitSystem === "metric" ? "200" : "440"}
+      step={unitSystem === "metric" ? "0.1" : "0.5"}
+      value={unitSystem === "metric" 
+        ? (weightKg === null ? "" : weightKg) 
+        : (weightLbs === null ? "" : weightLbs)
+      }
+      onChange={(e) => {
+        const value = e.target.value === "" ? null : parseFloat(e.target.value);
+        handleWeightChange(value, unitSystem);
+      }}
+      className="flex-1"
+    />
+    <span className="text-sm text-muted-foreground whitespace-nowrap">
+      {unitSystem === "metric" ? "kg" : "lbs"}
+    </span>
+  </div>
+  <p className="mt-1 text-xs text-muted-foreground">
+    {weightKg !== null && weightLbs !== null && (
+      <span>
+        {unitSystem === "metric" 
+          ? `${formatKg(weightKg)} = ${formatPounds(weightLbs)}`
+          : `${formatPounds(weightLbs)} = ${formatKg(weightKg)}`
+        }
+      </span>
+    )}
+  </p>
+</div>
+
+{/* Height Input with unit conversion */}
+<div className="mb-6">
+  <div className="flex items-center gap-2 mb-2">
+    <Label htmlFor="height" className="font-medium text-sm">Height</Label>
+  </div>
+  
+  {unitSystem === "metric" ? (
+    <div className="flex items-center gap-2">
+      <Input
+        id="height"
+        type="number"
+        placeholder="e.g. 170"
+        min="100"
+        max="250"
+        step="0.5"
+        value={heightCm === null ? "" : heightCm}
+        onChange={(e) => {
+          const value = e.target.value === "" ? null : parseFloat(e.target.value);
+          handleHeightInCmChange(value);
+        }}
+        className="flex-1"
+      />
+      <span className="text-sm text-muted-foreground whitespace-nowrap">cm</span>
+    </div>
+  ) : (
+    <SimpleFeetInchesInput
+      feet={feet}
+      inches={inches}
+      onChange={handleHeightInFeetInchesChange}
+    />
+  )}
+  
+  <p className="mt-1 text-xs text-muted-foreground">
+    {heightCm !== null && (
+      <span>
+        {unitSystem === "metric" 
+          ? `${formatCm(heightCm)} = ${formatFeetInches(feet, inches)}`
+          : `${formatFeetInches(feet, inches)} = ${formatCm(heightCm)}`
+        }
+      </span>
+    )}
+  </p>
+</div>
