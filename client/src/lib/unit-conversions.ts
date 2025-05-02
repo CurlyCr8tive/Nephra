@@ -1,23 +1,48 @@
 /**
- * Utility functions for converting between metric and imperial units
+ * Unit conversion utilities for the Nephra app
+ * Provides functions to convert between different measurement units
  */
 
-// Weight conversions
-export function kgToLbs(kg: number): number {
-  return kg * 2.20462;
+/**
+ * Convert pounds to kilograms
+ * @param pounds - Weight in pounds
+ * @returns Weight in kilograms
+ */
+export function poundsToKg(pounds: number): number {
+  return pounds * 0.45359237;
 }
 
-export function lbsToKg(lbs: number): number {
-  return lbs / 2.20462;
+/**
+ * Convert kilograms to pounds
+ * @param kg - Weight in kilograms
+ * @returns Weight in pounds
+ */
+export function kgToPounds(kg: number): number {
+  return kg / 0.45359237;
 }
 
-// Height conversions
-export function cmToFeetInches(cm: number): { feet: number; inches: number } {
+/**
+ * Convert feet and inches to centimeters
+ * @param feet - Height in feet
+ * @param inches - Additional height in inches
+ * @returns Height in centimeters
+ */
+export function feetAndInchesToCm(feet: number, inches: number): number {
+  const totalInches = (feet * 12) + inches;
+  return totalInches * 2.54;
+}
+
+/**
+ * Convert centimeters to feet and inches
+ * @param cm - Height in centimeters
+ * @returns Object with feet and inches properties
+ */
+export function cmToFeetAndInches(cm: number): { feet: number; inches: number } {
   const totalInches = cm / 2.54;
   const feet = Math.floor(totalInches / 12);
   const inches = Math.round(totalInches % 12);
   
-  // Handle case where inches rounds to 12
+  // Handle case where inches is 12 (should roll over to feet)
   if (inches === 12) {
     return { feet: feet + 1, inches: 0 };
   }
@@ -25,153 +50,39 @@ export function cmToFeetInches(cm: number): { feet: number; inches: number } {
   return { feet, inches };
 }
 
-export function feetInchesToCm(feet: number, inches: number): number {
-  const totalInches = feet * 12 + inches;
-  return Math.round(totalInches * 2.54);
+/**
+ * Format height in feet and inches with proper symbols
+ * @param feet - Height in feet
+ * @param inches - Height in inches
+ * @returns Formatted string (e.g., "5′ 10″")
+ */
+export function formatFeetInches(feet: number, inches: number): string {
+  return `${feet}′ ${inches}″`;
 }
 
-// Blood pressure doesn't change between unit systems, but including for API consistency
-export function convertBpSystolic(value: number, _toSystem: 'metric' | 'imperial'): number {
-  return value;
+/**
+ * Format weight in pounds with proper symbol
+ * @param pounds - Weight in pounds
+ * @returns Formatted string (e.g., "160 lb")
+ */
+export function formatPounds(pounds: number): string {
+  return `${Math.round(pounds)} lb`;
 }
 
-export function convertBpDiastolic(value: number, _toSystem: 'metric' | 'imperial'): number {
-  return value;
+/**
+ * Format weight in kilograms with proper symbol
+ * @param kg - Weight in kilograms
+ * @returns Formatted string (e.g., "72.5 kg")
+ */
+export function formatKg(kg: number): string {
+  return `${kg.toFixed(1)} kg`;
 }
 
-// Hydration conversions (liters to fluid oz)
-export function litersToFlOz(liters: number): number {
-  return liters * 33.814;
-}
-
-export function flOzToLiters(flOz: number): number {
-  return flOz / 33.814;
-}
-
-// Temperature conversions
-export function celsiusToFahrenheit(celsius: number): number {
-  return (celsius * 9/5) + 32;
-}
-
-export function fahrenheitToCelsius(fahrenheit: number): number {
-  return (fahrenheit - 32) * 5/9;
-}
-
-// Convenience wrappers for use with unit system 
-export function convertWeight(value: number, toSystem: 'metric' | 'imperial', fromSystem: 'metric' | 'imperial'): number {
-  if (fromSystem === toSystem) return value;
-  
-  return fromSystem === 'metric' ? kgToLbs(value) : lbsToKg(value);
-}
-
-export function convertHeight(value: number, toSystem: 'metric' | 'imperial', fromSystem: 'metric' | 'imperial'): number {
-  if (fromSystem === toSystem) return value;
-  
-  // This only handles converting the numeric value in cm, not the display format
-  // For display as feet/inches, use cmToFeetInches
-  if (fromSystem === 'imperial') {
-    throw new Error('Direct imperial height conversion requires feet and inches separately');
-  }
-  
-  // We won't actually use this function for imperial output since we need feet/inches separate
-  return value;
-}
-
-// Format values for display according to unit system
-export function formatWeight(value: number | null | undefined, unitSystem: 'metric' | 'imperial'): string {
-  if (value === null || value === undefined) return '—';
-  
-  if (unitSystem === 'metric') {
-    return `${value.toFixed(1)} kg`;
-  } else {
-    return `${kgToLbs(value).toFixed(1)} lbs`;
-  }
-}
-
-export function formatHeight(value: number | null | undefined, unitSystem: 'metric' | 'imperial'): string {
-  if (value === null || value === undefined) return '—';
-  
-  if (unitSystem === 'metric') {
-    return `${value} cm`;
-  } else {
-    const { feet, inches } = cmToFeetInches(value);
-    return `${feet}'${inches}"`;
-  }
-}
-
-export function formatHydration(value: number | null | undefined, unitSystem: 'metric' | 'imperial'): string {
-  if (value === null || value === undefined) return '—';
-  
-  if (unitSystem === 'metric') {
-    return `${value.toFixed(1)} L`;
-  } else {
-    const flOz = litersToFlOz(value);
-    return `${Math.round(flOz)} fl oz`;
-  }
-}
-
-export function formatBloodPressure(systolic: number | null | undefined, diastolic: number | null | undefined): string {
-  if (systolic === null || systolic === undefined || diastolic === null || diastolic === undefined) {
-    return '—/—';
-  }
-  
-  return `${systolic}/${diastolic} mmHg`;
-}
-
-// Non-measurement display formatters
-export function formatGFR(gfr: number | null | undefined): string {
-  if (gfr === null || gfr === undefined) return '—';
-  return `${Math.round(gfr)} mL/min/1.73m²`;
-}
-
-export function getGFRCategory(gfr: number | null | undefined): {
-  stage: string;
-  description: string;
-  color: string; // Tailwind color class
-} {
-  if (gfr === null || gfr === undefined) {
-    return {
-      stage: 'Unknown',
-      description: 'GFR value not available',
-      color: 'bg-gray-300'
-    };
-  }
-  
-  if (gfr >= 90) {
-    return {
-      stage: 'Stage 1',
-      description: 'Normal or High',
-      color: 'bg-green-500'
-    };
-  } else if (gfr >= 60) {
-    return {
-      stage: 'Stage 2',
-      description: 'Mildly Decreased',
-      color: 'bg-green-300'
-    };
-  } else if (gfr >= 45) {
-    return {
-      stage: 'Stage 3a',
-      description: 'Mild to Moderately Decreased',
-      color: 'bg-yellow-300'
-    };
-  } else if (gfr >= 30) {
-    return {
-      stage: 'Stage 3b',
-      description: 'Moderately to Severely Decreased',
-      color: 'bg-orange-300'
-    };
-  } else if (gfr >= 15) {
-    return {
-      stage: 'Stage 4',
-      description: 'Severely Decreased',
-      color: 'bg-orange-500'
-    };
-  } else {
-    return {
-      stage: 'Stage 5',
-      description: 'Kidney Failure',
-      color: 'bg-red-500'
-    };
-  }
+/**
+ * Format height in centimeters with proper symbol
+ * @param cm - Height in centimeters
+ * @returns Formatted string (e.g., "178 cm")
+ */
+export function formatCm(cm: number): string {
+  return `${Math.round(cm)} cm`;
 }

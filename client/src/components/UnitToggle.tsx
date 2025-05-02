@@ -1,49 +1,76 @@
-import React from 'react';
+import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useUser } from '@/contexts/UserContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
+
+export type UnitSystem = "metric" | "imperial";
 
 interface UnitToggleProps {
+  value: UnitSystem;
+  onChange: (system: UnitSystem) => void;
+  label?: string;
   className?: string;
-  showLabels?: boolean; // Whether to show text labels
-  compact?: boolean; // Compact display for smaller spaces
+  tooltipText?: string;
 }
 
-const UnitToggle: React.FC<UnitToggleProps> = ({ 
+/**
+ * A switch component that allows toggling between metric and imperial units
+ */
+export function UnitToggle({
+  value,
+  onChange,
+  label = "Unit System",
   className = "",
-  showLabels = true,
-  compact = false
-}) => {
-  const { unitSystem, setUnitSystem } = useUser();
-  
-  const toggleUnitSystem = () => {
-    const newSystem = unitSystem === 'metric' ? 'imperial' : 'metric';
-    setUnitSystem(newSystem);
+  tooltipText
+}: UnitToggleProps) {
+  const [isMetric, setIsMetric] = useState(value === "metric");
+
+  useEffect(() => {
+    setIsMetric(value === "metric");
+  }, [value]);
+
+  const handleToggleChange = (checked: boolean) => {
+    const newSystem: UnitSystem = checked ? "metric" : "imperial";
+    setIsMetric(checked);
+    onChange(newSystem);
   };
 
   return (
-    <div className={`flex items-center gap-2 ${compact ? 'text-xs' : 'text-sm'} ${className}`}>
-      {showLabels && (
-        <Label htmlFor="unit-system" className={`${unitSystem === 'metric' ? 'font-bold' : 'text-muted-foreground'}`}>
-          Metric
+    <div className={`flex items-center space-x-4 ${className}`}>
+      <div className="flex items-center space-x-2">
+        <Switch 
+          id="unit-toggle" 
+          checked={isMetric}
+          onCheckedChange={handleToggleChange}
+        />
+        <Label htmlFor="unit-toggle" className="text-sm text-muted-foreground">
+          {label}
         </Label>
-      )}
+        
+        {tooltipText && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">{tooltipText}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
       
-      <Switch
-        id="unit-system"
-        checked={unitSystem === 'imperial'}
-        onCheckedChange={toggleUnitSystem}
-        aria-label="Toggle between metric and imperial units"
-      />
-      
-      {showLabels && (
-        <Label htmlFor="unit-system" className={`${unitSystem === 'imperial' ? 'font-bold' : 'text-muted-foreground'}`}>
-          Imperial
-        </Label>
-      )}
+      <div className="flex items-center space-x-2 text-xs">
+        <span className={!isMetric ? "font-semibold text-primary" : "text-muted-foreground"}>
+          Imperial (lb, ft/in)
+        </span>
+        <span>|</span>
+        <span className={isMetric ? "font-semibold text-primary" : "text-muted-foreground"}>
+          Metric (kg, cm)
+        </span>
+      </div>
     </div>
   );
-};
-
-export { UnitToggle };
-export default UnitToggle;
+}

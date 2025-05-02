@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect, useCallback 
 import { User } from "@shared/schema";
 import { useLocation } from "wouter";
 
-type StorageKey = 'nephra_user_gender' | 'nephra_user_id' | 'nephra_last_refresh' | 'nephra_unit_system';
+type StorageKey = 'nephra_user_gender' | 'nephra_user_id' | 'nephra_last_refresh';
 
 // Helper functions for session storage to maintain critical data between page loads
 const saveToStorage = (key: StorageKey, value: string) => {
@@ -39,8 +39,6 @@ interface UserContextType {
   error: Error | null;
   refreshUserData: () => void;
   forceUpdateGender: (gender: string) => void; // Function to explicitly set gender
-  unitSystem: "metric" | "imperial";
-  setUnitSystem: (system: "metric" | "imperial") => void;
 }
 
 // Create context with default values to avoid undefined checks
@@ -56,10 +54,6 @@ const UserContext = createContext<UserContextType>({
   },
   forceUpdateGender: () => {
     console.warn("forceUpdateGender called outside of UserProvider context. This operation won't have any effect.");
-  },
-  unitSystem: "metric",
-  setUnitSystem: () => {
-    console.warn("setUnitSystem called outside of UserProvider context. This operation won't have any effect.");
   }
 });
 
@@ -85,58 +79,6 @@ export function UserProvider({ children, value }: UserProviderProps) {
     
     return null;
   });
-  
-  // Handle unit system preference
-  const [unitSystem, setUnitSystemState] = useState<"metric" | "imperial">(() => {
-    // Check if we have a saved preference
-    const savedUnitSystem = getFromStorage('nephra_unit_system');
-    if (savedUnitSystem === 'metric' || savedUnitSystem === 'imperial') {
-      return savedUnitSystem as "metric" | "imperial";
-    }
-    return "metric"; // Default to metric
-  });
-  
-  // Function to update unit system with storage persistence
-  const setUnitSystem = useCallback((system: "metric" | "imperial") => {
-    console.log("Changing unit system to:", system);
-    setUnitSystemState(system);
-    saveToStorage('nephra_unit_system', system);
-    
-    // If user is logged in, update their profile preference
-    if (user?.id) {
-      fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ preferredUnitSystem: system }),
-      })
-      .then(response => {
-        if (response.ok) {
-          console.log("✅ Server unit system update successful");
-        } else {
-          console.error("❌ Server unit system update failed:", response.status);
-        }
-      })
-      .catch(error => {
-        console.error("⚠️ Error updating unit system on server:", error);
-      });
-    }
-  }, [user]);
-  
-  // Sync unit system with user profile when user data is loaded
-  useEffect(() => {
-    if (user?.preferredUnitSystem) {
-      if (user.preferredUnitSystem === 'metric' || user.preferredUnitSystem === 'imperial') {
-        // Only update if different from current value to avoid loops
-        if (unitSystem !== user.preferredUnitSystem) {
-          console.log("Syncing unit system from user profile:", user.preferredUnitSystem);
-          setUnitSystemState(user.preferredUnitSystem as "metric" | "imperial");
-          saveToStorage('nephra_unit_system', user.preferredUnitSystem);
-        }
-      }
-    }
-  }, [user, unitSystem]);
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -412,9 +354,7 @@ export function UserProvider({ children, value }: UserProviderProps) {
     isLoading,
     error,
     refreshUserData,
-    forceUpdateGender,
-    unitSystem,
-    setUnitSystem
+    forceUpdateGender
   };
   
   return (
