@@ -15,6 +15,9 @@ import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useToast } from "@/hooks/use-toast";
 import { HealthCalendar } from "@/components/HealthCalendar";
+import { UnitToggle, type UnitSystem } from "@/components/UnitToggle";
+import { FeetInchesInput } from "@/components/FeetInchesInput";
+import { poundsToKg, kgToPounds, feetAndInchesToCm, cmToFeetAndInches, formatKg, formatPounds, formatCm, formatFeetInches } from "@/lib/unit-conversions";
 
 interface HealthLoggingProps extends Partial<RouteComponentProps> {
   onClose?: () => void;
@@ -248,6 +251,77 @@ export default function HealthLogging(props: HealthLoggingProps) {
   
   // State for serum creatinine input (for CKD-EPI formula)
   const [serumCreatinine, setSerumCreatinine] = useState<number | "">("");
+  
+  // State for unit system (metric or imperial)
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>("metric");
+  
+  // Weight state with unit conversion support
+  const [weightKg, setWeightKg] = useState<number | null>(null);
+  const [weightLbs, setWeightLbs] = useState<number | null>(null);
+  
+  // Height state with unit conversion support
+  const [heightCm, setHeightCm] = useState<number | null>(null);
+  const [feet, setFeet] = useState<number>(5);
+  const [inches, setInches] = useState<number>(8);
+  
+  // Load initial weight and height from user profile
+  useEffect(() => {
+    if (user) {
+      // Set weight in kg from user profile
+      if (user.weight) {
+        setWeightKg(user.weight);
+        setWeightLbs(kgToPounds(user.weight));
+      }
+      
+      // Set height in cm from user profile
+      if (user.height) {
+        setHeightCm(user.height);
+        const { feet: ft, inches: in_ } = cmToFeetAndInches(user.height);
+        setFeet(ft);
+        setInches(in_);
+      }
+    }
+  }, [user]);
+  
+  // Handle weight conversion when unit system changes
+  const handleWeightChange = (value: number | null, unit: UnitSystem) => {
+    if (value === null) {
+      setWeightKg(null);
+      setWeightLbs(null);
+      return;
+    }
+    
+    if (unit === "metric") {
+      setWeightKg(value);
+      setWeightLbs(kgToPounds(value));
+    } else {
+      setWeightLbs(value);
+      setWeightKg(poundsToKg(value));
+    }
+  };
+  
+  // Handle height conversion when feet/inches change
+  const handleHeightInFeetInchesChange = (feet: number, inches: number) => {
+    const heightInCm = feetAndInchesToCm(feet, inches);
+    setHeightCm(heightInCm);
+    setFeet(feet);
+    setInches(inches);
+  };
+  
+  // Handle height conversion when cm changes
+  const handleHeightInCmChange = (value: number | null) => {
+    if (value === null) {
+      setHeightCm(null);
+      setFeet(0);
+      setInches(0);
+      return;
+    }
+    
+    setHeightCm(value);
+    const { feet: ft, inches: in_ } = cmToFeetAndInches(value);
+    setFeet(ft);
+    setInches(in_);
+  };
 
   /**
    * Calculate eGFR using the CKD-EPI 2021 equation (without race as a factor)
@@ -1047,6 +1121,103 @@ export default function HealthLogging(props: HealthLoggingProps) {
           <TabsContent value="health" className="space-y-4">
             <Card>
               <CardContent className="pt-6">
+                {/* Unit System Toggle */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-sm">Measurement Units</h3>
+                    <UnitToggle 
+                      value={unitSystem} 
+                      onChange={setUnitSystem} 
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Switch between metric (kg, cm) and imperial (lbs, ft/in) units.
+                  </p>
+                </div>
+                
+                {/* Weight Input with unit conversion */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Label htmlFor="weight" className="font-medium text-sm">Weight</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="weight"
+                      type="number"
+                      placeholder={unitSystem === "metric" ? "e.g. 70" : "e.g. 154"}
+                      min={unitSystem === "metric" ? "20" : "44"}
+                      max={unitSystem === "metric" ? "200" : "440"}
+                      step={unitSystem === "metric" ? "0.1" : "0.5"}
+                      value={unitSystem === "metric" 
+                        ? (weightKg === null ? "" : weightKg) 
+                        : (weightLbs === null ? "" : weightLbs)
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? null : parseFloat(e.target.value);
+                        handleWeightChange(value, unitSystem);
+                      }}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {unitSystem === "metric" ? "kg" : "lbs"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {weightKg !== null && weightLbs !== null && (
+                      <span>
+                        {unitSystem === "metric" 
+                          ? `${formatKg(weightKg)} = ${formatPounds(weightLbs)}`
+                          : `${formatPounds(weightLbs)} = ${formatKg(weightKg)}`
+                        }
+                      </span>
+                    )}
+                  </p>
+                </div>
+                
+                {/* Height Input with unit conversion */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Label htmlFor="height" className="font-medium text-sm">Height</Label>
+                  </div>
+                  
+                  {unitSystem === "metric" ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="height"
+                        type="number"
+                        placeholder="e.g. 170"
+                        min="100"
+                        max="250"
+                        step="0.5"
+                        value={heightCm === null ? "" : heightCm}
+                        onChange={(e) => {
+                          const value = e.target.value === "" ? null : parseFloat(e.target.value);
+                          handleHeightInCmChange(value);
+                        }}
+                        className="flex-1"
+                      />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">cm</span>
+                    </div>
+                  ) : (
+                    <FeetInchesInput
+                      feet={feet}
+                      inches={inches}
+                      onChange={handleHeightInFeetInchesChange}
+                    />
+                  )}
+                  
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {heightCm !== null && (
+                      <span>
+                        {unitSystem === "metric" 
+                          ? `${formatCm(heightCm)} = ${formatFeetInches(feet, inches)}`
+                          : `${formatFeetInches(feet, inches)} = ${formatCm(heightCm)}`
+                        }
+                      </span>
+                    )}
+                  </p>
+                </div>
+                
                 {/* Hydration Input */}
                 <div className="mb-6">
                   <h3 className="font-medium text-sm mb-3">Hydration Tracking</h3>
