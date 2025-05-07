@@ -444,7 +444,14 @@ export default function ProfilePage() {
   }, [userId]);
   
   const fetchUserDocuments = async () => {
-    if (!userId) return;
+    if (!userId || !supabase) {
+      toast({
+        title: "Storage not available",
+        description: "Document storage is currently unavailable. Please try again later.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       const { data: docData, error } = await supabase
@@ -490,10 +497,12 @@ export default function ProfilePage() {
   };
   
   const uploadDocument = async () => {
-    if (!selectedFile || !userId) {
+    if (!selectedFile || !userId || !supabase) {
       toast({
         title: "Upload error",
-        description: "Please select a file to upload",
+        description: !selectedFile 
+          ? "Please select a file to upload" 
+          : "Document storage is unavailable. Please try again later.",
         variant: "destructive"
       });
       return;
@@ -509,21 +518,20 @@ export default function ProfilePage() {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
       
-      // Upload file to Supabase Storage
+      // Upload file to Supabase Storage with custom progress tracking
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, selectedFile, {
           cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: (progress) => {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            setUploadProgress(percent);
-          }
+          upsert: false
         });
         
       if (uploadError) {
         throw new Error(uploadError.message);
       }
+      
+      // Set progress to complete after successful upload
+      setUploadProgress(100);
       
       // Save document metadata to Supabase DB
       const { error: dbError } = await supabase
@@ -568,7 +576,14 @@ export default function ProfilePage() {
   };
   
   const deleteDocument = async (documentId: string) => {
-    if (!userId) return;
+    if (!userId || !supabase) {
+      toast({
+        title: "Error",
+        description: "Document storage is unavailable. Please try again later.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       // First get the document to get the filename
@@ -1225,6 +1240,146 @@ export default function ProfilePage() {
                               </FormItem>
                             )}
                           />
+                        </div>
+
+                        {/* Insurance Document Upload Section */}
+                        <div className="border rounded-lg p-4 mt-6">
+                          <h3 className="text-lg font-medium mb-4 flex items-center">
+                            <FileText className="mr-2" size={18} />
+                            Insurance Documents
+                          </h3>
+                          
+                          {/* Document Upload Form */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium mb-1">Document Type</label>
+                                <Select 
+                                  value={documentType} 
+                                  onValueChange={setDocumentType}
+                                  disabled={isUploading || !isEditing}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select type" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="insurance">Insurance Card</SelectItem>
+                                    <SelectItem value="insurance_policy">Insurance Policy</SelectItem>
+                                    <SelectItem value="authorization">Prior Authorization</SelectItem>
+                                    <SelectItem value="explanation">Explanation of Benefits</SelectItem>
+                                    <SelectItem value="claim">Insurance Claim</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium mb-1">File</label>
+                                <Input
+                                  type="file"
+                                  onChange={handleFileChange}
+                                  disabled={isUploading || !isEditing}
+                                  ref={fileInputRef}
+                                  className="text-sm"
+                                />
+                              </div>
+                              
+                              <div className="flex items-end">
+                                <Button 
+                                  type="button" 
+                                  onClick={uploadDocument}
+                                  disabled={isUploading || !selectedFile || !isEditing}
+                                  className="flex items-center"
+                                >
+                                  {isUploading ? (
+                                    <span className="flex items-center">
+                                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Uploading...
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center">
+                                      <Upload className="mr-2" size={16} />
+                                      Upload
+                                    </span>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {/* Upload Progress Indicator */}
+                            {isUploading && (
+                              <div className="mt-2">
+                                <Progress value={uploadProgress} className="h-2" />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uploading: {uploadProgress}%
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Upload Error Message */}
+                            {uploadError && (
+                              <div className="bg-destructive/10 text-destructive p-2 rounded-md mt-2 flex items-center text-sm">
+                                <AlertCircle className="mr-2" size={16} />
+                                {uploadError}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Document List */}
+                          <div className="mt-6">
+                            <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
+                            {documents.length === 0 ? (
+                              <p className="text-muted-foreground text-sm italic">No documents uploaded yet.</p>
+                            ) : (
+                              <ScrollArea className="max-h-64">
+                                <div className="space-y-2">
+                                  {documents
+                                    .filter(doc => ['insurance', 'insurance_policy', 'authorization', 'explanation', 'claim'].includes(doc.type))
+                                    .map(doc => (
+                                      <Card key={doc.id} className="p-2">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center">
+                                            <FileCheck className="mr-2 text-primary" size={18} />
+                                            <div>
+                                              <p className="font-medium text-sm">{doc.name}</p>
+                                              <p className="text-xs text-muted-foreground">
+                                                {new Date(doc.createdAt).toLocaleDateString()} · {(doc.size / 1024).toFixed(1)} KB
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <div className="flex gap-2">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              asChild
+                                              className="h-8 w-8 p-0"
+                                            >
+                                              <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                                                <Info size={16} />
+                                                <span className="sr-only">View</span>
+                                              </a>
+                                            </Button>
+                                            {isEditing && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => deleteDocument(doc.id)}
+                                                className="h-8 w-8 p-0 text-destructive"
+                                              >
+                                                <X size={16} />
+                                                <span className="sr-only">Delete</span>
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </Card>
+                                    ))}
+                                </div>
+                              </ScrollArea>
+                            )}
+                          </div>
                         </div>
                       </TabsContent>
                       
