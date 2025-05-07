@@ -7,7 +7,8 @@ import {
   userTransplantProgress, type UserTransplantProgress, type InsertUserTransplantProgress,
   journalEntries, type JournalEntry, type InsertJournalEntry,
   medicalDocuments, type MedicalDocument, type InsertMedicalDocument,
-  educationResources, type EducationResource, type InsertEducationResource
+  educationResources, type EducationResource, type InsertEducationResource,
+  healthAlerts, type HealthAlert, type InsertHealthAlert
 } from "@shared/schema";
 
 import session from "express-session";
@@ -56,6 +57,12 @@ export interface IStorage {
   getEducationResources(category?: string): Promise<EducationResource[]>;
   createEducationResource(resource: InsertEducationResource): Promise<EducationResource>;
   
+  // Health alerts methods
+  getHealthAlerts(userId: number): Promise<HealthAlert[]>;
+  getHealthAlert(id: number): Promise<HealthAlert | undefined>;
+  createHealthAlert(alert: InsertHealthAlert): Promise<HealthAlert>;
+  acknowledgeHealthAlert(id: number): Promise<HealthAlert | undefined>;
+  
   // Session storage
   sessionStore: session.Store;
 }
@@ -70,6 +77,7 @@ export class MemStorage implements IStorage {
   private journalEntries: Map<number, JournalEntry>;
   private medicalDocuments: Map<number, MedicalDocument>;
   private educationResources: Map<number, EducationResource>;
+  private healthAlerts: Map<number, HealthAlert>;
 
   private userId: number;
   private healthMetricsId: number;
@@ -80,6 +88,7 @@ export class MemStorage implements IStorage {
   private journalEntryId: number;
   private medicalDocumentId: number;
   private educationResourceId: number;
+  private healthAlertId: number;
   
   // Session store for express-session
   public sessionStore: session.Store;
@@ -95,6 +104,7 @@ export class MemStorage implements IStorage {
     this.journalEntries = new Map();
     this.medicalDocuments = new Map();
     this.educationResources = new Map();
+    this.healthAlerts = new Map();
 
     // Initialize IDs
     this.userId = 1;
@@ -106,6 +116,7 @@ export class MemStorage implements IStorage {
     this.journalEntryId = 1;
     this.medicalDocumentId = 1;
     this.educationResourceId = 1;
+    this.healthAlertId = 1;
     
     // Initialize session store
     const MemoryStore = createMemoryStore(session);
