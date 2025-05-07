@@ -12,8 +12,12 @@ router.get("/health-alerts", async (req, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const userId = req.user.id;
+    // Access userId safely with type assertion
+    const userId = (req.user as any).id;
+    console.log(`Fetching health alerts for authenticated user ID: ${userId}`);
+    
     const alerts = await storage.getHealthAlerts(userId);
+    console.log(`Found ${alerts.length} health alerts for user ${userId}`);
 
     res.status(200).json(alerts);
   } catch (error) {
@@ -42,7 +46,7 @@ router.get("/health-alerts/:id", async (req, res) => {
     }
 
     // Verify the alert belongs to the authenticated user
-    if (alert.userId !== req.user.id) {
+    if (alert.userId !== (req.user as any).id) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -64,7 +68,7 @@ router.post("/health-alerts", async (req, res) => {
     }
 
     // Use either authenticated user ID or the one provided in the request
-    const userId = req.isAuthenticated() ? req.user.id : req.body.userId;
+    const userId = req.isAuthenticated() ? (req.user as any).id : req.body.userId;
     
     // Validate request data
     const validationResult = insertHealthAlertSchema.safeParse({
@@ -109,7 +113,7 @@ router.post("/health-alerts/:id/acknowledge", async (req, res) => {
     }
 
     // Verify the alert belongs to the authenticated user
-    if (alert.userId !== req.user.id) {
+    if (alert.userId !== (req.user as any).id) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 

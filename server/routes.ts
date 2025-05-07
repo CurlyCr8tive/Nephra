@@ -205,6 +205,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount status router for system monitoring
   app.use('/api/status', statusRouter);
   
+  // Mount health alerts router for health monitoring
+  app.use('/api', healthAlertsRouter);
+  
   // User profile endpoints (REMOVED DUPLICATE DEFINITIONS)
   // The user profile endpoints are defined at the bottom of this file
   // We're keeping these comments for clarity
