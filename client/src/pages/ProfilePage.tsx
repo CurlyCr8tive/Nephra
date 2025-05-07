@@ -127,6 +127,16 @@ export default function ProfilePage() {
   const [documentType, setDocumentType] = useState<string>("insurance");
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [storageAvailable, setStorageAvailable] = useState<boolean>(!!supabase);
+  
+  // Check if Supabase is available during initial load
+  useEffect(() => {
+    setStorageAvailable(!!supabase);
+    
+    if (!supabase) {
+      console.warn("Document storage is unavailable. Supabase client not initialized.");
+    }
+  }, []);
 
   // Medication interface
   interface Medication {
@@ -438,10 +448,13 @@ export default function ProfilePage() {
   
   // Document handling functions
   useEffect(() => {
-    if (userId) {
+    if (userId && storageAvailable) {
       fetchUserDocuments();
+    } else if (userId && !storageAvailable) {
+      console.warn("Cannot fetch documents: Supabase storage is unavailable");
+      setDocuments([]);
     }
-  }, [userId]);
+  }, [userId, storageAvailable]);
   
   const fetchUserDocuments = async () => {
     if (!userId || !supabase) {
@@ -465,22 +478,35 @@ export default function ProfilePage() {
         return;
       }
       
-      if (docData) {
+      if (docData && supabase) {
         const processedDocs = await Promise.all(docData.map(async (doc) => {
-          // Get signed URL for each document
-          const { data: urlData } = await supabase
-            .storage
-            .from('documents')
-            .createSignedUrl(`${userId}/${doc.filename}`, 3600);
-            
-          return {
-            id: doc.id,
-            name: doc.originalName || doc.filename,
-            type: doc.documentType || 'other',
-            size: doc.fileSize || 0,
-            createdAt: doc.createdAt,
-            url: urlData?.signedUrl || ''
-          };
+          try {
+            // Get signed URL for each document
+            const { data: urlData } = await supabase
+              .storage
+              .from('documents')
+              .createSignedUrl(`${userId}/${doc.filename}`, 3600);
+              
+            return {
+              id: doc.id,
+              name: doc.originalName || doc.filename,
+              type: doc.documentType || 'other',
+              size: doc.fileSize || 0,
+              createdAt: doc.createdAt,
+              url: urlData?.signedUrl || ''
+            };
+          } catch (error) {
+            console.error(`Error generating URL for document ${doc.id}:`, error);
+            // Return document with empty URL on error
+            return {
+              id: doc.id,
+              name: doc.originalName || doc.filename,
+              type: doc.documentType || 'other',
+              size: doc.fileSize || 0,
+              createdAt: doc.createdAt,
+              url: ''
+            };
+          }
         }));
         
         setDocuments(processedDocs);
@@ -1249,137 +1275,151 @@ export default function ProfilePage() {
                             Insurance Documents
                           </h3>
                           
-                          {/* Document Upload Form */}
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                              <div className="flex-1">
-                                <label className="block text-sm font-medium mb-1">Document Type</label>
-                                <Select 
-                                  value={documentType} 
-                                  onValueChange={setDocumentType}
-                                  disabled={isUploading || !isEditing}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select type" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="insurance">Insurance Card</SelectItem>
-                                    <SelectItem value="insurance_policy">Insurance Policy</SelectItem>
-                                    <SelectItem value="authorization">Prior Authorization</SelectItem>
-                                    <SelectItem value="explanation">Explanation of Benefits</SelectItem>
-                                    <SelectItem value="claim">Insurance Claim</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              
-                              <div className="flex-1">
-                                <label className="block text-sm font-medium mb-1">File</label>
-                                <Input
-                                  type="file"
-                                  onChange={handleFileChange}
-                                  disabled={isUploading || !isEditing}
-                                  ref={fileInputRef}
-                                  className="text-sm"
-                                />
-                              </div>
-                              
-                              <div className="flex items-end">
-                                <Button 
-                                  type="button" 
-                                  onClick={uploadDocument}
-                                  disabled={isUploading || !selectedFile || !isEditing}
-                                  className="flex items-center"
-                                >
-                                  {isUploading ? (
-                                    <span className="flex items-center">
-                                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                      </svg>
-                                      Uploading...
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center">
-                                      <Upload className="mr-2" size={16} />
-                                      Upload
-                                    </span>
-                                  )}
-                                </Button>
+                          {!storageAvailable ? (
+                            <div className="p-4 bg-amber-50 text-amber-800 rounded-md flex items-center">
+                              <AlertCircle className="mr-2" size={18} />
+                              <div>
+                                <p className="font-medium">Document Storage Unavailable</p>
+                                <p className="text-sm">Document upload functionality is currently unavailable. Please try again later.</p>
                               </div>
                             </div>
-                            
-                            {/* Upload Progress Indicator */}
-                            {isUploading && (
-                              <div className="mt-2">
-                                <Progress value={uploadProgress} className="h-2" />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Uploading: {uploadProgress}%
-                                </p>
-                              </div>
-                            )}
-                            
-                            {/* Upload Error Message */}
-                            {uploadError && (
-                              <div className="bg-destructive/10 text-destructive p-2 rounded-md mt-2 flex items-center text-sm">
-                                <AlertCircle className="mr-2" size={16} />
-                                {uploadError}
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Document List */}
-                          <div className="mt-6">
-                            <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
-                            {documents.length === 0 ? (
-                              <p className="text-muted-foreground text-sm italic">No documents uploaded yet.</p>
-                            ) : (
-                              <ScrollArea className="max-h-64">
-                                <div className="space-y-2">
-                                  {documents
-                                    .filter(doc => ['insurance', 'insurance_policy', 'authorization', 'explanation', 'claim'].includes(doc.type))
-                                    .map(doc => (
-                                      <Card key={doc.id} className="p-2">
-                                        <div className="flex items-center justify-between">
-                                          <div className="flex items-center">
-                                            <FileCheck className="mr-2 text-primary" size={18} />
-                                            <div>
-                                              <p className="font-medium text-sm">{doc.name}</p>
-                                              <p className="text-xs text-muted-foreground">
-                                                {new Date(doc.createdAt).toLocaleDateString()} · {(doc.size / 1024).toFixed(1)} KB
-                                              </p>
-                                            </div>
-                                          </div>
-                                          <div className="flex gap-2">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              asChild
-                                              className="h-8 w-8 p-0"
-                                            >
-                                              <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                                                <Info size={16} />
-                                                <span className="sr-only">View</span>
-                                              </a>
-                                            </Button>
-                                            {isEditing && (
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => deleteDocument(doc.id)}
-                                                className="h-8 w-8 p-0 text-destructive"
-                                              >
-                                                <X size={16} />
-                                                <span className="sr-only">Delete</span>
-                                              </Button>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </Card>
-                                    ))}
+                          ) : (
+                            <>
+                              {/* Document Upload Form */}
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex-1">
+                                    <label className="block text-sm font-medium mb-1">Document Type</label>
+                                    <Select 
+                                      value={documentType} 
+                                      onValueChange={setDocumentType}
+                                      disabled={isUploading || !isEditing}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="insurance">Insurance Card</SelectItem>
+                                        <SelectItem value="insurance_policy">Insurance Policy</SelectItem>
+                                        <SelectItem value="authorization">Prior Authorization</SelectItem>
+                                        <SelectItem value="explanation">Explanation of Benefits</SelectItem>
+                                        <SelectItem value="claim">Insurance Claim</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  
+                                  <div className="flex-1">
+                                    <label className="block text-sm font-medium mb-1">File</label>
+                                    <Input
+                                      type="file"
+                                      onChange={handleFileChange}
+                                      disabled={isUploading || !isEditing}
+                                      ref={fileInputRef}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  
+                                  <div className="flex items-end">
+                                    <Button 
+                                      type="button" 
+                                      onClick={uploadDocument}
+                                      disabled={isUploading || !selectedFile || !isEditing}
+                                      className="flex items-center"
+                                    >
+                                      {isUploading ? (
+                                        <span className="flex items-center">
+                                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                          </svg>
+                                          Uploading...
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center">
+                                          <Upload className="mr-2" size={16} />
+                                          Upload
+                                        </span>
+                                      )}
+                                    </Button>
+                                  </div>
                                 </div>
-                              </ScrollArea>
-                            )}
-                          </div>
+                                
+                                {/* Upload Progress Indicator */}
+                                {isUploading && (
+                                  <div className="mt-2">
+                                    <Progress value={uploadProgress} className="h-2" />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Uploading: {uploadProgress}%
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                {/* Upload Error Message */}
+                                {uploadError && (
+                                  <div className="bg-destructive/10 text-destructive p-2 rounded-md mt-2 flex items-center text-sm">
+                                    <AlertCircle className="mr-2" size={16} />
+                                    {uploadError}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Document List */}
+                              <div className="mt-6">
+                                <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
+                                {documents.length === 0 ? (
+                                  <p className="text-muted-foreground text-sm italic">No documents uploaded yet.</p>
+                                ) : (
+                                  <ScrollArea className="max-h-64">
+                                    <div className="space-y-2">
+                                      {documents
+                                        .filter(doc => ['insurance', 'insurance_policy', 'authorization', 'explanation', 'claim'].includes(doc.type))
+                                        .map(doc => (
+                                          <Card key={doc.id} className="p-2">
+                                            <div className="flex items-center justify-between">
+                                              <div className="flex items-center">
+                                                <FileCheck className="mr-2 text-primary" size={18} />
+                                                <div>
+                                                  <p className="font-medium text-sm">{doc.name}</p>
+                                                  <p className="text-xs text-muted-foreground">
+                                                    {new Date(doc.createdAt).toLocaleDateString()} · {(doc.size / 1024).toFixed(1)} KB
+                                                  </p>
+                                                </div>
+                                              </div>
+                                              <div className="flex gap-2">
+                                                {doc.url && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    asChild
+                                                    className="h-8 w-8 p-0"
+                                                  >
+                                                    <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                                                      <Info size={16} />
+                                                      <span className="sr-only">View</span>
+                                                    </a>
+                                                  </Button>
+                                                )}
+                                                {isEditing && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => deleteDocument(doc.id)}
+                                                    className="h-8 w-8 p-0 text-destructive"
+                                                  >
+                                                    <X size={16} />
+                                                    <span className="sr-only">Delete</span>
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </Card>
+                                        ))}
+                                    </div>
+                                  </ScrollArea>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </TabsContent>
                       
