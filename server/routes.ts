@@ -1312,10 +1312,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Execute the transfer
       console.log(`Transferring health data from user ${sourceUserId} to user ${targetUserId}`);
+      // Execute the transfer from our new utility
       const result = await copyHealthMetricsData(sourceUserId, targetUserId);
       
       // Return the result
-      res.status(result.success ? 200 : 500).json(result);
+      res.status(200).json(result);
     } catch (error) {
       console.error("Error in health data transfer API:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });

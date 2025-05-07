@@ -1,56 +1,72 @@
-import { db } from "../db";
-import { healthMetrics } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { storage } from '../storage';
 
 /**
- * Utility function to copy health metrics data from one user to another
- * This is useful for transferring demo data to a real user account
+ * Copies health metrics data from one user to another
+ * @param sourceUserId User ID to copy data from
+ * @param targetUserId User ID to copy data to
+ * @returns Object with counts of copied records
  */
 export async function copyHealthMetricsData(sourceUserId: number, targetUserId: number) {
+  console.log(`Starting health metrics data transfer from user ${sourceUserId} to user ${targetUserId}`);
+  
   try {
-    // Fetch all health metrics for source user
-    const sourceMetrics = await db.select().from(healthMetrics).where(eq(healthMetrics.userId, sourceUserId));
+    // Get source user's metrics - no limit to get all records
+    const sourceMetrics = await storage.getHealthMetricsForUser(sourceUserId);
     
-    console.log(`Found ${sourceMetrics.length} health metrics records for user ${sourceUserId}`);
-    
-    if (sourceMetrics.length === 0) {
+    if (!sourceMetrics || sourceMetrics.length === 0) {
       console.log(`No health metrics found for source user ${sourceUserId}`);
-      return {
-        success: false,
-        message: "No health metrics found for source user",
-        copied: 0
+      return { 
+        copied: 0,
+        message: "No health metrics found for source user" 
       };
     }
     
-    // Delete existing metrics for target user to avoid duplicates
-    await db.delete(healthMetrics).where(eq(healthMetrics.userId, targetUserId));
-    console.log(`Deleted existing health metrics for target user ${targetUserId}`);
+    console.log(`Found ${sourceMetrics.length} health metrics for source user ${sourceUserId}`);
     
-    // Copy metrics to target user
-    const promises = sourceMetrics.map(metric => {
-      // Create a new metric object, assign it to the target user
-      const newMetric = { ...metric, id: undefined, userId: targetUserId };
+    // Copy each metric to the target user with modified userId
+    let successCount = 0;
+    
+    // Process in chronological order from oldest to newest
+    const sortedMetrics = [...sourceMetrics].sort((a, b) => 
+      new Date(a.date || '').getTime() - new Date(b.date || '').getTime()
+    );
+    
+    for (const metric of sortedMetrics) {
+      // Create a copy with the new user ID and no original ID
+      const metricCopy = {
+        date: metric.date,
+        userId: targetUserId,
+        systolicBP: metric.systolicBP,
+        diastolicBP: metric.diastolicBP,
+        hydration: metric.hydration,
+        weight: metric.weight,
+        painLevel: metric.painLevel,
+        stressLevel: metric.stressLevel,
+        fatigueLevel: metric.fatigueLevel,
+        gfrEstimate: metric.gfrEstimate,
+        gfrMethod: metric.gfrMethod,
+        gfrTrend: metric.gfrTrend,
+        gfrStability: metric.gfrStability
+      };
       
-      // Insert the new metric
-      return db.insert(healthMetrics).values(newMetric);
-    });
+      try {
+        // Save the copied metric to the database
+        await storage.saveHealthMetrics(metricCopy);
+        successCount++;
+      } catch (err) {
+        console.error(`Error copying metric:`, err);
+      }
+    }
     
-    // Wait for all insertions to complete
-    await Promise.all(promises);
-    
-    console.log(`Successfully copied ${sourceMetrics.length} health metrics from user ${sourceUserId} to user ${targetUserId}`);
+    console.log(`Successfully copied ${successCount} of ${sourceMetrics.length} health metrics`);
     
     return {
-      success: true,
-      message: `Successfully copied ${sourceMetrics.length} health metrics records`,
-      copied: sourceMetrics.length
+      total: sourceMetrics.length,
+      copied: successCount,
+      message: `Successfully copied ${successCount} health metrics to user ${targetUserId}`
     };
   } catch (error) {
-    console.error(`Error copying health metrics data:`, error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : String(error),
-      copied: 0
-    };
+    console.error('Error during health metrics copy:', error);
+    throw new Error('Failed to copy health metrics data');
   }
 }
