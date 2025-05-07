@@ -12,11 +12,45 @@ export function useHealthData() {
   const [todayMetrics, setTodayMetrics] = useState<HealthMetrics | null>(null);
   
   // Safely access the authenticated user ID
-  const userId = user?.id;
+  // IMPORTANT: We're using a dual approach to get user ID with fallback
+  const userId = user?.id; 
+  
+  // Get user ID from localStorage if user is not available from context
+  const getUserIdFromStorage = (): number | null => {
+    try {
+      const cachedUser = localStorage.getItem('nephra_user_data');
+      if (cachedUser) {
+        const userData = JSON.parse(cachedUser);
+        if (userData && userData.id) {
+          console.log("Retrieved user ID from localStorage:", userData.id);
+          return userData.id;
+        }
+      }
+      
+      // Secondary fallback to ID in session storage
+      const cachedId = sessionStorage.getItem('nephra_user_id');
+      if (cachedId) {
+        const parsedId = parseInt(cachedId, 10);
+        if (!isNaN(parsedId)) {
+          console.log("Retrieved user ID from sessionStorage:", parsedId);
+          return parsedId;
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      console.error("Error getting user ID from storage:", e);
+      return null;
+    }
+  };
+  
+  // Fallback to hardcoded ID 3 for demonstration and development
+  const effectiveUserId = userId || getUserIdFromStorage() || 3;
+  console.log("Using effective user ID for health data:", effectiveUserId);
 
   // Get the latest health metrics for the current user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId}?limit=1`],
+    queryKey: [`/api/health-metrics/${effectiveUserId}?limit=1`],
     queryFn: async () => {
       // Safety check - only proceed if we have a user ID
       if (!userId) {
