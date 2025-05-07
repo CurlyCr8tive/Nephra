@@ -118,9 +118,7 @@ export default function MedicalDocuments() {
       if (!user) throw new Error("User not found");
       
       // Call the server-side validation endpoint
-      const response = await apiRequest(`/api/medical-documents/${document.id}/validate`, {
-        method: "POST"
-      });
+      const response = await apiRequest("POST", `/api/medical-documents/${document.id}/validate`);
       return response;
     },
     onSuccess: () => {
@@ -311,7 +309,7 @@ export default function MedicalDocuments() {
   };
   
   // Filter documents based on active tab
-  const filteredDocuments = documents ? documents.filter((doc: any) => {
+  const filteredDocuments = Array.isArray(documents) ? documents.filter((doc: any) => {
     if (activeTab === "all") return true;
     if (activeTab === "validated") return doc.aiVerified;
     if (activeTab === "unvalidated") return !doc.aiVerified;
