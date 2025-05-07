@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -208,14 +208,36 @@ export default function MedicalDocuments() {
     setFileSelected(false);
   };
   
-  // Handle file selection
+  // Handle file selection - now uses an actual file input
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const handleFileSelect = () => {
-    // In a real app, we would handle actual file upload here
-    setFileSelected(true);
-    toast({
-      title: "File Selected",
-      description: "Your file has been selected. Please fill out the remaining fields.",
-    });
+    // Trigger the hidden file input
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setFile(files[0]);
+      setFileSelected(true);
+      setFormData({
+        ...formData,
+        fileName: files[0].name
+      });
+      toast({
+        title: "File Selected",
+        description: `${files[0].name} (${formatFileSize(files[0].size)})`,
+      });
+    }
+  };
+  
+  // Helper to format file size
+  const formatFileSize = (size: number): string => {
+    if (size < 1024) return `${size} bytes`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   };
   
   // Open document validation dialog

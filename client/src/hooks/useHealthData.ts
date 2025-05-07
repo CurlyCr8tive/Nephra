@@ -52,17 +52,11 @@ export function useHealthData() {
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${effectiveUserId}?limit=1`],
     queryFn: async () => {
-      // Safety check - only proceed if we have a user ID
-      if (!userId) {
-        console.log("⚠️ No authenticated user ID available, skipping latest metrics fetch");
-        return [];
-      }
-      
-      console.log(`🔍 Explicitly fetching latest health metrics for authenticated user ID ${userId}`);
+      console.log(`🔍 Fetching latest health metrics for user ID ${effectiveUserId}`);
       
       try {
-        // Make a simple direct fetch to the endpoint - avoids any potential browser issues
-        const response = await fetch(`/api/health-metrics/${userId}?limit=1`, { 
+        // Make a simple direct fetch to the endpoint using the effective user ID
+        const response = await fetch(`/api/health-metrics/${effectiveUserId}?limit=1`, { 
           credentials: "include",
           cache: "no-store" // Force fresh data
         });
@@ -147,21 +141,10 @@ export function useHealthData() {
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${userId}/range`],
+    queryKey: [`/api/health-metrics/${effectiveUserId}/range`],
     queryFn: async () => {
-      // Safety check - only proceed if we have a user ID
-      if (!userId) {
-        console.log("⚠️ No authenticated user ID available, skipping weekly metrics fetch");
-        
-        // Fallback to user ID 3 since we know it exists
-        console.log("🔄 Attempting fallback to user ID 3 for weekly metrics...");
-        const fallbackId = 3;
-        
-        return fetchWeeklyMetricsForUser(fallbackId);
-      }
-      
-      console.log(`🔍 Attempting to fetch weekly metrics for authenticated user ID ${userId}`);
-      return fetchWeeklyMetricsForUser(userId);
+      console.log(`🔍 Fetching weekly metrics for user ID ${effectiveUserId}`);
+      return fetchWeeklyMetricsForUser(effectiveUserId);
     },
     staleTime: 30 * 1000, // 30 seconds
     refetchOnMount: true,
@@ -215,7 +198,7 @@ export function useHealthData() {
         console.log("📋 Sample metrics data:", {
           firstEntry: data[0].date,
           lastEntry: data[data.length-1].date,
-          gfrValues: data.map(d => d.estimatedGFR)
+          gfrValues: data.map((d: HealthMetrics) => d.estimatedGFR)
         });
       } else {
         console.log("⚠️ No weekly metrics found, array is empty");
@@ -381,10 +364,10 @@ export function useHealthData() {
       
       // Immediately invalidate queries to refresh data
       queryClient.invalidateQueries({
-        queryKey: [`/api/health-metrics/${userId}`]
+        queryKey: [`/api/health-metrics/${effectiveUserId}`]
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/health-metrics/${userId}/range`]
+        queryKey: [`/api/health-metrics/${effectiveUserId}/range`]
       });
       
       setTodayMetrics(data);
