@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { validateMedicalDocument } from "@/lib/documentValidation";
+import { supabase } from "@/lib/supabaseClient";
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Header } from "@/components/Header";
+import { Progress } from "@/components/ui/progress";
 
 // Icons
 import { 
@@ -50,6 +52,14 @@ export default function MedicalDocuments() {
   const [validateDialogOpen, setValidateDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   
+  // File upload state
+  const [file, setFile] = useState<File | null>(null);
+  const [fileSelected, setFileSelected] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [metadataFields, setMetadataFields] = useState<Record<string, string>>({});
+  
   // Form state
   const [formData, setFormData] = useState({
     fileName: "",
@@ -61,10 +71,6 @@ export default function MedicalDocuments() {
     aiVerificationNotes: ""
   });
   
-  // File upload state
-  const [fileSelected, setFileSelected] = useState(false);
-  const [metadataFields, setMetadataFields] = useState<Record<string, string>>({});
-  
   // Query to get all medical documents
   const { data: documents, isLoading, error } = useQuery({
     queryKey: ["/api/medical-documents", user?.id],
@@ -74,13 +80,17 @@ export default function MedicalDocuments() {
   // Mutation to create a new document
   const createDocumentMutation = useMutation({
     mutationFn: async (documentData: any) => {
-      return apiRequest("/api/medical-documents", {
+      const response = await fetch("/api/medical-documents", {
         method: "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           ...documentData,
           userId: user?.id,
         }),
       });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medical-documents", user?.id] });
@@ -90,6 +100,7 @@ export default function MedicalDocuments() {
         title: "Document Uploaded",
         description: "Your medical document has been successfully uploaded.",
       });
+      setIsUploading(false);
     },
     onError: (error) => {
       toast({
@@ -97,6 +108,7 @@ export default function MedicalDocuments() {
         description: "There was an error uploading your document. Please try again.",
         variant: "destructive",
       });
+      setIsUploading(false);
     },
   });
   
@@ -106,9 +118,10 @@ export default function MedicalDocuments() {
       if (!user) throw new Error("User not found");
       
       // Call the server-side validation endpoint
-      return apiRequest(`/api/medical-documents/${document.id}/validate`, {
+      const response = await apiRequest(`/api/medical-documents/${document.id}/validate`, {
         method: "POST"
       });
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medical-documents", user?.id] });
@@ -179,39 +192,7 @@ export default function MedicalDocuments() {
     }
   };
   
-  // Submit form
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const documentData = {
-      ...formData,
-      metadata: metadataFields,
-      uploadDate: new Date(),
-      fileUrl: "sample-url", // In a real app, this would be the URL from file upload
-    };
-    
-    createDocumentMutation.mutate(documentData);
-  };
-  
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      fileName: "",
-      documentType: "",
-      description: "",
-      uploadDate: new Date(),
-      metadata: {},
-      aiVerified: false,
-      aiVerificationNotes: ""
-    });
-    setMetadataFields({});
-    setFileSelected(false);
-  };
-  
-  // Handle file selection - now uses an actual file input
-  const [file, setFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  // Handle file selection
   const handleFileSelect = () => {
     // Trigger the hidden file input
     fileInputRef.current?.click();
@@ -233,6 +214,89 @@ export default function MedicalDocuments() {
     }
   };
   
+  // Submit form with Supabase file upload
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!file || !user) {
+      toast({
+        title: "Upload Failed",
+        description: "Please select a file and ensure you are logged in.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      // Create a unique file path in Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `medical-documents/${fileName}`;
+      
+      // Check if supabase client is available
+      if (!supabase) {
+        throw new Error("Supabase client is not initialized");
+      }
+      
+      // Upload the file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+      
+      if (uploadError) {
+        throw new Error(`File upload failed: ${uploadError.message}`);
+      }
+      
+      // Get the public URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+      
+      // Prepare document data with the file URL
+      const documentData = {
+        ...formData,
+        metadata: metadataFields,
+        uploadDate: new Date(),
+        fileUrl: publicUrl,
+      };
+      
+      // Save document metadata to the database
+      createDocumentMutation.mutate(documentData);
+      
+    } catch (error: any) {
+      console.error("Document upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "There was an error uploading your document. Please try again.",
+        variant: "destructive",
+      });
+      setIsUploading(false);
+    }
+  };
+  
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      fileName: "",
+      documentType: "",
+      description: "",
+      uploadDate: new Date(),
+      metadata: {},
+      aiVerified: false,
+      aiVerificationNotes: ""
+    });
+    setMetadataFields({});
+    setFileSelected(false);
+    setFile(null);
+    setUploadProgress(0);
+  };
+  
   // Helper to format file size
   const formatFileSize = (size: number): string => {
     if (size < 1024) return `${size} bytes`;
@@ -247,12 +311,12 @@ export default function MedicalDocuments() {
   };
   
   // Filter documents based on active tab
-  const filteredDocuments = documents?.filter((doc: any) => {
+  const filteredDocuments = documents ? documents.filter((doc: any) => {
     if (activeTab === "all") return true;
     if (activeTab === "validated") return doc.aiVerified;
     if (activeTab === "unvalidated") return !doc.aiVerified;
     return doc.documentType === activeTab;
-  });
+  }) : [];
   
   // Parse AI verification notes
   const parseVerificationNotes = (notes?: string) => {
@@ -294,7 +358,8 @@ export default function MedicalDocuments() {
                     {fileSelected ? (
                       <div className="flex flex-col items-center text-green-600">
                         <CheckCircle size={24} className="mb-2" />
-                        <p>File selected. Click to change.</p>
+                        <p>File selected: {file?.name}</p>
+                        <p className="text-xs mt-1">{file && formatFileSize(file.size)}</p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center text-slate-500">
@@ -304,7 +369,26 @@ export default function MedicalDocuments() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Hidden file input */}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    className="hidden" 
+                    accept=".pdf,.jpg,.jpeg,.png,.docx" 
+                    onChange={handleFileInputChange}
+                  />
                 </div>
+                
+                {isUploading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Uploading...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-2" />
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <Label htmlFor="fileName">Document Name</Label>
@@ -398,14 +482,15 @@ export default function MedicalDocuments() {
                     type="button" 
                     variant="outline" 
                     onClick={() => setDialogOpen(false)}
+                    disabled={isUploading}
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={!fileSelected || !formData.fileName || !formData.documentType}
+                    disabled={!fileSelected || !formData.fileName || !formData.documentType || isUploading}
                   >
-                    Upload Document
+                    {isUploading ? "Uploading..." : "Upload Document"}
                   </Button>
                 </div>
               </form>
@@ -440,7 +525,7 @@ export default function MedicalDocuments() {
                   Try Again
                 </Button>
               </div>
-            ) : filteredDocuments?.length === 0 ? (
+            ) : filteredDocuments.length === 0 ? (
               <div className="text-center py-10 bg-white rounded-lg border border-slate-200">
                 <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                 <h3 className="text-lg font-medium mb-1">No documents found</h3>
@@ -460,7 +545,7 @@ export default function MedicalDocuments() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
-                {filteredDocuments?.map((doc: any) => {
+                {filteredDocuments.map((doc: any) => {
                   const documentType = documentTypes.find(t => t.value === doc.documentType);
                   const verificationNotes = parseVerificationNotes(doc.aiVerificationNotes);
                   
@@ -529,17 +614,24 @@ export default function MedicalDocuments() {
                         )}
                       </CardContent>
                       
-                      <CardFooter className="border-t pt-3 flex justify-between">
-                        <Button variant="outline" size="sm">
-                          View Full Document
+                      <CardFooter className="flex justify-between pt-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-primary"
+                          onClick={() => window.open(doc.fileUrl, '_blank')}
+                        >
+                          View Document
                         </Button>
                         
                         {!doc.aiVerified && (
                           <Button 
-                            size="sm" 
+                            variant="outline" 
+                            size="sm"
+                            className="flex items-center gap-1"
                             onClick={() => handleValidateDocument(doc)}
                           >
-                            <FileCheck size={16} className="mr-1" />
+                            <FileCheck size={14} />
                             Validate
                           </Button>
                         )}
@@ -551,54 +643,63 @@ export default function MedicalDocuments() {
             )}
           </TabsContent>
         </Tabs>
-      </main>
-      
-      {/* Dialog for AI validation */}
-      <Dialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>AI Document Validation</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-2">
-            <p className="text-sm">
-              Our AI assistant will analyze this document for:
-            </p>
-            <ul className="text-sm list-disc pl-5 space-y-1">
-              <li>Potential abnormal values</li>
-              <li>Relevance to your kidney health</li>
-              <li>Recommendations based on the document content</li>
-            </ul>
+        
+        {/* AI Validation Dialog */}
+        <Dialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>AI Document Validation</DialogTitle>
+            </DialogHeader>
             
             {selectedDocument && (
-              <div className="bg-slate-50 p-3 rounded-md">
-                <p className="font-medium">{selectedDocument.fileName}</p>
-                <p className="text-sm text-slate-600">{selectedDocument.description}</p>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium">{selectedDocument.fileName}</h3>
+                  <p className="text-sm text-slate-500">
+                    {documentTypes.find(t => t.value === selectedDocument.documentType)?.label || selectedDocument.documentType}
+                  </p>
+                </div>
+                
+                <div className="border rounded-md p-3 bg-slate-50">
+                  <p className="text-sm mb-2">
+                    AI validation will:
+                  </p>
+                  <ul className="space-y-1 text-sm text-slate-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Analyze the document for consistency and accuracy</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Identify potential concerns or discrepancies</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Provide a summary interpretation of key findings</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setValidateDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => validateDocumentMutation.mutate(selectedDocument)}
+                    disabled={validateDocumentMutation.isPending}
+                  >
+                    {validateDocumentMutation.isPending ? "Validating..." : "Start Validation"}
+                  </Button>
+                </div>
               </div>
             )}
-            
-            <p className="text-sm text-slate-500 italic">
-              Note: AI validation is not a substitute for professional medical advice.
-              Always consult with your healthcare provider about your test results.
-            </p>
-          </div>
-          
-          <div className="flex justify-end gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setValidateDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => validateDocumentMutation.mutate(selectedDocument)}
-              disabled={validateDocumentMutation.isPending}
-            >
-              {validateDocumentMutation.isPending ? "Validating..." : "Validate Document"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </main>
     </div>
   );
 }
