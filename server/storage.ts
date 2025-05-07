@@ -497,6 +497,55 @@ export class MemStorage implements IStorage {
     this.educationResources.set(id, educationResource);
     return educationResource;
   }
+
+  // Health alert methods
+  async getHealthAlerts(userId: number): Promise<HealthAlert[]> {
+    const alerts = Array.from(this.healthAlerts.values())
+      .filter(alert => alert.userId === userId)
+      .sort((a, b) => {
+        const timestampA = a.timestamp ? a.timestamp.getTime() : 0;
+        const timestampB = b.timestamp ? b.timestamp.getTime() : 0;
+        return timestampB - timestampA; // Most recent first
+      });
+    
+    return alerts;
+  }
+  
+  async getHealthAlert(id: number): Promise<HealthAlert | undefined> {
+    return this.healthAlerts.get(id);
+  }
+  
+  async createHealthAlert(alert: InsertHealthAlert): Promise<HealthAlert> {
+    const id = this.healthAlertId++;
+    
+    // Set default values for optional fields
+    const newAlert: HealthAlert = {
+      ...alert,
+      id,
+      timestamp: alert.timestamp || new Date(),
+      isAcknowledged: alert.isAcknowledged !== undefined ? alert.isAcknowledged : false,
+      acknowledgedAt: alert.isAcknowledged ? new Date() : null
+    };
+    
+    this.healthAlerts.set(id, newAlert);
+    console.log(`Created health alert with ID ${id} for user ${alert.userId}`);
+    return newAlert;
+  }
+  
+  async acknowledgeHealthAlert(id: number): Promise<HealthAlert | undefined> {
+    const alert = this.healthAlerts.get(id);
+    if (!alert) return undefined;
+    
+    const updatedAlert: HealthAlert = {
+      ...alert,
+      isAcknowledged: true,
+      acknowledgedAt: new Date()
+    };
+    
+    this.healthAlerts.set(id, updatedAlert);
+    console.log(`Acknowledged health alert with ID ${id}`);
+    return updatedAlert;
+  }
 }
 
 // Create a PostgreSQL-backed storage implementation
@@ -784,6 +833,46 @@ class DatabaseStorage implements IStorage {
 
   async createEducationResource(resource: InsertEducationResource): Promise<EducationResource> {
     const [result] = await db.insert(educationResources).values(resource).returning();
+    return result;
+  }
+  
+  // Health alert methods
+  async getHealthAlerts(userId: number): Promise<HealthAlert[]> {
+    return await db.select()
+      .from(healthAlerts)
+      .where(eq(healthAlerts.userId, userId))
+      .orderBy(desc(healthAlerts.timestamp));
+  }
+  
+  async getHealthAlert(id: number): Promise<HealthAlert | undefined> {
+    const [alert] = await db.select()
+      .from(healthAlerts)
+      .where(eq(healthAlerts.id, id));
+    return alert;
+  }
+  
+  async createHealthAlert(alert: InsertHealthAlert): Promise<HealthAlert> {
+    const [result] = await db.insert(healthAlerts).values({
+      ...alert,
+      isAcknowledged: alert.isAcknowledged !== undefined ? alert.isAcknowledged : false,
+      timestamp: alert.timestamp || new Date()
+    }).returning();
+    
+    console.log(`Created health alert with ID ${result.id} for user ${alert.userId}`);
+    return result;
+  }
+  
+  async acknowledgeHealthAlert(id: number): Promise<HealthAlert | undefined> {
+    const [result] = await db
+      .update(healthAlerts)
+      .set({
+        isAcknowledged: true,
+        acknowledgedAt: new Date()
+      })
+      .where(eq(healthAlerts.id, id))
+      .returning();
+    
+    console.log(`Acknowledged health alert with ID ${id}`);
     return result;
   }
 }

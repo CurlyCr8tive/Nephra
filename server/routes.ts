@@ -20,6 +20,7 @@ import aiRouter from "./ai-router";
 import enhancedJournalRouter from "./enhanced-journal-api-router";
 import supabaseRouter from "./supabase-router-fixed";
 import healthLogRouter from "./health-log-router";
+import healthAlertsRouter from "./health-alerts-router";
 import statusRouter from "./status-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
