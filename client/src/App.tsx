@@ -14,6 +14,7 @@ import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import AppLayout from "@/components/AppLayout";
 
 // AppRoutes component handles all routing logic - HEAVILY SIMPLIFIED
 const AppRoutes = () => {
@@ -49,24 +50,35 @@ const AppRoutes = () => {
   }
   
   // Normal routing with simple Switch
+  // Auth page doesn't need health alerts
+  if (isAuthPage) {
+    return (
+      <Switch>
+        <Route path="/auth" component={AuthPage} />
+      </Switch>
+    );
+  }
+  
+  // All other routes are wrapped in the AppLayout with health alerts
   return (
-    <Switch>
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/track" component={TrackPage} />
-      <Route path="/log" component={TrackPage} />
-      <Route path="/journal" component={JournalPage} />
-      <Route path="/transplant" component={TransplantRoadmap} />
-      <Route path="/trends" component={TrackPage} />
-      <Route path="/documents" component={MedicalDocuments} />
-      <Route path="/education" component={EducationHub} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route path="/chat" component={AIChatView} />
-      <Route path="/">
-        {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
-      </Route>
-      <Route component={NotFound} />
-    </Switch>
+    <AppLayout>
+      <Switch>
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/track" component={TrackPage} />
+        <Route path="/log" component={TrackPage} />
+        <Route path="/journal" component={JournalPage} />
+        <Route path="/transplant" component={TransplantRoadmap} />
+        <Route path="/trends" component={TrackPage} />
+        <Route path="/documents" component={MedicalDocuments} />
+        <Route path="/education" component={EducationHub} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route path="/chat" component={AIChatView} />
+        <Route path="/">
+          {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </AppLayout>
   );
 };
 
