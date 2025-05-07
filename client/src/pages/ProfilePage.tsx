@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/contexts/UserContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,11 +26,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PlusCircle, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  CalendarIcon, 
+  PlusCircle, 
+  X, 
+  FileText, 
+  Upload, 
+  CheckCircle, 
+  AlertCircle, 
+  FileCheck,
+  Info 
+} from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -105,6 +119,15 @@ export default function ProfilePage() {
     notes: ""
   });
 
+  // Document upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState<string>("insurance");
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Medication interface
   interface Medication {
     name: string;
@@ -112,6 +135,16 @@ export default function ProfilePage() {
     frequency: string;
     time: string; // e.g., "morning", "evening", or specific time
     notes: string;
+  }
+  
+  // Document interface
+  interface DocumentInfo {
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    createdAt: string;
+    url: string;
   }
 
   // Define user profile interface matching the API response
@@ -401,6 +434,192 @@ export default function ProfilePage() {
   const removeHealthCondition = (condition: string) => {
     const currentConditions = form.getValues("otherHealthConditions") || [];
     form.setValue("otherHealthConditions", currentConditions.filter(c => c !== condition));
+  };
+  
+  // Document handling functions
+  useEffect(() => {
+    if (userId) {
+      fetchUserDocuments();
+    }
+  }, [userId]);
+  
+  const fetchUserDocuments = async () => {
+    if (!userId) return;
+    
+    try {
+      const { data: docData, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching documents:', error);
+        return;
+      }
+      
+      if (docData) {
+        const processedDocs = await Promise.all(docData.map(async (doc) => {
+          // Get signed URL for each document
+          const { data: urlData } = await supabase
+            .storage
+            .from('documents')
+            .createSignedUrl(`${userId}/${doc.filename}`, 3600);
+            
+          return {
+            id: doc.id,
+            name: doc.originalName || doc.filename,
+            type: doc.documentType || 'other',
+            size: doc.fileSize || 0,
+            createdAt: doc.createdAt,
+            url: urlData?.signedUrl || ''
+          };
+        }));
+        
+        setDocuments(processedDocs);
+      }
+    } catch (err) {
+      console.error('Error processing documents:', err);
+    }
+  };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+  
+  const uploadDocument = async () => {
+    if (!selectedFile || !userId) {
+      toast({
+        title: "Upload error",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadError(null);
+    
+    try {
+      // Create a unique filename
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+      
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, selectedFile, {
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: (progress) => {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            setUploadProgress(percent);
+          }
+        });
+        
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+      
+      // Save document metadata to Supabase DB
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          userId: userId,
+          filename: fileName,
+          originalName: selectedFile.name,
+          fileSize: selectedFile.size,
+          fileType: selectedFile.type,
+          documentType: documentType,
+          createdAt: new Date().toISOString()
+        });
+        
+      if (dbError) {
+        throw new Error(dbError.message);
+      }
+      
+      toast({
+        title: "Document uploaded",
+        description: "Your document has been uploaded successfully.",
+      });
+      
+      // Reset state and refresh documents
+      setSelectedFile(null);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      fetchUserDocuments();
+      
+    } catch (error: any) {
+      setUploadError(error.message);
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const deleteDocument = async (documentId: string) => {
+    if (!userId) return;
+    
+    try {
+      // First get the document to get the filename
+      const { data: document, error: fetchError } = await supabase
+        .from('documents')
+        .select('filename')
+        .eq('id', documentId)
+        .single();
+        
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+      
+      if (!document) {
+        throw new Error('Document not found');
+      }
+      
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .remove([`${userId}/${document.filename}`]);
+        
+      if (storageError) {
+        throw new Error(storageError.message);
+      }
+      
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', documentId);
+        
+      if (dbError) {
+        throw new Error(dbError.message);
+      }
+      
+      // Update local state
+      setDocuments(documents.filter(doc => doc.id !== documentId));
+      
+      toast({
+        title: "Document deleted",
+        description: "The document has been deleted successfully.",
+      });
+      
+    } catch (error: any) {
+      toast({
+        title: "Error deleting document",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   // Handle adding other specialist
