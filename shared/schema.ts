@@ -20,6 +20,21 @@ export interface SupabaseHealthLog {
   metadata?: Record<string, any>;
 }
 
+export interface SupabaseHealthAlert {
+  id?: number;
+  user_id: string | number;
+  created_at: string;
+  alert_type: 'critical' | 'warning' | 'insight';
+  metrics: {
+    name: string;
+    value: number | string;
+    threshold?: number | string;
+  }[];
+  message?: string;
+  is_acknowledged: boolean;
+  acknowledged_at?: string;
+}
+
 export interface SupabaseChatLog {
   id?: number;
   user_id: string | number;
@@ -187,6 +202,18 @@ export const journalEntries = pgTable("journal_entries", {
   stressScore: integer("stress_score"),
   fatigueScore: integer("fatigue_score"),
   painScore: integer("pain_score"),
+});
+
+// Health alerts table
+export const healthAlerts = pgTable("health_alerts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  timestamp: timestamp("timestamp").defaultNow(),
+  type: text("type").notNull(), // critical, warning, insight
+  message: text("message"),
+  metrics: jsonb("metrics"), // Array of {name, value, threshold}
+  isAcknowledged: boolean("is_acknowledged").default(false),
+  acknowledgedAt: timestamp("acknowledged_at"),
 });
 
 // Medical documents table for upload center
@@ -358,6 +385,11 @@ export const insertEducationResourceSchema = createInsertSchema(educationResourc
   id: true,
 });
 
+export const insertHealthAlertSchema = createInsertSchema(healthAlerts).omit({
+  id: true,
+  acknowledgedAt: true,
+});
+
 // Community feature insert schemas
 export const insertForumCategorySchema = createInsertSchema(forumCategories).omit({
   id: true,
@@ -435,6 +467,9 @@ export type MedicalDocument = typeof medicalDocuments.$inferSelect;
 
 export type InsertEducationResource = z.infer<typeof insertEducationResourceSchema>;
 export type EducationResource = typeof educationResources.$inferSelect;
+
+export type InsertHealthAlert = z.infer<typeof insertHealthAlertSchema>;
+export type HealthAlert = typeof healthAlerts.$inferSelect;
 
 // Community feature types
 export type InsertForumCategory = z.infer<typeof insertForumCategorySchema>;
