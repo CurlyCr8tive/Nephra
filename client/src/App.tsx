@@ -10,6 +10,7 @@ import MedicalDocuments from "@/pages/MedicalDocuments";
 import JournalPage from "@/pages/JournalPage";
 import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
+import AdminPage from "@/pages/AdminPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -73,6 +74,7 @@ const AppRoutes = () => {
         <Route path="/education" component={EducationHub} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/chat" component={AIChatView} />
+        <Route path="/admin" component={AdminPage} />
         <Route path="/">
           {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
         </Route>
