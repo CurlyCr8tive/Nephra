@@ -10,7 +10,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Phone, Calendar, Heart, AlertTriangle } from "lucide-react";
+import { Phone, Calendar, Heart, AlertTriangle, Check } from "lucide-react";
+import { HealthAlert } from "@/hooks/useHealthMonitor";
 
 export interface HealthAlertProps {
   open: boolean;
@@ -22,6 +23,9 @@ export interface HealthAlertProps {
     threshold?: number | string;
   }[];
   message?: string;
+  onAcknowledge?: () => void;
+  isLoading?: boolean;
+  alertId?: number;
 }
 
 export function HealthAlertPopup({ 
@@ -29,7 +33,10 @@ export function HealthAlertPopup({
   onOpenChange, 
   alertType, 
   metrics = [], 
-  message 
+  message,
+  onAcknowledge,
+  isLoading = false,
+  alertId
 }: HealthAlertProps) {
   
   const getTitle = () => {
@@ -113,6 +120,21 @@ export function HealthAlertPopup({
           >
             <Calendar className="h-4 w-4" />
             Schedule Appointment
+          </Button>
+          <Button 
+            variant="outline"
+            className="w-full sm:w-auto flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+            onClick={() => {
+              if (onAcknowledge) {
+                onAcknowledge();
+              } else {
+                onOpenChange(false);
+              }
+            }}
+            disabled={isLoading}
+          >
+            <Check className="h-4 w-4" />
+            Acknowledge
           </Button>
           <AlertDialogCancel className="mt-0">Dismiss</AlertDialogCancel>
         </AlertDialogFooter>

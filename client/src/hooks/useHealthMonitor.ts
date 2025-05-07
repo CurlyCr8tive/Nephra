@@ -12,6 +12,8 @@ export interface HealthMetric {
 }
 
 export interface HealthAlert {
+  id?: number;
+  userId?: number;
   type: 'critical' | 'warning' | 'insight';
   message?: string;
   metrics: {
@@ -20,6 +22,8 @@ export interface HealthAlert {
     threshold?: number | string;
   }[];
   timestamp: string;
+  isAcknowledged?: boolean;
+  acknowledgedAt?: string | null;
 }
 
 interface MonitorConfig {
@@ -66,6 +70,13 @@ export function useHealthMonitor(config: MonitorConfig = {}) {
     enabled: !!user && mergedConfig.enableInsightAlerts,
   });
   
+  // Get unacknowledged alerts
+  const { data: healthAlerts } = useQuery({
+    queryKey: ['/api/health-alerts', user?.id],
+    enabled: !!user,
+    refetchInterval: mergedConfig.checkInterval,
+  });
+  
   // Mutation to save alerts to the database
   const saveAlertMutation = useMutation({
     mutationFn: async (alertData: HealthAlert) => {
@@ -76,6 +87,17 @@ export function useHealthMonitor(config: MonitorConfig = {}) {
         metrics: alertData.metrics,
         timestamp: alertData.timestamp
       });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/health-alerts', user?.id] });
+    }
+  });
+  
+  // Mutation to acknowledge an alert
+  const acknowledgeAlertMutation = useMutation({
+    mutationFn: async (alertId: number) => {
+      const response = await apiRequest('POST', `/api/health-alerts/${alertId}/acknowledge`, {});
       return response;
     },
     onSuccess: () => {
@@ -218,6 +240,28 @@ export function useHealthMonitor(config: MonitorConfig = {}) {
     }
   };
   
+  // Process alerts from the server
+  useEffect(() => {
+    if (healthAlerts && Array.isArray(healthAlerts) && healthAlerts.length > 0) {
+      // Find any unacknowledged alerts, starting with critical ones
+      const criticalAlerts = healthAlerts.filter(a => a.type === 'critical' && !a.isAcknowledged);
+      const warningAlerts = healthAlerts.filter(a => a.type === 'warning' && !a.isAcknowledged);
+      const insightAlerts = healthAlerts.filter(a => a.type === 'insight' && !a.isAcknowledged);
+      
+      // Display the most important unacknowledged alert
+      if (criticalAlerts.length > 0 && mergedConfig.enableCriticalAlerts) {
+        setAlert(criticalAlerts[0]);
+        setShowAlert(true);
+      } else if (warningAlerts.length > 0 && mergedConfig.enableWarningAlerts) {
+        setAlert(warningAlerts[0]);
+        setShowAlert(true);
+      } else if (insightAlerts.length > 0 && mergedConfig.enableInsightAlerts) {
+        setAlert(insightAlerts[0]);
+        setShowAlert(true);
+      }
+    }
+  }, [healthAlerts]);
+
   // Run health checks periodically and when data changes
   useEffect(() => {
     checkHealthMetrics();
@@ -229,10 +273,23 @@ export function useHealthMonitor(config: MonitorConfig = {}) {
     return () => clearInterval(interval);
   }, [healthMetrics, journalEntries]);
   
+  // Acknowledge the current alert
+  const acknowledgeAlert = () => {
+    if (alert && alert.id) {
+      acknowledgeAlertMutation.mutate(alert.id);
+      setShowAlert(false);
+    } else {
+      setShowAlert(false);
+    }
+  };
+  
   return {
     alert,
     showAlert,
     setShowAlert,
-    checkNow: checkHealthMetrics
+    acknowledgeAlert,
+    checkNow: checkHealthMetrics,
+    healthAlerts,
+    isLoading: saveAlertMutation.isPending || acknowledgeAlertMutation.isPending
   };
 }
