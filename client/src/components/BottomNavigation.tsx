@@ -5,7 +5,8 @@ export function BottomNavigation() {
 
   const isActive = (path: string) => {
     return location === path || 
-           (path === "/journal" && location === "/chat"); // Consider Chat part of Journal
+           (path === "/journal" && location === "/chat") || // Consider Chat part of Journal
+           (path === "/profile" && location === "/admin"); // Consider Admin part of Profile
   };
   
   return (

@@ -1735,6 +1735,26 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Admin Tools Link */}
+        <div className="mb-20 px-4">
+          <Card className="mb-4">
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold text-primary">Admin Tools</h3>
+                  <p className="text-sm text-gray-500">Data management and system utilities</p>
+                </div>
+                <Link href="/admin">
+                  <Button variant="outline" className="flex items-center">
+                    <span className="material-icons mr-1 text-sm">admin_panel_settings</span>
+                    Access Admin
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
       
       <BottomNavigation />
