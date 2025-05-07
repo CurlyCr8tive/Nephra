@@ -457,17 +457,20 @@ export default function ProfilePage() {
   }, [userId, storageAvailable]);
   
   const fetchUserDocuments = async () => {
-    if (!userId || !supabase) {
-      toast({
-        title: "Storage not available",
-        description: "Document storage is currently unavailable. Please try again later.",
-        variant: "destructive"
-      });
+    // We already checked storageAvailable in the useEffect, but double-check
+    if (!userId || !supabase || !storageAvailable) {
+      if (!storageAvailable) {
+        console.warn("Storage is not available for document fetching");
+      }
+      setDocuments([]);
       return;
     }
     
     try {
-      const { data: docData, error } = await supabase
+      // TypeScript is guaranteed supabase is not null here
+      const supabaseClient = supabase;
+      
+      const { data: docData, error } = await supabaseClient
         .from('documents')
         .select('*')
         .eq('userId', userId)
@@ -478,11 +481,11 @@ export default function ProfilePage() {
         return;
       }
       
-      if (docData && supabase) {
+      if (docData && docData.length > 0) {
         const processedDocs = await Promise.all(docData.map(async (doc) => {
           try {
             // Get signed URL for each document
-            const { data: urlData } = await supabase
+            const { data: urlData } = await supabaseClient
               .storage
               .from('documents')
               .createSignedUrl(`${userId}/${doc.filename}`, 3600);
@@ -510,9 +513,12 @@ export default function ProfilePage() {
         }));
         
         setDocuments(processedDocs);
+      } else {
+        setDocuments([]);
       }
     } catch (err) {
       console.error('Error processing documents:', err);
+      setDocuments([]);
     }
   };
   
@@ -1457,10 +1463,12 @@ export default function ProfilePage() {
                                         type="number" 
                                         step="0.1"
                                         placeholder="Water intake" 
-                                        {...field} 
                                         disabled={!isEditing}
-                                        value={field.value || ""}
-                                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)} 
+                                        value={field.value === null ? "" : field.value}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          field.onChange(val ? parseFloat(val) : null);
+                                        }}
                                       />
                                     </FormControl>
                                     <FormMessage />
@@ -1476,9 +1484,9 @@ export default function ProfilePage() {
                                     <FormLabel>Preferred Unit</FormLabel>
                                     <Select
                                       onValueChange={field.onChange}
-                                      defaultValue={field.value}
+                                      defaultValue={field.value ?? undefined}
                                       disabled={!isEditing}
-                                      value={field.value || undefined}
+                                      value={field.value ?? undefined}
                                     >
                                       <FormControl>
                                         <SelectTrigger>
@@ -1497,15 +1505,26 @@ export default function ProfilePage() {
                             </div>
                             
                             <div className="mt-2 text-sm text-gray-500">
-                              {form.watch("recommendedDailyHydration") && form.watch("preferredHydrationUnit") && (
-                                <p>
-                                  {form.watch("preferredHydrationUnit") === "liters" ? (
-                                    <>Your goal: {form.watch("recommendedDailyHydration")} liters (~{Math.round(form.watch("recommendedDailyHydration") * 4.2)} cups) per day</>
-                                  ) : (
-                                    <>Your goal: {form.watch("recommendedDailyHydration")} cups (~{(form.watch("recommendedDailyHydration") / 4.2).toFixed(1)} liters) per day</>
-                                  )}
-                                </p>
-                              )}
+                              {(() => {
+                                // Get values with type safety
+                                const hydrationGoal = form.watch("recommendedDailyHydration");
+                                const hydrationUnit = form.watch("preferredHydrationUnit");
+                                
+                                if (hydrationGoal !== null && 
+                                    hydrationGoal !== undefined && 
+                                    hydrationUnit) {
+                                  return (
+                                    <p>
+                                      {hydrationUnit === "liters" ? (
+                                        <>Your goal: {hydrationGoal} liters (~{Math.round(hydrationGoal * 4.2)} cups) per day</>
+                                      ) : (
+                                        <>Your goal: {hydrationGoal} cups (~{(hydrationGoal / 4.2).toFixed(1)} liters) per day</>
+                                      )}
+                                    </p>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </div>
                           
@@ -1556,9 +1575,18 @@ export default function ProfilePage() {
                             </div>
                             
                             <div className="mt-2 text-sm text-gray-500">
-                              {form.watch("targetBloodPressureSystolic") && form.watch("targetBloodPressureDiastolic") && (
-                                <p>Your target blood pressure: {form.watch("targetBloodPressureSystolic")}/{form.watch("targetBloodPressureDiastolic")} mmHg</p>
-                              )}
+                              {(() => {
+                                const systolic = form.watch("targetBloodPressureSystolic");
+                                const diastolic = form.watch("targetBloodPressureDiastolic");
+                                
+                                if (systolic !== null && systolic !== undefined && 
+                                    diastolic !== null && diastolic !== undefined) {
+                                  return (
+                                    <p>Your target blood pressure: {systolic}/{diastolic} mmHg</p>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </div>
                           
