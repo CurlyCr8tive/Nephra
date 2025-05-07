@@ -39,13 +39,22 @@ export async function copyHealthMetricsData(sourceUserId: number, targetUserId: 
         systolicBP: metric.systolicBP,
         diastolicBP: metric.diastolicBP,
         hydration: metric.hydration,
-        weight: metric.weight,
         painLevel: metric.painLevel,
         stressLevel: metric.stressLevel,
         fatigueLevel: metric.fatigueLevel,
-        gfrEstimate: metric.gfrEstimate,
-        gfrMethod: metric.gfrMethod,
+        
+        // GFR calculation related fields
+        estimatedGFR: metric.estimatedGFR,
+        gfrCalculationMethod: metric.gfrCalculationMethod,
+        creatinineLevel: metric.creatinineLevel,
+        hydrationLevel: metric.hydrationLevel,
+        
+        // GFR trend analysis fields
         gfrTrend: metric.gfrTrend,
+        gfrTrendDescription: metric.gfrTrendDescription,
+        gfrChangePercent: metric.gfrChangePercent,
+        gfrAbsoluteChange: metric.gfrAbsoluteChange,
+        gfrLongTermTrend: metric.gfrLongTermTrend,
         gfrStability: metric.gfrStability
       };
       
