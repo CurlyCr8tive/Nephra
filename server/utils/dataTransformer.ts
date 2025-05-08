@@ -11,11 +11,17 @@ import { HealthMetrics } from "@shared/schema";
  * and frontend code expect camelCase property names
  */
 export function transformHealthMetrics(metrics: any[]): HealthMetrics[] {
+  if (!metrics || !Array.isArray(metrics)) {
+    console.warn("transformHealthMetrics received non-array input:", metrics);
+    return [];
+  }
+  
   return metrics.map(metric => {
     // Log the incoming metric object to diagnose issues
     console.log("Transforming metric object:", metric);
     
-    return {
+    // Create a fresh transformed object with all available fields
+    const transformed = {
       id: metric.id,
       userId: metric.userId || metric.user_id, // Support both formats
       date: metric.date,
@@ -36,6 +42,21 @@ export function transformHealthMetrics(metrics: any[]): HealthMetrics[] {
       gfrLongTermTrend: metric.gfrLongTermTrend || metric.gfr_long_term_trend,
       gfrStability: metric.gfrStability || metric.gfr_stability
     };
+    
+    // Verify that critical fields are present, log errors if not
+    const criticalFields = ['hydration', 'systolicBP', 'diastolicBP', 'estimatedGFR'];
+    criticalFields.forEach(field => {
+      if (transformed[field] === undefined) {
+        console.error(`Critical field ${field} is missing from health metrics:`, 
+          { original: field === 'hydration' ? metric.hydration : (field === 'systolicBP' ? metric.systolic_bp : (field === 'diastolicBP' ? metric.diastolic_bp : metric.estimated_gfr)) }
+        );
+      }
+    });
+    
+    // Log the complete transformed object for verification
+    console.log("Transformed health metric:", transformed);
+    
+    return transformed;
   });
 }
 

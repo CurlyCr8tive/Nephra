@@ -421,14 +421,36 @@ export function useHealthData() {
       // SECURITY FIX: Only invalidate queries if we have a valid userId
       // This prevents accidentally invalidating queries for other users
       if (effectiveUserId) {
-        // Immediately invalidate queries to refresh data
+        // Immediately invalidate ALL queries that might contain health data
+        // Fixed: Add ?limit=1 suffix to match the exact queryKey pattern used in the fetch
+        console.log("Attempting to invalidate these query keys:");
+        console.log(`- /api/health-metrics/${effectiveUserId}?limit=1`);
+        console.log(`- /api/health-metrics/${effectiveUserId}/range`);
+        
         queryClient.invalidateQueries({
-          queryKey: [`/api/health-metrics/${effectiveUserId}`]
+          queryKey: [`/api/health-metrics/${effectiveUserId}?limit=1`]
         });
+        
         queryClient.invalidateQueries({
           queryKey: [`/api/health-metrics/${effectiveUserId}/range`]
         });
-        console.log(`✅ Invalidated queries for authenticated user ID: ${effectiveUserId}`);
+        
+        // Also invalidate any queries that might not have the suffix
+        queryClient.invalidateQueries({
+          queryKey: [`/api/health-metrics/${effectiveUserId}`]
+        });
+        
+        // Force refetch all health-metrics queries for this user with any parameters
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const queryKeyString = JSON.stringify(query.queryKey);
+            const containsUserId = queryKeyString.includes(`${effectiveUserId}`);
+            const containsHealthMetrics = queryKeyString.includes('health-metrics');
+            return containsUserId && containsHealthMetrics;
+          }
+        });
+        
+        console.log(`✅ Invalidated ALL health metric queries for authenticated user ID: ${effectiveUserId}`);
       } else {
         console.warn("⚠️ Not invalidating queries - no authenticated user ID");
       }
