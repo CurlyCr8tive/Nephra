@@ -28,6 +28,7 @@ import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-se
 import OpenAI from "openai";
 // Import validation functions from our AI services
 import { validateMedicalDocument } from "./openai-service";
+import { ensureUserHasHealthData } from "./utils/demoDataGenerator";
 // Import data transformation utilities
 import { transformHealthMetrics, logDataResults } from "./utils/dataTransformer";
 
