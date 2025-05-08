@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "@/contexts/UserContext";
 import { useHealthData } from "@/hooks/useHealthData";
 import { Activity, Droplet, Heart } from "lucide-react";
+import { HealthMetrics } from "@shared/schema";
 
 export function HealthStatusCard() {
   const { user } = useUser();
@@ -51,13 +52,11 @@ export function HealthStatusCard() {
     if (gfr === null || gfr === undefined) return "Not recorded";
     return `${gfr.toFixed(0)} mL/min/1.73m²`;
   };
-
-  // No need to extract metrics - the hook now returns a single object
   
   // Log the data conversion for debugging
   console.log("Health metrics display data:", {
     hasLatestMetrics: !!latestMetrics,
-    latestMetric: latestMetrics ? {
+    metrics: latestMetrics ? {
       date: latestMetrics.date,
       estimatedGFR: latestMetrics.estimatedGFR,
       systolicBP: latestMetrics.systolicBP,
