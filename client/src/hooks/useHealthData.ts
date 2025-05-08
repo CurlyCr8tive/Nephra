@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HealthMetrics, InsertHealthMetrics } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -8,13 +8,20 @@ import { useUser } from "@/contexts/UserContext";
 export function useHealthData() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useUser(); // Get authenticated user from UserContext
+  const { user, isLoading: isUserLoading } = useUser(); // Get authenticated user and loading state
   const [todayMetrics, setTodayMetrics] = useState<HealthMetrics | null>(null);
   
   // Safely access the authenticated user ID
   // SECURITY FIX: We ONLY use the authenticated user ID from context
   // Previous approaches using fallbacks have been removed for security
-  const userId = user?.id; 
+  const userId = user?.id;
+  
+  // Debug log user context information to diagnose issues
+  console.log("🧪 useHealthData user context:", {
+    hasUser: !!user,
+    userId: userId,
+    isUserLoading: isUserLoading
+  });
   
   // SECURITY NOTE: This function is purposely defined but not used anymore.
   // It was previously used to get a user ID when context wasn't available,
@@ -31,8 +38,7 @@ export function useHealthData() {
   const effectiveUserId = userId; // CRITICAL: No fallbacks to avoid security issues
   console.log("Using strictly authenticated user ID for health data:", effectiveUserId);
   
-  // Handle the case when user context is still loading
-  const isUserLoading = user === undefined;
+  // Note: isUserLoading comes from useUser() context above
 
   // Get the latest health metrics for the current user
   const { data: latestMetricsArray, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
@@ -451,13 +457,29 @@ export function useHealthData() {
     }
   }
 
+  // Combine loading states for better component handling
+  const isLoading = isUserLoading || isLoadingLatest || isLoadingWeekly;
+  
+  // Fix the formatting issue with latest metrics
+  const formattedLatestMetrics = latestMetricsArray && Array.isArray(latestMetricsArray) && latestMetricsArray.length > 0 
+    ? latestMetricsArray[0]  // Use first item if array
+    : (latestMetrics || null);  // Fallback to existing latestMetrics or null
+  
+  console.log("Final formatted metrics object:", {
+    hasMetrics: !!formattedLatestMetrics,
+    type: formattedLatestMetrics ? typeof formattedLatestMetrics : 'null',
+    isArray: Array.isArray(latestMetricsArray),
+    arrayLength: Array.isArray(latestMetricsArray) ? latestMetricsArray.length : 'not array'
+  });
+  
   return {
-    latestMetrics: latestMetrics && latestMetrics.length > 0 ? latestMetrics[0] : null,
+    latestMetrics: formattedLatestMetrics,
     weeklyMetrics: weeklyMetrics || [],
     todayMetrics,
     isLoadingLatest,
     isLoadingWeekly,
     logHealthMetrics,
     isLogging,
+    isLoading, // Single loading state for components to use
   };
 }
