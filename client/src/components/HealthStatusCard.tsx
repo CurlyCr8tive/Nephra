@@ -52,19 +52,17 @@ export function HealthStatusCard() {
     return `${gfr.toFixed(0)} mL/min/1.73m²`;
   };
 
-  // Extract the latest metric from the array (if available)
-  const latestMetric = latestMetrics && latestMetrics.length > 0 ? latestMetrics[0] : null;
+  // No need to extract metrics - the hook now returns a single object
   
   // Log the data conversion for debugging
   console.log("Health metrics display data:", {
     hasLatestMetrics: !!latestMetrics,
-    metricsCount: latestMetrics?.length || 0,
-    latestMetric: latestMetric ? {
-      date: latestMetric.date,
-      estimatedGFR: latestMetric.estimatedGFR,
-      systolicBP: latestMetric.systolicBP,
-      diastolicBP: latestMetric.diastolicBP,
-      hydration: latestMetric.hydration
+    latestMetric: latestMetrics ? {
+      date: latestMetrics.date,
+      estimatedGFR: latestMetrics.estimatedGFR,
+      systolicBP: latestMetrics.systolicBP,
+      diastolicBP: latestMetrics.diastolicBP,
+      hydration: latestMetrics.hydration
     } : 'none'
   });
 
@@ -99,7 +97,7 @@ export function HealthStatusCard() {
                 Estimated GFR:
               </span>
               <span className={`text-sm ${isLoadingLatest ? 'animate-pulse' : ''}`}>
-                {isLoadingLatest ? "Loading..." : formatGFR(latestMetric?.estimatedGFR)}
+                {isLoadingLatest ? "Loading..." : formatGFR(latestMetrics?.estimatedGFR)}
               </span>
             </div>
             
@@ -110,7 +108,7 @@ export function HealthStatusCard() {
                 Blood Pressure:
               </span>
               <span className={`text-sm ${isLoadingLatest ? 'animate-pulse' : ''}`}>
-                {isLoadingLatest ? "Loading..." : formatBP(latestMetric?.systolicBP, latestMetric?.diastolicBP)}
+                {isLoadingLatest ? "Loading..." : formatBP(latestMetrics?.systolicBP, latestMetrics?.diastolicBP)}
               </span>
             </div>
             
@@ -121,7 +119,7 @@ export function HealthStatusCard() {
                 Hydration:
               </span>
               <span className={`text-sm ${isLoadingLatest ? 'animate-pulse' : ''}`}>
-                {isLoadingLatest ? "Loading..." : formatHydration(latestMetric?.hydration)}
+                {isLoadingLatest ? "Loading..." : formatHydration(latestMetrics?.hydration)}
               </span>
             </div>
           </div>

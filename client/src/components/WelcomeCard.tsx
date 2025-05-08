@@ -41,10 +41,9 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   });
   
   // Always use authenticated user ID - useHealthData now gets this automatically
-  const { latestMetrics: realMetrics, isLoadingLatest } = useHealthData();
+  const { latestMetrics, isLoadingLatest } = useHealthData();
   
-  // Never use fallback values, only use real metrics from authenticated user
-  const latestMetrics = realMetrics;
+  // No need for fallback or conversion since useHealthData now returns a single item
 
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
