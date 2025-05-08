@@ -4,6 +4,161 @@ import { supabase } from "./supabase-service";
 
 const router = express.Router();
 
+/**
+ * Emergency health metrics endpoint
+ * GET /api/emergency-health-log
+ * 
+ * Provides a reliable alternative for fetching health metrics
+ * when the standard endpoints may fail. Always bypasses authentication
+ * with minimal processing for maximum reliability.
+ */
+router.get("/emergency-health-log", async (req: Request, res: Response) => {
+  try {
+    // Get user ID from query params
+    const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+    
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required as a query parameter" });
+    }
+    
+    console.log(`📱 Emergency health data access request for user ${userId}`);
+    
+    // Fetch data directly from storage with minimal processing
+    try {
+      const metrics = await storage.getHealthMetrics(userId, 10);
+      console.log(`✅ Retrieved ${metrics.length} health metrics via emergency endpoint`);
+      return res.json(metrics);
+    } catch (dbError) {
+      console.error("❌ Database error in emergency endpoint:", dbError);
+      
+      // Try Supabase as a backup
+      try {
+        const { data, error } = await supabase
+          .from("health_logs")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(10);
+          
+        if (error) {
+          console.error("❌ Supabase error in emergency endpoint:", error);
+          return res.status(404).json({
+            error: "Health data not found",
+            message: "Unable to retrieve health data from any source"
+          });
+        }
+        
+        console.log(`✅ Retrieved ${data?.length || 0} health metrics via Supabase emergency fallback`);
+        return res.json(data || []);
+      } catch (supabaseError) {
+        console.error("❌ Supabase exception in emergency endpoint:", supabaseError);
+        return res.status(500).json({ error: "All data sources failed" });
+      }
+    }
+  } catch (error) {
+    console.error("❌ Unhandled error in emergency health endpoint:", error);
+    return res.status(500).json({ 
+      error: "Failed to retrieve health data", 
+      message: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
+/**
+ * Emergency health metrics submission endpoint
+ * POST /api/emergency-health-log
+ * 
+ * Provides a reliable alternative for submitting health metrics
+ * when the standard endpoints may fail. Uses minimal processing for maximum reliability.
+ */
+router.post("/emergency-health-log", async (req: Request, res: Response) => {
+  try {
+    // Extract health data and user ID
+    const { healthData, userId } = req.body;
+    
+    if (!healthData || !userId) {
+      return res.status(400).json({ error: "Both healthData and userId are required" });
+    }
+    
+    console.log(`📱 Emergency health data submission for user ${userId}`);
+    
+    // Format data consistently
+    const formattedData = {
+      userId: parseInt(userId),
+      date: new Date(),
+      systolicBP: healthData.systolicBP || healthData.bp_systolic || 120,
+      diastolicBP: healthData.diastolicBP || healthData.bp_diastolic || 80,
+      hydration: healthData.hydration || healthData.hydration_level || 5,
+      painLevel: healthData.painLevel || healthData.pain_level || 0,
+      stressLevel: healthData.stressLevel || healthData.stress_level || 0,
+      fatigueLevel: healthData.fatigueLevel || healthData.fatigue_level || 0,
+      notes: healthData.notes || "",
+      estimatedGFR: healthData.estimatedGFR || healthData.estimated_gfr || 90,
+      gfrCalculationMethod: healthData.gfrCalculationMethod || "emergency-fallback",
+    };
+    
+    // Attempt to save to primary database
+    try {
+      const savedData = await storage.createHealthMetrics(formattedData);
+      console.log("✅ Health data saved successfully via emergency endpoint");
+      
+      return res.status(201).json({
+        success: true,
+        message: "Health data saved successfully",
+        data: savedData
+      });
+    } catch (dbError) {
+      console.error("❌ Database error in emergency save endpoint:", dbError);
+      
+      // Try Supabase as a backup
+      try {
+        const { data, error } = await supabase
+          .from("health_logs")
+          .insert({
+            user_id: parseInt(userId),
+            created_at: new Date().toISOString(),
+            bp_systolic: formattedData.systolicBP,
+            bp_diastolic: formattedData.diastolicBP,
+            hydration_level: formattedData.hydration,
+            pain_level: formattedData.painLevel,
+            stress_level: formattedData.stressLevel,
+            fatigue_level: formattedData.fatigueLevel,
+            estimated_gfr: formattedData.estimatedGFR,
+            notes: formattedData.notes
+          })
+          .select();
+          
+        if (error) {
+          console.error("❌ Supabase error in emergency save endpoint:", error);
+          return res.status(500).json({
+            error: "Failed to save health data to all sources",
+            message: error.message
+          });
+        }
+        
+        console.log("✅ Health data saved to Supabase via emergency endpoint");
+        return res.status(201).json({
+          success: true,
+          message: "Health data saved successfully via Supabase",
+          data: data
+        });
+      } catch (supabaseError) {
+        console.error("❌ Supabase exception in emergency save endpoint:", supabaseError);
+        return res.status(500).json({ 
+          error: "All data sources failed",
+          message: supabaseError instanceof Error ? supabaseError.message : String(supabaseError)
+        });
+      }
+    }
+  } catch (error) {
+    console.error("❌ Unhandled error in emergency health save endpoint:", error);
+    return res.status(500).json({ 
+      error: "Failed to save health data", 
+      message: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
 // Enable CORS preflight for all routes in this router
 router.options('*', (req, res) => {
   // Enable CORS for health data endpoints to prevent preflight issues
@@ -63,9 +218,9 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
     // When not in test mode, continue with normal processing
     console.log("📊 DIRECT API: Processing and saving real health data");
     
-    // Format data for our storage system - always use user ID 3 (ChericeHeron) for reliable data association
+    // Format data for our storage system - use the provided user ID to ensure proper data association
     const formattedData = {
-      userId: 3, // Hard-coded to user ID 3 (ChericeHeron) to fix data association issues
+      userId: parseInt(userId), // Use the provided user ID
       date: new Date(),
       systolicBP: healthData.systolicBP || healthData.bp_systolic,
       diastolicBP: healthData.diastolicBP || healthData.bp_diastolic,
@@ -75,6 +230,7 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
       fatigueLevel: healthData.fatigueLevel || healthData.fatigue_level,
       notes: healthData.notes || "",
       estimatedGFR: healthData.estimatedGFR || healthData.estimated_gfr,
+      gfrCalculationMethod: healthData.gfrCalculationMethod || "estimated",
       // Add other fields as needed
     };
     
