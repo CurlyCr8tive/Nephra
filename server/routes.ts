@@ -514,14 +514,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Import our data transformer utility
+      const { transformHealthMetrics, logDataResults } = require('./utils/dataTransformer');
+      
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics for user ${authenticatedUserId} with limit ${limit || 'unlimited'}`);
       
       // Get the metrics for the authenticated user
-      const results = await storage.getHealthMetrics(authenticatedUserId, limit);
-      console.log(`📊 Retrieved ${results.length} health metrics records for user ${authenticatedUserId}`);
+      const rawResults = await storage.getHealthMetrics(authenticatedUserId, limit);
       
-      res.json(results);
+      // Log the raw database results for debugging
+      logDataResults('Health metrics raw', rawResults);
+      
+      // Transform the data from snake_case to camelCase for frontend compatibility
+      const transformedResults = transformHealthMetrics(rawResults);
+      
+      // Log the transformed results
+      logDataResults('Health metrics transformed', transformedResults);
+      
+      console.log(`📊 Retrieved and transformed ${rawResults.length} health metrics records for user ${authenticatedUserId}`);
+      
+      res.json(transformedResults);
     } catch (error) {
       console.error("❌ Error in health metrics API:", error);
       res.status(500).json({ 
@@ -566,14 +579,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAuthenticated = true;
       }
       
+      // Import our data transformer utility
+      const { transformHealthMetrics, logDataResults } = require('./utils/dataTransformer');
+      
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics range for user ${authenticatedUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
       // Get the metrics for date range, using the authenticated user ID
-      const results = await storage.getHealthMetricsByDate(authenticatedUserId, startDate, endDate);
-      console.log(`📊 Retrieved ${results.length} health metrics records in date range for user ${authenticatedUserId}`);
+      const rawResults = await storage.getHealthMetricsByDate(authenticatedUserId, startDate, endDate);
       
-      res.json(results);
+      // Log the raw database results for debugging
+      logDataResults('Health metrics date range raw', rawResults);
+      
+      // Transform the data from snake_case to camelCase for frontend compatibility
+      const transformedResults = transformHealthMetrics(rawResults);
+      
+      // Log the transformed results
+      logDataResults('Health metrics date range transformed', transformedResults);
+      
+      console.log(`📊 Retrieved and transformed ${rawResults.length} health metrics records in date range for user ${authenticatedUserId}`);
+      
+      res.json(transformedResults);
     } catch (error) {
       console.error("❌ Error in health metrics range API:", error);
       res.status(500).json({ 
