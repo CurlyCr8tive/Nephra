@@ -474,6 +474,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestedUserId = parseInt(req.params.userId);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       
+      console.log(`🔍 GET /api/health-metrics/${requestedUserId} requested with limit:`, limit);
+      
       // IMPROVED AUTHENTICATION FLOW:
       // 1. Check standard authentication first
       let authenticatedUserId = null;

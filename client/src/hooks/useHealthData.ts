@@ -30,14 +30,23 @@ export function useHealthData() {
   // This ensures we NEVER show one user's health data to another user by removing fallbacks
   const effectiveUserId = userId; // CRITICAL: No fallbacks to avoid security issues
   console.log("Using strictly authenticated user ID for health data:", effectiveUserId);
+  
+  // Handle the case when user context is still loading
+  const isUserLoading = user === undefined;
 
   // Get the latest health metrics for the current user
-  const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${effectiveUserId}?limit=1`],
+  const { data: latestMetricsArray, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
+    queryKey: [`/api/health-metrics/${effectiveUserId || 'not-ready'}?limit=1`],
     queryFn: async () => {
       // Don't proceed if we don't have a user ID
       if (!effectiveUserId) {
         console.warn("⚠️ No user ID available for fetching health metrics");
+        return [];
+      }
+      
+      // If user context is still loading, log and wait
+      if (isUserLoading) {
+        console.log("👤 User context is still loading, deferring health metrics fetch");
         return [];
       }
       
@@ -130,6 +139,21 @@ export function useHealthData() {
     retry: 3, // Retry failed requests 3 times
     enabled: true, // Always enabled - we'll handle missing userId in the queryFn
     placeholderData: []
+  });
+
+  // Extract first item from array for single-object components that need the latest metrics
+  const latestMetrics = latestMetricsArray && latestMetricsArray.length > 0 ? latestMetricsArray[0] : null;
+  
+  // Verify the data is available and log values for debugging
+  console.log("Health metrics display data:", {
+    hasLatestMetrics: !!latestMetrics,
+    latestMetrics: latestMetrics ? {
+      date: latestMetrics.date,
+      estimatedGFR: latestMetrics.estimatedGFR,
+      systolicBP: latestMetrics.systolicBP,
+      diastolicBP: latestMetrics.diastolicBP,
+      hydration: latestMetrics.hydration
+    } : 'none'
   });
 
   // Get a week of health metrics for trends
