@@ -11,27 +11,32 @@ import { HealthMetrics } from "@shared/schema";
  * and frontend code expect camelCase property names
  */
 export function transformHealthMetrics(metrics: any[]): HealthMetrics[] {
-  return metrics.map(metric => ({
-    id: metric.id,
-    userId: metric.user_id,
-    date: metric.date,
-    hydration: metric.hydration,
-    systolicBP: metric.systolic_bp,
-    diastolicBP: metric.diastolic_bp,
-    painLevel: metric.pain_level,
-    stressLevel: metric.stress_level,
-    estimatedGFR: metric.estimated_gfr,
-    fatigueLevel: metric.fatigue_level,
-    gfrCalculationMethod: metric.gfr_calculation_method,
-    creatinineLevel: metric.creatinine_level,
-    hydrationLevel: metric.hydration_level,
-    gfrTrend: metric.gfr_trend,
-    gfrTrendDescription: metric.gfr_trend_description,
-    gfrChangePercent: metric.gfr_change_percent,
-    gfrAbsoluteChange: metric.gfr_absolute_change,
-    gfrLongTermTrend: metric.gfr_long_term_trend,
-    gfrStability: metric.gfr_stability
-  }));
+  return metrics.map(metric => {
+    // Log the incoming metric object to diagnose issues
+    console.log("Transforming metric object:", metric);
+    
+    return {
+      id: metric.id,
+      userId: metric.userId || metric.user_id, // Support both formats
+      date: metric.date,
+      hydration: metric.hydration,
+      systolicBP: metric.systolicBP || metric.systolic_bp,
+      diastolicBP: metric.diastolicBP || metric.diastolic_bp,
+      painLevel: metric.painLevel || metric.pain_level,
+      stressLevel: metric.stressLevel || metric.stress_level,
+      estimatedGFR: metric.estimatedGFR || metric.estimated_gfr,
+      fatigueLevel: metric.fatigueLevel || metric.fatigue_level,
+      gfrCalculationMethod: metric.gfrCalculationMethod || metric.gfr_calculation_method,
+      creatinineLevel: metric.creatinineLevel || metric.creatinine_level,
+      hydrationLevel: metric.hydrationLevel || metric.hydration_level,
+      gfrTrend: metric.gfrTrend || metric.gfr_trend,
+      gfrTrendDescription: metric.gfrTrendDescription || metric.gfr_trend_description,
+      gfrChangePercent: metric.gfrChangePercent || metric.gfr_change_percent,
+      gfrAbsoluteChange: metric.gfrAbsoluteChange || metric.gfr_absolute_change,
+      gfrLongTermTrend: metric.gfrLongTermTrend || metric.gfr_long_term_trend,
+      gfrStability: metric.gfrStability || metric.gfr_stability
+    };
+  });
 }
 
 /**
