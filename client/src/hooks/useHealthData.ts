@@ -41,7 +41,7 @@ export function useHealthData() {
   // Note: isUserLoading comes from useUser() context above
 
   // Get the latest health metrics for the current user
-  const { data: latestMetricsArray, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
+  const { data: latestMetricsArray, isLoading: isLoadingLatest } = useQuery<HealthMetrics[] | undefined>({
     queryKey: [`/api/health-metrics/${effectiveUserId || 'not-ready'}?limit=1`],
     queryFn: async () => {
       // Don't proceed if we don't have a user ID
@@ -161,9 +161,19 @@ export function useHealthData() {
       hydration: latestMetrics.hydration
     } : 'none'
   });
+  
+  // Debug data types for better error detection
+  if (latestMetricsArray) {
+    console.log("Final formatted metrics object:", {
+      hasMetrics: !!latestMetricsArray,
+      type: latestMetricsArray ? typeof latestMetricsArray : "null",
+      isArray: Array.isArray(latestMetricsArray),
+      arrayLength: Array.isArray(latestMetricsArray) ? latestMetricsArray.length : 0
+    });
+  }
 
   // Get a week of health metrics for trends
-  const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
+  const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[] | undefined>({
     // SECURITY FIX: Use a safe approach with no fallbacks that could lead to data leakage
     queryKey: [`/api/health-metrics/${effectiveUserId ? effectiveUserId : 'no-user'}/range`],
     queryFn: async () => {
@@ -442,10 +452,11 @@ export function useHealthData() {
   });
 
   // Process latest metrics when they change
-  if (latestMetrics && latestMetrics.length > 0 && !todayMetrics) {
+  if (latestMetrics && !todayMetrics) {
+    // No need to check array length, latestMetrics is a single object from array[0]
     // Check if the latest record is from today
     const today = new Date();
-    const latestDate = new Date(latestMetrics[0].date || "");
+    const latestDate = new Date(latestMetrics.date || "");
     
     if (
       latestDate && 
@@ -453,7 +464,7 @@ export function useHealthData() {
       today.getMonth() === latestDate.getMonth() &&
       today.getDate() === latestDate.getDate()
     ) {
-      setTodayMetrics(latestMetrics[0]);
+      setTodayMetrics(latestMetrics);
     }
   }
 
