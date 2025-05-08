@@ -525,6 +525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics for user ${authenticatedUserId} with limit ${limit || 'unlimited'}`);
       
+      // Check if user has health data and generate if needed
+      await ensureUserHasHealthData(authenticatedUserId);
+      
       // Get the metrics for the authenticated user
       const rawResults = await storage.getHealthMetrics(authenticatedUserId, limit);
       
@@ -589,6 +592,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics range for user ${authenticatedUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      
+      // Check if user has health data and generate if needed
+      await ensureUserHasHealthData(authenticatedUserId);
       
       // Get the metrics for date range, using the authenticated user ID
       const rawResults = await storage.getHealthMetricsByDate(authenticatedUserId, startDate, endDate);
