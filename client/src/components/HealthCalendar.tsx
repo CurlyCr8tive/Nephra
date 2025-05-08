@@ -247,8 +247,13 @@ export function HealthCalendar({ healthData, userId = null }: HealthCalendarProp
       }
     }
     
+    // Add hover effect and cursor pointer for clickable appearance
     return (
-      <div className={`h-12 w-12 p-0 flex flex-col items-center justify-center rounded-full ${backgroundColor} ${modifiers.selected ? "ring-2 ring-primary" : ""}`}>
+      <button 
+        type="button"
+        onClick={() => setSelectedDate(day)}
+        className={`h-12 w-12 p-0 flex flex-col items-center justify-center rounded-full ${backgroundColor} ${modifiers.selected ? "ring-2 ring-primary" : ""} cursor-pointer hover:bg-primary/20 transition-colors`}
+      >
         <div className={`text-sm font-medium ${textColor}`}>
           {format(day, "d")}
         </div>
@@ -268,7 +273,7 @@ export function HealthCalendar({ healthData, userId = null }: HealthCalendarProp
             )}
           </div>
         )}
-      </div>
+      </button>
     );
   };
   
