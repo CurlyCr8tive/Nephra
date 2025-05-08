@@ -9,23 +9,43 @@ const router = express.Router();
  * GET /api/emergency-health-log
  * 
  * Provides a reliable alternative for fetching health metrics
- * when the standard endpoints may fail. Always bypasses authentication
- * with minimal processing for maximum reliability.
+ * when the standard endpoints may fail. Includes strict authentication checks
+ * for security while maintaining minimal processing for reliability.
  */
 router.get("/emergency-health-log", async (req: Request, res: Response) => {
   try {
-    // Get user ID from query params
-    const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+    // SECURITY FIX: First verify the user is authenticated
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("⚠️ Unauthenticated access attempt to emergency health endpoint");
+      return res.status(401).json({ error: "Authentication required" });
+    }
     
-    if (!userId) {
+    // Get requested user ID from query params
+    const requestedUserId = req.query.userId ? parseInt(req.query.userId as string) : null;
+    
+    if (!requestedUserId) {
       return res.status(400).json({ error: "User ID is required as a query parameter" });
     }
     
-    console.log(`📱 Emergency health data access request for user ${userId}`);
+    // SECURITY FIX: Ensure the authenticated user can only access their own data
+    // @ts-ignore - The req.user property is added by Passport
+    const authenticatedUserId = req.user?.id;
+    
+    // CRITICAL: Verify the requested user ID matches the authenticated user ID
+    if (requestedUserId !== authenticatedUserId) {
+      console.warn(`⚠️ Security Alert: User ${authenticatedUserId} attempted to access health data for user ${requestedUserId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only access your own health data" 
+      });
+    }
+    
+    console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own health metrics`);
+    console.log(`📱 Emergency health data access request for user ${requestedUserId}`);
     
     // Fetch data directly from storage with minimal processing
     try {
-      const metrics = await storage.getHealthMetrics(userId, 10);
+      const metrics = await storage.getHealthMetrics(requestedUserId, 10);
       console.log(`✅ Retrieved ${metrics.length} health metrics via emergency endpoint`);
       return res.json(metrics);
     } catch (dbError) {
@@ -36,7 +56,7 @@ router.get("/emergency-health-log", async (req: Request, res: Response) => {
         const { data, error } = await supabase
           .from("health_logs")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", requestedUserId)
           .order("created_at", { ascending: false })
           .limit(10);
           
@@ -172,33 +192,85 @@ router.options('*', (req, res) => {
  * Direct health data submission endpoint
  * POST /api/direct-health-log
  * 
- * This is a simplified endpoint that bypasses complex authentication
- * mechanisms and directly inserts health data into storage.
- * It uses a simple API key-based approach for authorization.
+ * This is a simplified endpoint with robust authentication
+ * that directly inserts health data into storage.
+ * It uses multiple authentication methods (session + API key) for reliability.
  */
 router.post("/direct-health-log", async (req: Request, res: Response) => {
   try {
-    console.log("🔐 DIRECT ENDPOINT: Received request with body:", req.body);
+    console.log("🔐 DIRECT ENDPOINT: Processing health data request");
     const { healthData, userId, apiKey, testMode } = req.body;
     
-    // Simple security check
-    if (apiKey !== "nephra-health-data-key") {
-      console.error("🔑 API Key validation failed:", apiKey);
+    // SECURITY FIX: First verify the user is authenticated via session
+    let isAuthenticated = false;
+    let authenticatedUserId = null;
+    
+    // Check session-based authentication first (preferred)
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      // @ts-ignore - The req.user property is added by Passport
+      authenticatedUserId = req.user?.id;
+      
+      if (authenticatedUserId) {
+        console.log(`✅ User authenticated via session: ${authenticatedUserId}`);
+        isAuthenticated = true;
+      }
+    }
+    
+    // If not authenticated via session, check API key as fallback
+    if (!isAuthenticated) {
+      // Simple API key security check
+      if (apiKey !== "nephra-health-data-key") {
+        console.error("🔑 API Key validation failed");
+        return res.status(401).json({ 
+          error: "Unauthorized", 
+          message: "Authentication required - invalid or missing API key" 
+        });
+      } else {
+        console.log("✅ Request authenticated via API key");
+        isAuthenticated = true;
+      }
+    }
+    
+    // Require authentication one way or the other
+    if (!isAuthenticated) {
       return res.status(401).json({ 
         error: "Unauthorized", 
-        message: "Invalid API key" 
+        message: "Authentication required" 
       });
     }
     
-    if (!healthData || !userId) {
-      console.error("📋 Missing required data:", { hasHealthData: !!healthData, hasUserId: !!userId });
+    // Now that we're authenticated, verify we have the required data
+    if (!healthData) {
+      console.error("📋 Missing required health data");
       return res.status(400).json({ 
         error: "Missing required data",
-        message: "Both userId and healthData are required"
+        message: "Health data is required"
       });
     }
     
-    console.log(`🔐 DIRECT API: Processing health data for user ${userId}`, testMode ? "(TEST MODE)" : "");
+    // SECURITY FIX: Strict user ID validation
+    // If session-authenticated, use that ID and ignore any ID in the request
+    // Only allow API key requests to specify a user ID if we don't have a session ID
+    const effectiveUserId = authenticatedUserId || (userId ? parseInt(userId) : null);
+    
+    if (!effectiveUserId) {
+      console.error("⚠️ Security error: No valid user ID available");
+      return res.status(400).json({ 
+        error: "Missing required data",
+        message: "User ID is required"
+      });
+    }
+    
+    // SECURITY VALIDATION: If both session ID and requested ID exist, they must match
+    if (authenticatedUserId && userId && authenticatedUserId !== parseInt(userId)) {
+      console.warn(`⚠️ Security Alert: Session user ${authenticatedUserId} attempted to save data for user ${userId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only save health data for your own account" 
+      });
+    }
+    
+    console.log(`🔐 DIRECT API: Processing health data for user ${effectiveUserId}`, testMode ? "(TEST MODE)" : "");
     
     // If we're in test mode, just return success without saving to the database
     if (testMode) {
@@ -209,7 +281,7 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
         success: true,
         message: "Health data received successfully (test mode)",
         testMode: true,
-        userId: userId,
+        userId: effectiveUserId,
         dataSize: JSON.stringify(healthData).length,
         timestamp: new Date().toISOString()
       });
@@ -218,9 +290,9 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
     // When not in test mode, continue with normal processing
     console.log("📊 DIRECT API: Processing and saving real health data");
     
-    // Format data for our storage system - use the provided user ID to ensure proper data association
+    // Format data for our storage system - use the SECURED effective user ID to ensure proper data association
     const formattedData = {
-      userId: parseInt(userId), // Use the provided user ID
+      userId: effectiveUserId, // CRITICAL SECURITY FIX: Use the validated effective user ID
       date: new Date(),
       systolicBP: healthData.systolicBP || healthData.bp_systolic,
       diastolicBP: healthData.diastolicBP || healthData.bp_diastolic,
@@ -406,21 +478,36 @@ router.get("/log-health/:userId", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "User ID is required" });
     }
     
-    // Check if user is authorized to access this data
+    // SECURITY FIX: First verify the user is authenticated
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("⚠️ Unauthenticated access attempt to health logs endpoint");
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    // SECURITY FIX: Get the authenticated user ID from session
     // Use type assertion for req.user which might not have the expected shape
     const reqUser = req.user as any;
-    const isCurrentUser = reqUser && String(reqUser.id) === userId;
+    const authenticatedUserId = reqUser?.id;
+    
+    if (!authenticatedUserId) {
+      console.warn("⚠️ No authenticated user ID available");
+      return res.status(401).json({ error: "Authentication issue - missing user ID" });
+    }
+    
+    // SECURITY FIX: Strictly enforce that users can only access their own data
+    const isCurrentUser = String(authenticatedUserId) === userId;
     const isAdmin = reqUser && reqUser.role === "admin";
     
-    // For simplicity, we're relaxing the authentication check here
-    // This is a deliberate choice to allow the app to function properly
-    // In a production environment, you would enforce proper auth
-    if (!isCurrentUser && !isAdmin && false) { // Setting to false to disable this check temporarily
+    // STRICT SECURITY: Only allow access to own data or admin access
+    if (!isCurrentUser && !isAdmin) {
+      console.warn(`⚠️ Security Alert: User ${authenticatedUserId} attempted to access health data for user ${userId}`);
       return res.status(403).json({ 
-        error: "Unauthorized",
-        details: "You don't have permission to access this data"
+        error: "Access denied", 
+        message: "You can only access your own health data" 
       });
     }
+    
+    console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own health metrics`);
     
     // Try fetching from standard database first
     let standardDbData: any[] = [];

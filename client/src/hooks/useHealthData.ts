@@ -54,9 +54,10 @@ export function useHealthData() {
     }
   };
   
-  // Use currently logged in user ID - don't use fallback to ID 3
-  const effectiveUserId = userId || getUserIdFromStorage();
-  console.log("Using effective user ID for health data:", effectiveUserId);
+  // SECURITY FIX: ONLY use the authenticated user ID from context directly
+  // This ensures we NEVER show one user's health data to another user by removing fallbacks
+  const effectiveUserId = userId; // CRITICAL: No fallbacks to avoid security issues
+  console.log("Using strictly authenticated user ID for health data:", effectiveUserId);
 
   // Get the latest health metrics for the current user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
