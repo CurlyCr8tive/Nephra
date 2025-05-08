@@ -52,6 +52,22 @@ export function HealthStatusCard() {
     return `${gfr.toFixed(0)} mL/min/1.73m²`;
   };
 
+  // Extract the latest metric from the array (if available)
+  const latestMetric = latestMetrics && latestMetrics.length > 0 ? latestMetrics[0] : null;
+  
+  // Log the data conversion for debugging
+  console.log("Health metrics display data:", {
+    hasLatestMetrics: !!latestMetrics,
+    metricsCount: latestMetrics?.length || 0,
+    latestMetric: latestMetric ? {
+      date: latestMetric.date,
+      estimatedGFR: latestMetric.estimatedGFR,
+      systolicBP: latestMetric.systolicBP,
+      diastolicBP: latestMetric.diastolicBP,
+      hydration: latestMetric.hydration
+    } : 'none'
+  });
+
   return (
     <Card className="mb-6">
       <CardHeader className="pb-2">
@@ -83,7 +99,7 @@ export function HealthStatusCard() {
                 Estimated GFR:
               </span>
               <span className={`text-sm ${isLoadingLatest ? 'animate-pulse' : ''}`}>
-                {isLoadingLatest ? "Loading..." : formatGFR(latestMetrics?.estimatedGFR)}
+                {isLoadingLatest ? "Loading..." : formatGFR(latestMetric?.estimatedGFR)}
               </span>
             </div>
             
@@ -94,7 +110,7 @@ export function HealthStatusCard() {
                 Blood Pressure:
               </span>
               <span className={`text-sm ${isLoadingLatest ? 'animate-pulse' : ''}`}>
-                {isLoadingLatest ? "Loading..." : formatBP(latestMetrics?.systolicBP, latestMetrics?.diastolicBP)}
+                {isLoadingLatest ? "Loading..." : formatBP(latestMetric?.systolicBP, latestMetric?.diastolicBP)}
               </span>
             </div>
             
@@ -105,7 +121,7 @@ export function HealthStatusCard() {
                 Hydration:
               </span>
               <span className={`text-sm ${isLoadingLatest ? 'animate-pulse' : ''}`}>
-                {isLoadingLatest ? "Loading..." : formatHydration(latestMetrics?.hydration)}
+                {isLoadingLatest ? "Loading..." : formatHydration(latestMetric?.hydration)}
               </span>
             </div>
           </div>
