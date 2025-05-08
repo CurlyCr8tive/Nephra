@@ -12,46 +12,18 @@ export function useHealthData() {
   const [todayMetrics, setTodayMetrics] = useState<HealthMetrics | null>(null);
   
   // Safely access the authenticated user ID
-  // IMPORTANT: We're using a dual approach to get user ID with fallback
+  // SECURITY FIX: We ONLY use the authenticated user ID from context
+  // Previous approaches using fallbacks have been removed for security
   const userId = user?.id; 
   
-  // Get user ID from localStorage if user is not available from context
+  // SECURITY NOTE: This function is purposely defined but not used anymore.
+  // It was previously used to get a user ID when context wasn't available,
+  // but has been removed from the effectiveUserId calculation for security reasons.
+  // Kept for documentation purposes only.
   const getUserIdFromStorage = (): number | null => {
-    try {
-      const cachedUser = localStorage.getItem('nephra_user_data');
-      if (cachedUser) {
-        const userData = JSON.parse(cachedUser);
-        if (userData && userData.id) {
-          console.log("Retrieved user ID from localStorage:", userData.id);
-          return userData.id;
-        }
-      }
-      
-      // Try another localStorage key that might have been used
-      const nephraCachedUser = localStorage.getItem('nephra_user');
-      if (nephraCachedUser) {
-        const userData = JSON.parse(nephraCachedUser);
-        if (userData && userData.id) {
-          console.log("Retrieved user ID from 'nephra_user' localStorage:", userData.id);
-          return userData.id;
-        }
-      }
-      
-      // Secondary fallback to ID in session storage
-      const cachedId = sessionStorage.getItem('nephra_user_id');
-      if (cachedId) {
-        const parsedId = parseInt(cachedId, 10);
-        if (!isNaN(parsedId)) {
-          console.log("Retrieved user ID from sessionStorage:", parsedId);
-          return parsedId;
-        }
-      }
-      
-      return null;
-    } catch (e) {
-      console.error("Error getting user ID from storage:", e);
-      return null;
-    }
+    // This function is no longer used to prevent cross-user data access
+    console.warn("⚠️ SECURITY: getUserIdFromStorage is deprecated and not being used");
+    return null;
   };
   
   // SECURITY FIX: ONLY use the authenticated user ID from context directly
@@ -162,7 +134,8 @@ export function useHealthData() {
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${effectiveUserId || 'unknown'}/range`],
+    // SECURITY FIX: Use a safe approach with no fallbacks that could lead to data leakage
+    queryKey: [`/api/health-metrics/${effectiveUserId ? effectiveUserId : 'no-user'}/range`],
     queryFn: async () => {
       // Don't proceed if we don't have a user ID
       if (!effectiveUserId) {
@@ -405,13 +378,20 @@ export function useHealthData() {
     onSuccess: (data) => {
       console.log("Successfully saved health metrics:", data);
       
-      // Immediately invalidate queries to refresh data
-      queryClient.invalidateQueries({
-        queryKey: [`/api/health-metrics/${effectiveUserId}`]
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/health-metrics/${effectiveUserId}/range`]
-      });
+      // SECURITY FIX: Only invalidate queries if we have a valid userId
+      // This prevents accidentally invalidating queries for other users
+      if (effectiveUserId) {
+        // Immediately invalidate queries to refresh data
+        queryClient.invalidateQueries({
+          queryKey: [`/api/health-metrics/${effectiveUserId}`]
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/health-metrics/${effectiveUserId}/range`]
+        });
+        console.log(`✅ Invalidated queries for authenticated user ID: ${effectiveUserId}`);
+      } else {
+        console.warn("⚠️ Not invalidating queries - no authenticated user ID");
+      }
       
       setTodayMetrics(data);
       
