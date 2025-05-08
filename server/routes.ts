@@ -28,6 +28,8 @@ import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-se
 import OpenAI from "openai";
 // Import validation functions from our AI services
 import { validateMedicalDocument } from "./openai-service";
+// Import data transformation utilities
+import { transformHealthMetrics, logDataResults } from "./utils/dataTransformer";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -517,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Import our data transformer utility
-      const { transformHealthMetrics, logDataResults } = require('./utils/dataTransformer');
+      // Data transformer utilities are imported at the top of the file
       
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics for user ${authenticatedUserId} with limit ${limit || 'unlimited'}`);
@@ -582,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Import our data transformer utility
-      const { transformHealthMetrics, logDataResults } = require('./utils/dataTransformer');
+      // Data transformer utilities are imported at the top of the file
       
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics range for user ${authenticatedUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
