@@ -1,0 +1,66 @@
+Hi everyone, I’m Cherice, and for my family, and many others’, Kidney disease is invisible—until it’s not. And when symptoms show up, they can escalate fast. Nephra is here to catch those changes early, offer support, and help users advocate for themselves—because no one should have to navigate chronic illness alone.
+
+🟡 Problem & Solution (Stay on Dashboard, then open Quick Entry + Journaling)
+“Here’s the problem: 1 in 7 adults have chronic kidney disease—but most don’t know until later stages. Those who do know often feel overwhelmed managing symptoms, appointments, and data.
+Nephra makes it simple. It combines daily health tracking, trend alerts, journaling, and educational support into one space. It doesn’t just record your blood pressure—it helps you visualize and understand the changes”
+(Tap on Quick Entry or Health Log)
+ You can quickly log today’s blood pressure, hydration, pain, stress, and fatigue—each with one click.
+(Open the journaling feature briefly)
+ And if you’re not feeling well, you can write it out. Nephra’s AI companion reads your entry and offers suggestions—like reaching out to your care team if you’re consistently logging fatigue or lightheadedness.”
+
+🟣 User Story (Open the Journaling Log or sample entry)
+“Let me introduce you to Maya, a 42-year-old remote worker with stage 3 CKD. After diagnosis, her doctor told her to monitor her vitals—but gave no system for it.
+She found Nephra after Googling 'kidney disease tracker.’ What kept her here was that Nephra actually speaks her language.
+(Scroll through a journal history or trend warning alert)
+ When Maya logs symptoms, Nephra starts noticing trends and flags risky patterns—like blood pressure spikes after dehydration.”
+“Why doesn’t she use another app? Because other apps track steps. Nephra tracks survival. It’s built for her.”
+
+🔵 Demo (Now walk through the core screens as you talk)
+Dashboard:
+ (Tap back to home screen)
+ “Here’s Maya’s dashboard—GFR trend, current stage, and her latest vitals. It’s visual and personalized.”
+
+
+Daily Log:
+ (Open log page)
+ “She can enter her blood pressure, hydration, pain, stress, and fatigue—everything her nephrologist cares about.”
+
+
+Journal + AI Companion:
+ (Open a journal entry and show a sample AI suggestion)
+ “She can journal her symptoms, and the AI flags repeating issues or high-risk trends—then recommends action like ‘increase hydration’ or ‘contact care provider.’”
+
+
+Education & Advocacy:
+ (Open Education tab)
+ “She also gets updated news articles, dialysis prep guides, and more—all tagged by category from the Supabase database.”
+
+
+Transplant Roadmap:
+ (Open Transplant Roadmap)
+ “If she’s preparing for transplant, Nephra maps out the journey—from labs to social work checklists.”
+
+
+
+🟠 Future Features (Stay on app or pause with hand gesture)
+“And there’s more coming. I’m working on:”
+AI trend detection across longer health histories.
+
+
+Automated alerts when dangerous patterns emerge.
+
+
+HIPAA-compliant integrations with doctors and clinics.
+
+
+Voice input for people with vision issues or fatigue.
+
+
+And An open-source community to contribute new tools over time.”
+
+
+
+🟤 Closing (Return to Dashboard or Home)
+“To close: Nephra wasn’t just a project. It’s personal. I built it to protect my life, my mothers life and others like us—and it’s just getting started.”
+Thank you.”
+
