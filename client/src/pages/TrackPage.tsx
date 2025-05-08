@@ -75,6 +75,16 @@ export default function TrackPage() {
     isLogging = false
   } = useHealthData();
   
+  // Log the number of metrics for debugging
+  useEffect(() => {
+    console.log("TrackPage received health metrics:", {
+      count: weeklyMetrics?.length || 0,
+      hasData: weeklyMetrics?.length > 0,
+      dates: weeklyMetrics?.map(m => m.date),
+      userId: user?.id
+    });
+  }, [weeklyMetrics, user?.id]);
+  
   // Function to save health data
   const saveHealthData = async () => {
     // Validate inputs

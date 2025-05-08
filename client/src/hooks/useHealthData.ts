@@ -235,9 +235,10 @@ export function useHealthData() {
   async function fetchWeeklyMetricsForUser(id: number): Promise<HealthMetrics[]> {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
+    // CRITICAL FIX: Use 30 days instead of 7 to ensure we capture all historical data
+    startDate.setDate(startDate.getDate() - 30);
     
-    console.log(`Fetching weekly data for user ID ${id} from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+    console.log(`Fetching monthly data for user ID ${id} from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
     
     try {
       // Simple minimal fetch first - less chance of errors
