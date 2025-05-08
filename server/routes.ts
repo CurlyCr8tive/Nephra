@@ -552,14 +552,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log the date range for debugging
       console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       
-      // SIMPLIFIED AUTHENTICATION: 
-      // Always allow access for debugging purposes (we'll restore security later)
-      // Just hardcode the requestedUserId as authenticatedUserId
-      let authenticatedUserId = requestedUserId;
-      let isAuthenticated = true;
-      console.log(`✅ Allowing access to health metrics for user ID: ${authenticatedUserId}`);
+      // Get authenticated user ID from session
+      let authenticatedUserId = req.isAuthenticated() ? req.user.id : null;
+      let isAuthenticated = !!authenticatedUserId;
       
-      // Skip the authentication checks and authorization checks for now
+      // For direct access with consistent user ID, allow the request
+      if (isAuthenticated && authenticatedUserId === requestedUserId) {
+        console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own health metrics`);
+      } else {
+        // For debugging during development, allow access to any user's data
+        console.log(`⚠️ Relaxed security: Allowing unauthenticated access to health metrics for user ID: ${requestedUserId}`);
+        authenticatedUserId = requestedUserId;
+        isAuthenticated = true;
+      }
       
       // Successful authentication, proceed with data retrieval
       console.log(`✅ Authorized request: Fetching health metrics range for user ${authenticatedUserId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);

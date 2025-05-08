@@ -27,6 +27,16 @@ export function useHealthData() {
         }
       }
       
+      // Try another localStorage key that might have been used
+      const nephraCachedUser = localStorage.getItem('nephra_user');
+      if (nephraCachedUser) {
+        const userData = JSON.parse(nephraCachedUser);
+        if (userData && userData.id) {
+          console.log("Retrieved user ID from 'nephra_user' localStorage:", userData.id);
+          return userData.id;
+        }
+      }
+      
       // Secondary fallback to ID in session storage
       const cachedId = sessionStorage.getItem('nephra_user_id');
       if (cachedId) {
@@ -44,14 +54,20 @@ export function useHealthData() {
     }
   };
   
-  // Fallback to hardcoded ID 3 for demonstration and development
-  const effectiveUserId = userId || getUserIdFromStorage() || 3;
+  // Use currently logged in user ID - don't use fallback to ID 3
+  const effectiveUserId = userId || getUserIdFromStorage();
   console.log("Using effective user ID for health data:", effectiveUserId);
 
   // Get the latest health metrics for the current user
   const { data: latestMetrics, isLoading: isLoadingLatest } = useQuery<HealthMetrics[]>({
     queryKey: [`/api/health-metrics/${effectiveUserId}?limit=1`],
     queryFn: async () => {
+      // Don't proceed if we don't have a user ID
+      if (!effectiveUserId) {
+        console.warn("⚠️ No user ID available for fetching health metrics");
+        return [];
+      }
+      
       console.log(`🔍 Fetching latest health metrics for user ID ${effectiveUserId}`);
       
       try {
@@ -64,24 +80,24 @@ export function useHealthData() {
         console.log(`🔄 Health metrics API response status: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
-          console.error(`❌ Error fetching latest metrics for user ${userId} with status ${response.status}`);
+          console.error(`❌ Error fetching latest metrics for user ${effectiveUserId} with status ${response.status}`);
           
-          // Try alternative direct approach with hardcoded user ID as fallback
-          console.log("🔄 Attempting fallback fetch method with explicit ID...");
-          const directResponse = await fetch(`/api/health-metrics/3?limit=1`);
+          // Try the emergency endpoint as a direct alternative
+          console.log("🚨 Attempting emergency endpoint as alternative...");
+          const emergencyResponse = await fetch(`/api/emergency-health-log?userId=${effectiveUserId}`);
           
-          if (!directResponse.ok) {
-            console.error("❌ All fetch methods failed. Cannot retrieve health metrics.");
-            return [];
+          if (emergencyResponse.ok) {
+            const emergencyData = await emergencyResponse.json();
+            console.log(`✅ Retrieved ${emergencyData?.length || 0} metrics via emergency endpoint`);
+            return emergencyData || [];
           }
           
-          const directData = await directResponse.json();
-          console.log(`✅ Retrieved ${directData?.length || 0} metrics via fallback method`);
-          return directData || [];
+          console.warn("⚠️ Emergency endpoint also failed");
+          return []; // Return empty array if both methods fail
         }
         
         const data = await response.json();
-        console.log(`✅ Retrieved ${data?.length || 0} latest health metrics for user ${userId}`);
+        console.log(`✅ Retrieved ${data?.length || 0} latest health metrics for user ${effectiveUserId}`);
         
         if (data && data.length > 0) {
           console.log("📋 Latest metrics data:", data[0]);
@@ -99,18 +115,19 @@ export function useHealthData() {
         } else {
           console.log("⚠️ No health metrics found for this user.");
           
-          // Try the alternative direct endpoint with hardcoded ID 3
-          console.log("🔍 Attempting to fetch with hardcoded user ID 3...");
+          // Try the log-health endpoint as an alternative
+          console.log("🔄 Attempting alternative log-health endpoint...");
           try {
-            const directResponse = await fetch(`/api/health-metrics/3?limit=1`);
-            const directData = await directResponse.json();
-            
-            if (directData && directData.length > 0) {
-              console.log("✅ Successfully retrieved data using hardcoded ID:", directData.length, "records");
-              return directData;
+            const logHealthResponse = await fetch(`/api/log-health/${effectiveUserId}`);
+            if (logHealthResponse.ok) {
+              const logHealthData = await logHealthResponse.json();
+              if (logHealthData && logHealthData.length > 0) {
+                console.log("✅ Retrieved data using log-health endpoint:", logHealthData.length, "records");
+                return logHealthData;
+              }
             }
           } catch (fallbackError) {
-            console.error("❌ Fallback fetch also failed:", fallbackError);
+            console.error("❌ Alternative endpoint fetch failed:", fallbackError);
           }
         }
         
@@ -119,16 +136,19 @@ export function useHealthData() {
       } catch (error) {
         console.error("❌ Exception while fetching latest health metrics:", error);
         
-        // Last-resort fallback: try a direct GET request to the endpoint with hardcoded ID
+        // Try the log-health endpoint as a final attempt
         try {
-          console.log("🔄 Final attempt to get health metrics...");
-          const lastResponse = await fetch(`/api/health-metrics/3?limit=1`);
-          const lastData = await lastResponse.json();
-          return lastData || [];
+          console.log("🔄 Final attempt using log-health endpoint...");
+          const lastResponse = await fetch(`/api/log-health/${effectiveUserId}`);
+          if (lastResponse.ok) {
+            const lastData = await lastResponse.json();
+            return lastData || [];
+          }
         } catch (finalError) {
           console.error("❌ All fetch methods failed:", finalError);
-          return []; // Return empty array as ultimate fallback
         }
+        
+        return []; // Return empty array as ultimate fallback
       }
     },
     staleTime: 30 * 1000, // 30 seconds - fetch more frequently
@@ -141,8 +161,14 @@ export function useHealthData() {
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[]>({
-    queryKey: [`/api/health-metrics/${effectiveUserId}/range`],
+    queryKey: [`/api/health-metrics/${effectiveUserId || 'unknown'}/range`],
     queryFn: async () => {
+      // Don't proceed if we don't have a user ID
+      if (!effectiveUserId) {
+        console.warn("⚠️ No user ID available for fetching weekly health metrics");
+        return [];
+      }
+      
       console.log(`🔍 Fetching weekly metrics for user ID ${effectiveUserId}`);
       return fetchWeeklyMetricsForUser(effectiveUserId);
     },
@@ -150,7 +176,7 @@ export function useHealthData() {
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 2,
-    enabled: true, // Always enabled - we'll handle missing userId in the queryFn
+    enabled: !!effectiveUserId, // Only enable if we have a user ID
     placeholderData: []
   });
   
@@ -164,31 +190,32 @@ export function useHealthData() {
     
     try {
       // Simple minimal fetch first - less chance of errors
-      const response = await fetch(`/api/health-metrics/${id}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`);
+      const response = await fetch(`/api/health-metrics/${id}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`, {
+        credentials: "include"
+      });
       
       console.log(`🔄 Weekly metrics API response status: ${response.status} ${response.statusText}`);
       
       if (!response.ok) {
         console.error(`❌ Error fetching weekly metrics for user ${id} with status ${response.status}`);
         
-        // If error occurs for current user ID, try fallback ID 3
-        if (id !== 3) {
-          console.log("🔍 Attempting to fetch with fallback user ID 3...");
-          return fetchWeeklyMetricsForUser(3);
+        // Try the log-health endpoint as an alternative
+        console.log("🔄 Attempting alternative log-health endpoint...");
+        try {
+          const logHealthResponse = await fetch(`/api/log-health/${id}`);
+          if (logHealthResponse.ok) {
+            const logHealthData = await logHealthResponse.json();
+            if (logHealthData && logHealthData.length > 0) {
+              console.log("✅ Retrieved data using log-health endpoint:", logHealthData.length, "records");
+              return logHealthData;
+            }
+          }
+        } catch (fallbackError) {
+          console.error("❌ Alternative endpoint fetch failed:", fallbackError);
         }
         
-        // If we're already using ID 3 and still failing, try the metrics endpoint without a range
-        console.log("🔄 Trying to get any metrics without date range...");
-        const fallbackResponse = await fetch(`/api/health-metrics/3?limit=7`);
-        
-        if (!fallbackResponse.ok) {
-          console.error("❌ All fetch methods failed for weekly metrics");
-          return [];
-        }
-        
-        const fallbackData = await fallbackResponse.json();
-        console.log(`✅ Retrieved ${fallbackData?.length || 0} metrics without date range`);
-        return fallbackData || [];
+        // If all alternatives fail, return empty array
+        return [];
       }
       
       const data = await response.json();
@@ -203,10 +230,19 @@ export function useHealthData() {
       } else {
         console.log("⚠️ No weekly metrics found, array is empty");
         
-        // If no data for current user ID, try fallback ID 3
-        if (id !== 3) {
-          console.log("🔍 Attempting to fetch with fallback user ID 3...");
-          return fetchWeeklyMetricsForUser(3);
+        // Try the log-health endpoint as an alternative if no data
+        console.log("🔄 Attempting alternative log-health endpoint for empty result...");
+        try {
+          const logHealthResponse = await fetch(`/api/log-health/${id}`);
+          if (logHealthResponse.ok) {
+            const logHealthData = await logHealthResponse.json();
+            if (logHealthData && logHealthData.length > 0) {
+              console.log("✅ Retrieved data using log-health endpoint:", logHealthData.length, "records");
+              return logHealthData;
+            }
+          }
+        } catch (fallbackError) {
+          console.error("❌ Alternative endpoint fetch failed:", fallbackError);
         }
       }
       
@@ -215,10 +251,16 @@ export function useHealthData() {
     } catch (error) {
       console.error("❌ Exception while fetching weekly health metrics:", error);
       
-      // If error occurs for current user ID, try fallback ID 3
-      if (id !== 3) {
-        console.log("🔍 Attempting to fetch with fallback user ID 3 after error...");
-        return fetchWeeklyMetricsForUser(3);
+      // Try the log-health endpoint as a final attempt
+      try {
+        console.log("🔄 Final attempt using log-health endpoint...");
+        const lastResponse = await fetch(`/api/log-health/${id}`);
+        if (lastResponse.ok) {
+          const lastData = await lastResponse.json();
+          return lastData || [];
+        }
+      } catch (finalError) {
+        console.error("❌ All fetch methods failed:", finalError);
       }
       
       return []; // Final fallback is empty array
