@@ -295,7 +295,7 @@ export function HealthTrendsCard() {
         </button>
       </div>
       
-      <div className="chart-container" style={{ height: '200px' }}>
+      <div className="chart-container" style={{ height: '250px' }}>
         {isLoadingWeekly ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
@@ -312,7 +312,7 @@ export function HealthTrendsCard() {
       </div>
       
       <div className="mt-4 flex justify-between items-center">
-        <div>
+        <div className="w-full">
           <p className="text-sm text-neutral-600">Weekly average</p>
           <p className="font-bold text-lg">{calculateAverage()}</p>
           
@@ -323,7 +323,7 @@ export function HealthTrendsCard() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary mr-1" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <h4 className="font-semibold text-primary">AI Insight</h4>
+                <h4 className="font-semibold text-primary">Kidney Function Insight</h4>
               </div>
               
               <p className={`font-medium mt-1
@@ -374,6 +374,131 @@ export function HealthTrendsCard() {
                     weeklyMetrics[0].gfrTrend === 'possible_decline' ?
                     "Consider discussing these recent changes with your healthcare provider at your next appointment." :
                     "Continue monitoring and maintaining your current health regimen."}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Enhanced AI-powered Hydration insight */}
+          {activeTab === "hydration" && weeklyMetrics && weeklyMetrics.length > 0 && (
+            <div className="mt-2 text-sm flex flex-col gap-1 bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <h4 className="font-semibold text-primary">Hydration Insight</h4>
+              </div>
+              
+              <p className="font-medium mt-1 text-blue-600">
+                {weeklyMetrics[0].hydration >= 2.5 ? 
+                  "Your hydration levels are excellent! Great work staying well-hydrated." :
+                  weeklyMetrics[0].hydration >= 1.5 ?
+                  "Your hydration is adequate, but could be improved for optimal kidney health." :
+                  "Your hydration appears lower than recommended. Try to increase your water intake."}
+              </p>
+              
+              {/* Calculate hydration trend */}
+              {weeklyMetrics.length > 3 && (
+                <p className="text-xs text-neutral-700 mt-1">
+                  {(() => {
+                    const recent = weeklyMetrics.slice(0, 3).reduce((sum, m) => sum + (m.hydration || 0), 0) / 3;
+                    const older = weeklyMetrics.slice(3, 6).reduce((sum, m) => sum + (m.hydration || 0), 0) / 3;
+                    const change = recent - older;
+                    const percentChange = older ? (change / older) * 100 : 0;
+                    return `${Math.abs(percentChange).toFixed(1)}% ${percentChange > 0 ? 'increase' : 'decrease'} in water intake compared to previous week`;
+                  })()}
+                </p>
+              )}
+              
+              <div className="flex items-center mt-1">
+                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                  weeklyMetrics[0].hydration >= 2 ? 'bg-green-500' : 
+                  weeklyMetrics[0].hydration >= 1.5 ? 'bg-blue-500' : 
+                  'bg-amber-500'
+                }`}></span>
+                <p className="text-xs font-medium text-neutral-700">
+                  {weeklyMetrics[0].hydration >= 2.5 ? 'Excellent hydration helps protect kidney function' :
+                   weeklyMetrics[0].hydration >= 1.5 ? 'Moderate hydration - aim for 2-3L daily' :
+                   'Low hydration may impact kidney function over time'}
+                </p>
+              </div>
+              
+              {/* AI-powered personalized recommendation */}
+              <div className="mt-3 bg-white p-2 rounded border border-blue-100 flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 mt-0.5 mr-1.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs">
+                  {weeklyMetrics[0].hydration < 1.5 ? 
+                    "Try setting water intake reminders throughout the day. Aim for at least 2L daily for kidney health." :
+                    weeklyMetrics[0].hydration < 2 ?
+                    "You're on track with hydration. Try adding another glass of water in the morning and evening." :
+                    "Excellent hydration habits! Keep up the good work to maintain kidney health."}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Enhanced AI-powered BP insight */}
+          {activeTab === "bp" && weeklyMetrics && weeklyMetrics.length > 0 && (
+            <div className="mt-2 text-sm flex flex-col gap-1 bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <h4 className="font-semibold text-primary">Blood Pressure Insight</h4>
+              </div>
+              
+              <p className={`font-medium mt-1 ${
+                weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 'text-red-600' : 
+                weeklyMetrics[0].systolicBP >= 130 || weeklyMetrics[0].diastolicBP >= 85 ? 'text-amber-600' : 
+                'text-green-600'
+              }`}>
+                {weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 
+                  "Your blood pressure is elevated. This can impact kidney health over time." :
+                  weeklyMetrics[0].systolicBP >= 130 || weeklyMetrics[0].diastolicBP >= 85 ?
+                  "Your blood pressure is slightly elevated. Monitor closely." :
+                  "Your blood pressure is within a healthy range. Great work!"}
+              </p>
+              
+              {/* Calculate BP trend */}
+              {weeklyMetrics.length > 3 && (
+                <p className="text-xs text-neutral-700 mt-1">
+                  {(() => {
+                    const recentSys = weeklyMetrics.slice(0, 3).reduce((sum, m) => sum + (m.systolicBP || 0), 0) / 3;
+                    const olderSys = weeklyMetrics.slice(3, 6).reduce((sum, m) => sum + (m.systolicBP || 0), 0) / 3;
+                    const change = recentSys - olderSys;
+                    return `${Math.abs(change).toFixed(1)} mmHg ${change > 0 ? 'increase' : 'decrease'} in systolic BP compared to previous week`;
+                  })()}
+                </p>
+              )}
+              
+              <div className="flex items-center mt-1">
+                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                  weeklyMetrics[0].systolicBP < 130 && weeklyMetrics[0].diastolicBP < 80 ? 'bg-green-500' : 
+                  weeklyMetrics[0].systolicBP < 140 && weeklyMetrics[0].diastolicBP < 90 ? 'bg-amber-500' : 
+                  'bg-red-500'
+                }`}></span>
+                <p className="text-xs font-medium text-neutral-700">
+                  {weeklyMetrics[0].systolicBP < 130 && weeklyMetrics[0].diastolicBP < 80 ? 
+                    'Healthy blood pressure is protective for kidneys' :
+                   weeklyMetrics[0].systolicBP < 140 && weeklyMetrics[0].diastolicBP < 90 ? 
+                    'Borderline blood pressure - monitor closely' :
+                    'Elevated blood pressure increases kidney disease risk'}
+                </p>
+              </div>
+              
+              {/* AI-powered personalized recommendation */}
+              <div className="mt-3 bg-white p-2 rounded border border-blue-100 flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500 mt-0.5 mr-1.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs">
+                  {weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 
+                    "Discuss your blood pressure readings with your healthcare provider. Regular monitoring is essential." :
+                    weeklyMetrics[0].systolicBP >= 130 || weeklyMetrics[0].diastolicBP >= 85 ?
+                    "Consider lifestyle changes like reduced sodium intake and regular exercise to help manage blood pressure." :
+                    "Maintain your healthy diet and exercise routine to keep your blood pressure in this optimal range."}
                 </p>
               </div>
             </div>
