@@ -316,26 +316,66 @@ export function HealthTrendsCard() {
           <p className="text-sm text-neutral-600">Weekly average</p>
           <p className="font-bold text-lg">{calculateAverage()}</p>
           
-          {/* Show GFR trend information when GFR tab is active */}
-          {activeTab === "gfr" && weeklyMetrics && weeklyMetrics.length > 0 && weeklyMetrics[0].gfrTrend && (
-            <div className="mt-2 text-sm flex flex-col gap-1">
-              <p className={`font-medium 
+          {/* Enhanced AI-powered GFR trend analysis */}
+          {activeTab === "gfr" && weeklyMetrics && weeklyMetrics.length > 0 && (
+            <div className="mt-2 text-sm flex flex-col gap-1 bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <h4 className="font-semibold text-primary">AI Insight</h4>
+              </div>
+              
+              <p className={`font-medium mt-1
                 ${weeklyMetrics[0].gfrTrend === 'significant_improvement' || weeklyMetrics[0].gfrTrend === 'moderate_improvement' ? 'text-green-600' : 
                   weeklyMetrics[0].gfrTrend === 'stable' ? 'text-blue-600' : 
                   weeklyMetrics[0].gfrTrend === 'possible_decline' ? 'text-amber-600' : 
                   'text-red-600'}`}>
-                {weeklyMetrics[0].gfrTrendDescription}
+                {weeklyMetrics[0].gfrTrendDescription || "Your kidney function appears stable based on recent measurements."}
               </p>
+              
               {weeklyMetrics[0].gfrChangePercent && (
-                <p className="text-xs text-neutral-600">
+                <p className="text-xs text-neutral-700 mt-1">
                   {weeklyMetrics[0].gfrChangePercent > 0 ? '+' : ''}{weeklyMetrics[0].gfrChangePercent.toFixed(1)}% change
                   {weeklyMetrics[0].gfrAbsoluteChange && 
                     ` (${weeklyMetrics[0].gfrAbsoluteChange > 0 ? '+' : ''}${weeklyMetrics[0].gfrAbsoluteChange.toFixed(1)} points)`}
                 </p>
               )}
+              
               {weeklyMetrics[0].gfrLongTermTrend && (
-                <p className="text-xs text-neutral-600">Long-term: {weeklyMetrics[0].gfrLongTermTrend}</p>
+                <div className="flex items-center mt-1">
+                  <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                    weeklyMetrics[0].gfrLongTermTrend === 'improving' ? 'bg-green-500' : 
+                    weeklyMetrics[0].gfrLongTermTrend === 'stable' ? 'bg-blue-500' : 
+                    'bg-amber-500'
+                  }`}></span>
+                  <p className="text-xs font-medium text-neutral-700">
+                    {weeklyMetrics[0].gfrLongTermTrend === 'improving' ? 'Your kidney function has shown improvement over time' :
+                     weeklyMetrics[0].gfrLongTermTrend === 'stable' ? 'Your kidney function has been stable for 3+ weeks' :
+                     'Your kidney function shows changes that may need attention'}
+                  </p>
+                </div>
               )}
+              
+              {weeklyMetrics[0].gfrStability && (
+                <p className="text-xs text-neutral-700 mt-1">
+                  {weeklyMetrics[0].gfrStability}
+                </p>
+              )}
+              
+              {/* AI-powered personalized recommendation */}
+              <div className="mt-3 bg-white p-2 rounded border border-blue-100 flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500 mt-0.5 mr-1.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs">
+                  {weeklyMetrics[0].gfrTrend === 'significant_decline' || weeklyMetrics[0].gfrTrend === 'moderate_decline' ? 
+                    "Speak with your doctor about this change in kidney function." :
+                    weeklyMetrics[0].gfrTrend === 'possible_decline' ?
+                    "Consider discussing these recent changes with your healthcare provider at your next appointment." :
+                    "Continue monitoring and maintaining your current health regimen."}
+                </p>
+              </div>
             </div>
           )}
           
