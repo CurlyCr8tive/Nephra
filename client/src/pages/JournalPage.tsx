@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { JournalEntry } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Send, RefreshCw, Bot } from "lucide-react";
+import JournalInsight from "@/components/JournalInsight";
 import { useLocation } from "wouter";
 
 // Interface for the AI model selector
@@ -597,6 +598,16 @@ export default function JournalPage() {
                           "No content available"
                         }
                       </div>
+                      
+                      {/* AI Insights for journal entries */}
+                      <JournalInsight 
+                        content={entry.content || ""}
+                        aiResponse={entry.aiResponse}
+                        painScore={entry.painScore || null}
+                        stressScore={entry.stressScore || null}
+                        fatigueScore={entry.fatigueScore || null}
+                        tags={entry.tags || null}
+                      />
                       {entry.sentiment && (
                         <div className="text-xs text-muted-foreground p-2 bg-muted rounded-md">
                           <strong>Mood:</strong> {entry.sentiment}
