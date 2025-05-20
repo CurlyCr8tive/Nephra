@@ -250,11 +250,19 @@ export function HealthCalendar({ healthData, userId = null }: HealthCalendarProp
   const renderDayCell = (day: Date, modifiers: any) => {
     const dayData = getHealthDataForDate(day);
     
+    // Debug health data for this day
+    const today = new Date();
+    if (isSameDay(day, today)) {
+      console.log("Today's health data:", dayData);
+    }
+    
     // Set background colors based on health metrics
     let backgroundColor = "bg-background";
     let textColor = "text-foreground";
     
     if (dayData) {
+      console.log(`Found health data for ${day.toDateString()}:`, dayData);
+      
       // Determine cell color based on highest severity
       if (dayData.painLevel && dayData.painLevel > 7) {
         backgroundColor = "bg-red-100";
@@ -268,6 +276,10 @@ export function HealthCalendar({ healthData, userId = null }: HealthCalendarProp
       } else if (dayData.hydration && dayData.hydration < 1) {
         backgroundColor = "bg-blue-100";
         textColor = "text-blue-800";
+      } else if (dayData.estimatedGFR && dayData.estimatedGFR < 60) {
+        // Add GFR indicator for CKD stages 3-5
+        backgroundColor = "bg-amber-100";
+        textColor = "text-amber-800";
       }
     }
     

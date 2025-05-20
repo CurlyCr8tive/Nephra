@@ -630,10 +630,22 @@ export default function TrackPage() {
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
                 <h2 className="font-display font-bold text-lg mb-4">Health Calendar</h2>
                 {/* Health Calendar Component */}
-                <HealthCalendar 
-                  healthData={weeklyMetrics} 
-                  userId={user?.id} 
-                />
+                {isLoadingWeekly ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                    <span className="ml-2">Loading health data...</span>
+                  </div>
+                ) : weeklyMetrics && weeklyMetrics.length > 0 ? (
+                  <HealthCalendar 
+                    healthData={weeklyMetrics} 
+                    userId={user?.id} 
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-lg font-medium">No health data available</p>
+                    <p className="text-muted-foreground mt-2">Log your first health entry to see it on the calendar</p>
+                  </div>
+                )}
               </div>
             </TabsContent>
             
