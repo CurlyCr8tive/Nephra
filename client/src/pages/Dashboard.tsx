@@ -11,6 +11,7 @@ import HealthStatusCard from "@/components/HealthStatusCard";
 import HealthLogging from "@/pages/HealthLogging";
 import { useHealthData } from "@/hooks/useHealthData";
 import { useUser } from "@/contexts/UserContext";
+import HealthMetricAlert from "@/components/HealthMetricAlert";
 
 export default function Dashboard() {
   const [showLoggingForm, setShowLoggingForm] = useState(false);
@@ -72,6 +73,11 @@ export default function Dashboard() {
             
             <AICompanionCard />
             <TransplantRoadmapCard />
+            
+            {/* Display health metric alerts if we have latest metrics data */}
+            {latestMetrics && (
+              <HealthMetricAlert metrics={latestMetrics} />
+            )}
           </div>
         )}
       </main>

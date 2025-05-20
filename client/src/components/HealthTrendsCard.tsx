@@ -390,9 +390,9 @@ export function HealthTrendsCard() {
               </div>
               
               <p className="font-medium mt-1 text-blue-600">
-                {weeklyMetrics[0].hydration >= 2.5 ? 
+                {weeklyMetrics[0]?.hydration && weeklyMetrics[0].hydration >= 2.5 ? 
                   "Your hydration levels are excellent! Great work staying well-hydrated." :
-                  weeklyMetrics[0].hydration >= 1.5 ?
+                  weeklyMetrics[0]?.hydration && weeklyMetrics[0].hydration >= 1.5 ?
                   "Your hydration is adequate, but could be improved for optimal kidney health." :
                   "Your hydration appears lower than recommended. Try to increase your water intake."}
               </p>
