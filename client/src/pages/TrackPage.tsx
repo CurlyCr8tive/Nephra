@@ -72,8 +72,27 @@ export default function TrackPage() {
     weeklyMetrics = [], 
     isLoadingWeekly = false,
     logHealthMetrics,
-    isLogging = false
+    isLogging = false,
+    latestMetrics = null
   } = useHealthData();
+
+  // Additional check to ensure we have health data for display
+  useEffect(() => {
+    // Log detailed health metrics status for debugging
+    console.log("⚕️ Track page health metrics status:", {
+      hasWeeklyData: weeklyMetrics && weeklyMetrics.length > 0,
+      weeklyDataCount: weeklyMetrics?.length || 0,
+      hasLatestMetric: !!latestMetrics,
+      userId: user?.id,
+      isLoadingWeekly
+    });
+    
+    // If we have latest metrics available but weeklyMetrics is empty, 
+    // we might have an issue with data synchronization
+    if (latestMetrics && (!weeklyMetrics || weeklyMetrics.length === 0)) {
+      console.log("⚠️ Latest metrics available but weekly metrics missing - data sync issue detected");
+    }
+  }, [weeklyMetrics, latestMetrics, user?.id, isLoadingWeekly]);
   
   // Log the number of metrics for debugging
   useEffect(() => {

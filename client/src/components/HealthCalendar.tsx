@@ -40,12 +40,36 @@ export function HealthCalendar({ healthData, userId = null }: HealthCalendarProp
   
   // Function to get health data for a specific date
   const getHealthDataForDate = (date: Date | null): HealthMetrics | undefined => {
-    if (!date) return undefined;
+    if (!date || !healthData || !Array.isArray(healthData)) {
+      console.log("Missing date or invalid health data:", { date, healthDataType: typeof healthData });
+      return undefined;
+    }
+    
+    // Debug the incoming health data
+    if (healthData.length > 0) {
+      console.log(`Health data available for calendar (${healthData.length} entries)`);
+    } else {
+      console.log("Empty health data array provided to calendar");
+    }
     
     return healthData.find(entry => {
-      // Ensure we have a valid date by handling potential null/undefined
-      const entryDate = entry.date ? new Date(entry.date) : null;
-      return entryDate && isSameDay(entryDate, date);
+      try {
+        // Ensure we have a valid date by handling potential null/undefined
+        if (!entry || !entry.date) return false;
+        
+        const entryDate = new Date(entry.date);
+        const isSame = isSameDay(entryDate, date);
+        
+        // Log matches for debugging
+        if (isSame) {
+          console.log(`✅ Found health data match for ${date.toDateString()}`);
+        }
+        
+        return isSame;
+      } catch (error) {
+        console.error("Error comparing dates:", error);
+        return false;
+      }
     });
   };
   
