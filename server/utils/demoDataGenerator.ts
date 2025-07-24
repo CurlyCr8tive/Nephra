@@ -30,7 +30,7 @@ export const generateDemoHealthData = async (userId: number) => {
     const baseGFR = (stageProfile[stageKey]?.gfr) || 90;
     const fluctuation = (stageProfile[stageKey]?.fluctuation) || 5;
     
-    // Generate data for last 30 days with proper date calculation
+    // Generate data for last 30 days with proper date calculation (June 2025)
     for (let i = 0; i < 30; i++) {
       const date = new Date();
       // Use setTime instead of setDate to avoid month overflow issues
