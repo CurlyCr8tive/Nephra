@@ -31,6 +31,8 @@ import { validateMedicalDocument } from "./openai-service";
 import { ensureUserHasHealthData } from "./utils/demoDataGenerator";
 // Import data transformation utilities
 import { transformHealthMetrics, logDataResults } from "./utils/dataTransformer";
+// Import news scraper
+import { fetchLatestKidneyNews, NewsArticle } from "./news-scraper";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -916,6 +918,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(chats);
     } catch (error) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // News endpoint
+  app.get("/api/kidney-news", async (req, res) => {
+    try {
+      console.log("🔍 Fetching latest kidney health news...");
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const articles = await fetchLatestKidneyNews(limit);
+      
+      console.log(`✅ Successfully retrieved ${articles.length} news articles`);
+      res.json({
+        success: true,
+        articles: articles,
+        count: articles.length,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching kidney news:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to fetch latest news", 
+        articles: [] 
+      });
     }
   });
 

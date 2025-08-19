@@ -4,13 +4,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink, Calendar, Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BottomNavigation from "@/components/BottomNavigation";
+
+// News article interface matching the server
+interface NewsArticle {
+  id: string;
+  title: string;
+  date: string;
+  summary: string;
+  source: string;
+  link: string;
+  category: 'research' | 'treatment' | 'policy' | 'prevention' | 'general';
+  relevanceScore: number;
+}
 
 const EducationHub = () => {
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("questions");
+
+  // Fetch live kidney health news
+  const { 
+    data: newsData, 
+    isLoading: newsLoading, 
+    error: newsError,
+    refetch: refetchNews
+  } = useQuery({
+    queryKey: ["/api/kidney-news"],
+    queryFn: async () => {
+      const response = await fetch("/api/kidney-news?limit=8");
+      if (!response.ok) {
+        throw new Error("Failed to fetch news");
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 15 * 60 * 1000, // 15 minutes
+  });
 
   // Sample education content for each category
   const educationContent = {
@@ -103,48 +134,6 @@ const EducationHub = () => {
         ],
         resourceLink: "https://www.kidney.org/atoz/content/dialysis",
         resourceText: "Compare dialysis options",
-      },
-    ],
-    news: [
-      {
-        id: 1,
-        title: "New Transplant Initiative Launches Nationwide",
-        date: "May 15, 2025",
-        summary: "The National Kidney Foundation announces a new initiative to increase living donor kidney transplants by 50% over the next five years through education and advocacy.",
-        source: "National Kidney Foundation",
-        link: "https://www.kidney.org/transplantation",
-      },
-      {
-        id: 2,
-        title: "FDA Approves New Medication for CKD-Related Anemia",
-        date: "May 1, 2025",
-        summary: "The FDA has approved a new HIF-PH inhibitor that stimulates red blood cell production in the body, providing a new treatment option for anemia in chronic kidney disease patients.",
-        source: "American Society of Nephrology",
-        link: "https://www.asn-online.org/news/",
-      },
-      {
-        id: 3,
-        title: "Kidney Week 2025 Highlights Latest Research",
-        date: "April 20, 2025",
-        summary: "The annual Kidney Week conference showcased promising developments in kidney disease detection, progression monitoring, and treatment options that may change standard care protocols.",
-        source: "American Society of Nephrology",
-        link: "https://www.asn-online.org/education/kidneyweek/",
-      },
-      {
-        id: 4,
-        title: "Artificial Kidney Project Progresses in Clinical Trials",
-        date: "April 5, 2025",
-        summary: "The implantable artificial kidney device is showing promising results in early clinical trials, potentially offering an alternative to traditional dialysis for many patients.",
-        source: "The Kidney Project - UCSF",
-        link: "https://pharm.ucsf.edu/kidney",
-      },
-      {
-        id: 5,
-        title: "New Guidelines for Managing Kidney Stones Released",
-        date: "March 15, 2025",
-        summary: "Updated guidelines provide recommendations for preventing kidney stone recurrence through dietary changes, medications, and monitoring strategies based on the latest evidence.",
-        source: "American Urological Association",
-        link: "https://www.auanet.org/guidelines/kidney-stones",
       },
     ],
     advocacy: [
@@ -308,42 +297,125 @@ const EducationHub = () => {
           ))}
         </TabsContent>
         
-        {/* Kidney Foundation News Tab */}
+        {/* Latest Kidney Health News Tab */}
         <TabsContent value="news" className="space-y-4">
-          <h2 className="text-xl font-semibold">Kidney Foundation News</h2>
-          <p className="text-sm text-neutral-600 mb-4">
-            Stay updated with the latest research, treatments, and initiatives in kidney health.
-          </p>
-          
-          {educationContent.news.map((article) => (
-            <Card key={article.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">{article.title}</CardTitle>
-                <CardDescription>{article.date} • {article.source}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm mb-3">{article.summary}</p>
-                <div className="flex justify-between items-center">
-                  <a 
-                    href={article.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center text-primary text-sm hover:underline"
-                  >
-                    <span className="material-icons text-sm mr-1">link</span>
-                    Read Full Article
-                  </a>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleResourceClick(article.title)}
-                  >
-                    <span className="material-icons text-sm">bookmark</span>
-                  </Button>
-                </div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold">Latest Kidney Health News</h2>
+              <p className="text-sm text-neutral-600">
+                Current developments in kidney disease research, treatments, and policy updates.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => refetchNews()}
+              disabled={newsLoading}
+              className="flex items-center gap-2"
+            >
+              {newsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+              Refresh
+            </Button>
+          </div>
+
+          {newsLoading && (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              <span className="text-sm text-neutral-600">Fetching latest news...</span>
+            </div>
+          )}
+
+          {newsError && (
+            <Card className="border-destructive/20">
+              <CardContent className="pt-6">
+                <p className="text-sm text-destructive">
+                  Unable to fetch the latest news. Please check your connection and try again.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={() => refetchNews()}
+                >
+                  Try Again
+                </Button>
               </CardContent>
             </Card>
-          ))}
+          )}
+
+          {newsData?.success && newsData.articles.length > 0 && (
+            <div className="space-y-4">
+              <div className="text-xs text-neutral-500 flex items-center gap-2">
+                <Calendar className="w-3 h-3" />
+                Last updated: {new Date(newsData.lastUpdated).toLocaleString()}
+                <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs">
+                  {newsData.count} articles
+                </span>
+              </div>
+              
+              {newsData.articles.map((article: NewsArticle) => (
+                <Card key={article.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-lg leading-tight pr-2">{article.title}</CardTitle>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Tag className={`w-3 h-3 ${
+                          article.category === 'research' ? 'text-blue-600' :
+                          article.category === 'treatment' ? 'text-green-600' :
+                          article.category === 'policy' ? 'text-purple-600' :
+                          article.category === 'prevention' ? 'text-orange-600' :
+                          'text-neutral-600'
+                        }`} />
+                        <span className={`text-xs px-2 py-1 rounded-full capitalize ${
+                          article.category === 'research' ? 'bg-blue-50 text-blue-700' :
+                          article.category === 'treatment' ? 'bg-green-50 text-green-700' :
+                          article.category === 'policy' ? 'bg-purple-50 text-purple-700' :
+                          article.category === 'prevention' ? 'bg-orange-50 text-orange-700' :
+                          'bg-neutral-50 text-neutral-700'
+                        }`}>
+                          {article.category}
+                        </span>
+                      </div>
+                    </div>
+                    <CardDescription className="flex items-center gap-2">
+                      <Calendar className="w-3 h-3" />
+                      {article.date} • {article.source}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-neutral-700 mb-3 leading-relaxed">{article.summary}</p>
+                    <div className="flex justify-between items-center">
+                      <a 
+                        href={article.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center text-primary text-sm hover:underline transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        Read Full Article
+                      </a>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleResourceClick(article.title)}
+                        className="text-neutral-600 hover:text-primary"
+                      >
+                        <span className="material-icons text-sm">bookmark_add</span>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {newsData?.success && newsData.articles.length === 0 && (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-sm text-neutral-600">No news articles available at the moment.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
         
         {/* Self Advocacy Tips Tab */}
