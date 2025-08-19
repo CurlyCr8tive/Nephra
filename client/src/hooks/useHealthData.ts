@@ -322,10 +322,15 @@ export function useHealthData() {
   // Mutation for logging new health metrics
   const { mutate: logHealthMetrics, isPending: isLogging } = useMutation({
     mutationFn: async (data: InsertHealthMetrics) => {
+      // Get the effective user ID with fallback strategies
+      const effectiveUserId = userId || user?.id || getSecureUserIdWithFallback();
+      
       // Safety check - only proceed if we have a user ID
-      if (!userId) {
+      if (!effectiveUserId) {
         throw new Error("You must be logged in to save health metrics");
       }
+      
+      console.log("✅ Using effective user ID for health data save:", effectiveUserId);
       
       // Ensure estimatedGFR is properly set and never null or undefined
       if (data.estimatedGFR === null || data.estimatedGFR === undefined) {
@@ -335,9 +340,9 @@ export function useHealthData() {
       }
       
       // Always set the userId to the authenticated user
-      data.userId = userId;
+      data.userId = effectiveUserId;
       
-      console.log("Saving health metrics for user:", userId);
+      console.log("Saving health metrics for user:", effectiveUserId);
       
       try {
         // Enhanced API request with fallback authentication
@@ -371,7 +376,7 @@ export function useHealthData() {
               },
               body: JSON.stringify({
                 healthData: data,
-                userId: userId,
+                userId: effectiveUserId,
                 apiKey: "nephra-health-data-key" 
               }),
             });
@@ -397,7 +402,7 @@ export function useHealthData() {
               },
               body: JSON.stringify({
                 healthData: data,
-                userId: userId,
+                userId: effectiveUserId,
                 apiKey: "nephra-health-data-key" 
               }),
             });
@@ -435,7 +440,7 @@ export function useHealthData() {
               };
               xhr.send(JSON.stringify({
                 healthData: data,
-                userId: userId,
+                userId: effectiveUserId,
                 apiKey: "nephra-health-data-key" 
               }));
             });
