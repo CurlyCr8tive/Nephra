@@ -23,39 +23,34 @@ export function useHealthData() {
     isUserLoading
   });
   
-  // CRITICAL FIX: Attempt to recover user ID from localStorage if needed
-  // This is safe because we're still respecting the user's session, just
-  // ensuring we don't miss the data due to timing issues between components.
-  const getSecureUserIdWithFallback = (): number | null => {
-    // SECURITY FIX: Only use authenticated user context, no localStorage fallback
-    // This prevents user ID conflicts and unauthorized data access
-    if (userId) {
+  // SECURITY: Only use authenticated user context, absolutely NO fallbacks
+  // This prevents any possibility of cross-user data access
+  const getSecureUserId = (): number | null => {
+    // CRITICAL: Only return user ID if we have a fully authenticated user
+    if (userId && !isUserLoading) {
       console.log("✅ Using authenticated user ID from context:", userId);
       return userId;
     }
     
-    // If user context is still loading, we should wait
+    // If user context is still loading or no user, return null
     if (isUserLoading) {
       console.log("⏳ User context is still loading, deferring health metrics fetch");
-      return null;
+    } else {
+      console.log("⚠️ No authenticated user available for health data access");
     }
-    
-    // SECURITY: No localStorage/sessionStorage fallback to prevent user ID conflicts
-    // If no authenticated user, return null to prevent unauthorized data access
-    console.warn("⚠️ No authenticated user available for health data access");
     return null;
   };
   
-  // SECURITY FIX: Use authenticated user ID with localStorage fallback only for timing issues
-  // This ensures we don't miss showing data just because of component loading order
-  const effectiveUserId = getSecureUserIdWithFallback();
+  // SECURITY: Only use fully authenticated user ID, no fallbacks whatsoever
+  const effectiveUserId = getSecureUserId();
   console.log("Using user ID for health data:", effectiveUserId);
   
   // Note: isUserLoading comes from useUser() context above
 
   // Get the latest health metrics for the current user
   const { data: latestMetricsArray, isLoading: isLoadingLatest } = useQuery<HealthMetrics[] | undefined>({
-    queryKey: [`/api/health-metrics/${effectiveUserId || 'not-ready'}?limit=1`],
+    // SECURITY: Never use fallback strings in query keys - only authenticated user ID
+    queryKey: effectiveUserId ? [`health-metrics`, effectiveUserId, 'latest'] : ['no-user-authenticated'],
     queryFn: async () => {
       // Don't proceed if we don't have a user ID
       if (!effectiveUserId) {
@@ -71,92 +66,32 @@ export function useHealthData() {
       
       console.log(`🔍 Fetching latest health metrics for user ID ${effectiveUserId}`);
       
+      // SECURITY: Simple, single endpoint approach to prevent cache pollution
       try {
-        // Make a simple direct fetch to the endpoint using the effective user ID
         const response = await fetch(`/api/health-metrics/${effectiveUserId}?limit=1`, { 
           credentials: "include",
           cache: "no-store" // Force fresh data
         });
         
-        console.log(`🔄 Health metrics API response status: ${response.status} ${response.statusText}`);
-        
         if (!response.ok) {
           console.error(`❌ Error fetching latest metrics for user ${effectiveUserId} with status ${response.status}`);
-          
-          // Try the emergency endpoint as a direct alternative
-          console.log("🚨 Attempting emergency endpoint as alternative...");
-          const emergencyResponse = await fetch(`/api/emergency-health-log?userId=${effectiveUserId}`);
-          
-          if (emergencyResponse.ok) {
-            const emergencyData = await emergencyResponse.json();
-            console.log(`✅ Retrieved ${emergencyData?.length || 0} metrics via emergency endpoint`);
-            return emergencyData || [];
-          }
-          
-          console.warn("⚠️ Emergency endpoint also failed");
-          return []; // Return empty array if both methods fail
+          throw new Error(`Failed to fetch health metrics: ${response.status}`);
         }
         
         const data = await response.json();
         console.log(`✅ Retrieved ${data?.length || 0} latest health metrics for user ${effectiveUserId}`);
         
-        if (data && data.length > 0) {
-          console.log("📋 Latest metrics data:", data[0]);
-          
-          // Log important health values
-          console.log("🩺 Key health values:", {
-            hydration: data[0].hydration,
-            systolicBP: data[0].systolicBP,
-            diastolicBP: data[0].diastolicBP,
-            estimatedGFR: data[0].estimatedGFR,
-            painLevel: data[0].painLevel,
-            stressLevel: data[0].stressLevel,
-            fatigueLevel: data[0].fatigueLevel
-          });
-        } else {
-          console.log("⚠️ No health metrics found for this user.");
-          
-          // Try the log-health endpoint as an alternative
-          console.log("🔄 Attempting alternative log-health endpoint...");
-          try {
-            const logHealthResponse = await fetch(`/api/log-health/${effectiveUserId}`);
-            if (logHealthResponse.ok) {
-              const logHealthData = await logHealthResponse.json();
-              if (logHealthData && logHealthData.length > 0) {
-                console.log("✅ Retrieved data using log-health endpoint:", logHealthData.length, "records");
-                return logHealthData;
-              }
-            }
-          } catch (fallbackError) {
-            console.error("❌ Alternative endpoint fetch failed:", fallbackError);
-          }
-        }
-        
-        // Make sure we always return an array, even if data is null or undefined
         return data || [];
       } catch (error) {
-        console.error("❌ Exception while fetching latest health metrics:", error);
-        
-        // Try the log-health endpoint as a final attempt
-        try {
-          console.log("🔄 Final attempt using log-health endpoint...");
-          const lastResponse = await fetch(`/api/log-health/${effectiveUserId}`);
-          if (lastResponse.ok) {
-            const lastData = await lastResponse.json();
-            return lastData || [];
-          }
-        } catch (finalError) {
-          console.error("❌ All fetch methods failed:", finalError);
-        }
-        
-        return []; // Return empty array as ultimate fallback
+        console.error("❌ Failed to fetch health metrics:", error);
+        return []; // Return empty array on any error
       }
     },
     staleTime: 30 * 1000, // 30 seconds - fetch more frequently
     refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
     retry: 3, // Retry failed requests 3 times
-    enabled: true, // Always enabled - we'll handle missing userId in the queryFn
+    enabled: !!effectiveUserId && !isUserLoading, // SECURITY: Only enabled if we have authenticated user
     placeholderData: []
   });
 
@@ -187,8 +122,8 @@ export function useHealthData() {
 
   // Get a week of health metrics for trends
   const { data: weeklyMetrics, isLoading: isLoadingWeekly } = useQuery<HealthMetrics[] | undefined>({
-    // SECURITY FIX: Use a safe approach with no fallbacks that could lead to data leakage
-    queryKey: [`/api/health-metrics/${effectiveUserId ? effectiveUserId : 'no-user'}/range`],
+    // SECURITY: Only use authenticated user ID in query key
+    queryKey: effectiveUserId ? [`health-metrics`, effectiveUserId, 'range'] : ['no-user-authenticated-range'],
     queryFn: async () => {
       // Don't proceed if we don't have a user ID
       if (!effectiveUserId) {
@@ -203,7 +138,7 @@ export function useHealthData() {
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 2,
-    enabled: !!effectiveUserId, // Only enable if we have a user ID
+    enabled: !!effectiveUserId && !isUserLoading, // SECURITY: Only enabled if we have authenticated user
     placeholderData: []
   });
   
@@ -211,102 +146,44 @@ export function useHealthData() {
   async function fetchWeeklyMetricsForUser(id: number): Promise<HealthMetrics[]> {
     const endDate = new Date();
     const startDate = new Date();
-    // CRITICAL FIX: Use 30 days instead of 7 to ensure we capture all historical data
+    // Use 30 days to ensure we capture sufficient historical data
     startDate.setDate(startDate.getDate() - 30);
     
     console.log(`Fetching monthly data for user ID ${id} from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
     
+    // SECURITY: Simple, single endpoint approach to prevent cache pollution
     try {
-      // Simple minimal fetch first - less chance of errors
       const response = await fetch(`/api/health-metrics/${id}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`, {
         credentials: "include"
       });
       
-      console.log(`🔄 Weekly metrics API response status: ${response.status} ${response.statusText}`);
-      
       if (!response.ok) {
         console.error(`❌ Error fetching weekly metrics for user ${id} with status ${response.status}`);
-        
-        // Try the log-health endpoint as an alternative
-        console.log("🔄 Attempting alternative log-health endpoint...");
-        try {
-          const logHealthResponse = await fetch(`/api/log-health/${id}`);
-          if (logHealthResponse.ok) {
-            const logHealthData = await logHealthResponse.json();
-            if (logHealthData && logHealthData.length > 0) {
-              console.log("✅ Retrieved data using log-health endpoint:", logHealthData.length, "records");
-              return logHealthData;
-            }
-          }
-        } catch (fallbackError) {
-          console.error("❌ Alternative endpoint fetch failed:", fallbackError);
-        }
-        
-        // If all alternatives fail, return empty array
-        return [];
+        throw new Error(`Failed to fetch weekly metrics: ${response.status}`);
       }
       
       const data = await response.json();
       console.log(`✅ Retrieved ${data?.length || 0} weekly health metrics for user ${id}`);
       
-      if (data && data.length > 0) {
-        console.log("📋 Sample metrics data:", {
-          firstEntry: data[0].date,
-          lastEntry: data[data.length-1].date,
-          gfrValues: data.map((d: HealthMetrics) => d.estimatedGFR)
-        });
-      } else {
-        console.log("⚠️ No weekly metrics found, array is empty");
-        
-        // Try the log-health endpoint as an alternative if no data
-        console.log("🔄 Attempting alternative log-health endpoint for empty result...");
-        try {
-          const logHealthResponse = await fetch(`/api/log-health/${id}`);
-          if (logHealthResponse.ok) {
-            const logHealthData = await logHealthResponse.json();
-            if (logHealthData && logHealthData.length > 0) {
-              console.log("✅ Retrieved data using log-health endpoint:", logHealthData.length, "records");
-              return logHealthData;
-            }
-          }
-        } catch (fallbackError) {
-          console.error("❌ Alternative endpoint fetch failed:", fallbackError);
-        }
-      }
-      
-      // Make sure we always return an array
       return data || [];
     } catch (error) {
-      console.error("❌ Exception while fetching weekly health metrics:", error);
-      
-      // Try the log-health endpoint as a final attempt
-      try {
-        console.log("🔄 Final attempt using log-health endpoint...");
-        const lastResponse = await fetch(`/api/log-health/${id}`);
-        if (lastResponse.ok) {
-          const lastData = await lastResponse.json();
-          return lastData || [];
-        }
-      } catch (finalError) {
-        console.error("❌ All fetch methods failed:", finalError);
-      }
-      
-      return []; // Final fallback is empty array
+      console.error("❌ Failed to fetch weekly metrics:", error);
+      return []; // Return empty array on any error
     }
   }
 
   // Mutation for logging new health metrics
   const { mutate: logHealthMetrics, isPending: isLogging } = useMutation({
     mutationFn: async (data: InsertHealthMetrics) => {
-      // Get the effective user ID with fallback strategies
-      const effectiveUserId = userId || user?.id || getSecureUserIdWithFallback();
+      // SECURITY: Only use authenticated user ID, no fallbacks
+      const currentUserId = getSecureUserId();
       
-      // Safety check - only proceed if we have a user ID
-      if (!effectiveUserId) {
+      // SECURITY: Only proceed if we have an authenticated user ID
+      if (!currentUserId) {
         throw new Error("You must be logged in to save health metrics");
       }
       
-      console.log("✅ Using effective user ID for health data save:", effectiveUserId);
+      console.log("✅ Using authenticated user ID for health data save:", currentUserId);
       
       // Ensure estimatedGFR is properly set and never null or undefined
       if (data.estimatedGFR === null || data.estimatedGFR === undefined) {
@@ -316,115 +193,24 @@ export function useHealthData() {
       }
       
       // Always set the userId to the authenticated user
-      data.userId = effectiveUserId;
+      data.userId = currentUserId;
       
-      console.log("Saving health metrics for user:", effectiveUserId);
+      console.log("Saving health metrics for user:", currentUserId);
       
+      // SECURITY: Simple, secure API request without complex fallbacks
       try {
-        // Enhanced API request with fallback authentication
         const response = await fetch("/api/health-metrics", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-API-Key": "nephra-health-data-key" // API key as header fallback
           },
-          credentials: "include", // Include cookies for session auth
-          body: JSON.stringify({
-            ...data,
-            apiKey: "nephra-health-data-key" // API key in body as fallback
-          })
+          credentials: "include",
+          body: JSON.stringify(data)
         });
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("Error response from server:", errorText);
-          
-          // Try multiple alternative endpoints with different approaches
-          console.log("⚠️ Standard endpoint failed, trying direct endpoints...");
-          
-          // Try approach 1: Direct health log endpoint
-          try {
-            console.log("🔄 Attempt 1: Using direct-health-log endpoint");
-            const directResponse = await fetch("/api/direct-health-log", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                healthData: data,
-                userId: effectiveUserId,
-                apiKey: "nephra-health-data-key" 
-              }),
-            });
-            
-            if (directResponse.ok) {
-              const result = await directResponse.json();
-              console.log("✅ Health data saved successfully via direct endpoint!");
-              return result;
-            } else {
-              console.warn("⚠️ Direct endpoint failed, status:", directResponse.status);
-            }
-          } catch (directError) {
-            console.error("❌ Direct endpoint error:", directError);
-          }
-          
-          // Try approach 2: Emergency endpoint
-          try {
-            console.log("🔄 Attempt 2: Using emergency-health-log endpoint");
-            const emergencyResponse = await fetch("/api/emergency-health-log", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                healthData: data,
-                userId: effectiveUserId,
-                apiKey: "nephra-health-data-key" 
-              }),
-            });
-            
-            if (emergencyResponse.ok) {
-              const result = await emergencyResponse.json();
-              console.log("✅ Health data saved successfully via emergency endpoint!");
-              return result;
-            } else {
-              console.warn("⚠️ Emergency endpoint failed, status:", emergencyResponse.status);
-            }
-          } catch (emergencyError) {
-            console.error("❌ Emergency endpoint error:", emergencyError);
-          }
-          
-          // Try approach 3: XHR request instead of fetch
-          try {
-            console.log("🔄 Attempt 3: Using XHR request to emergency endpoint");
-            return new Promise((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open("POST", "/api/emergency-health-log");
-              xhr.setRequestHeader("Content-Type", "application/json");
-              xhr.onload = function() {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  console.log("✅ Health data saved successfully via XHR!");
-                  resolve(JSON.parse(xhr.responseText));
-                } else {
-                  console.warn("⚠️ XHR request failed, status:", xhr.status);
-                  reject(new Error("XHR request failed"));
-                }
-              };
-              xhr.onerror = function() {
-                console.error("❌ XHR network error");
-                reject(new Error("XHR network error"));
-              };
-              xhr.send(JSON.stringify({
-                healthData: data,
-                userId: effectiveUserId,
-                apiKey: "nephra-health-data-key" 
-              }));
-            });
-          } catch (xhrError) {
-            console.error("❌ XHR request error:", xhrError);
-          }
-                    
-          // If all methods fail, throw the original error
+          console.error("Error saving health metrics:", errorText);
           throw new Error(`Server error: ${errorText}`);
         }
         
@@ -437,39 +223,26 @@ export function useHealthData() {
     onSuccess: (data) => {
       console.log("Successfully saved health metrics:", data);
       
-      // SECURITY FIX: Only invalidate queries if we have a valid userId
-      // This prevents accidentally invalidating queries for other users
-      if (effectiveUserId) {
-        // Immediately invalidate ALL queries that might contain health data
-        // Fixed: Add ?limit=1 suffix to match the exact queryKey pattern used in the fetch
-        console.log("Attempting to invalidate these query keys:");
-        console.log(`- /api/health-metrics/${effectiveUserId}?limit=1`);
-        console.log(`- /api/health-metrics/${effectiveUserId}/range`);
-        
+      // SECURITY: Invalidate user-specific cache using our new query key structure
+      if (currentUserId) {
+        // Invalidate the specific query keys we're now using
         queryClient.invalidateQueries({
-          queryKey: [`/api/health-metrics/${effectiveUserId}?limit=1`]
+          queryKey: [`health-metrics`, currentUserId, 'latest']
         });
         
         queryClient.invalidateQueries({
-          queryKey: [`/api/health-metrics/${effectiveUserId}/range`]
+          queryKey: [`health-metrics`, currentUserId, 'range']
         });
         
-        // Also invalidate any queries that might not have the suffix
-        queryClient.invalidateQueries({
-          queryKey: [`/api/health-metrics/${effectiveUserId}`]
-        });
-        
-        // Force refetch all health-metrics queries for this user with any parameters
+        // Also invalidate any health-metrics queries for this user
         queryClient.invalidateQueries({
           predicate: (query) => {
-            const queryKeyString = JSON.stringify(query.queryKey);
-            const containsUserId = queryKeyString.includes(`${effectiveUserId}`);
-            const containsHealthMetrics = queryKeyString.includes('health-metrics');
-            return containsUserId && containsHealthMetrics;
+            const queryKey = query.queryKey;
+            return queryKey[0] === 'health-metrics' && queryKey[1] === currentUserId;
           }
         });
         
-        console.log(`✅ Invalidated ALL health metric queries for authenticated user ID: ${effectiveUserId}`);
+        console.log(`✅ Invalidated health metric queries for authenticated user ID: ${currentUserId}`);
       } else {
         console.warn("⚠️ Not invalidating queries - no authenticated user ID");
       }

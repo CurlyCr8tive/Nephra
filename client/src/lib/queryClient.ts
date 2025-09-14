@@ -7,8 +7,14 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// CSRF token cache
+// CSRF token cache - cleared on logout for security
 let csrfToken: string | null = null;
+
+// Clear CSRF token cache (called during logout)
+export function clearCSRFTokenCache() {
+  csrfToken = null;
+  console.log("🧹 CSRF token cache cleared");
+}
 
 // Fetch CSRF token from server
 async function fetchCSRFToken(): Promise<string> {
@@ -138,7 +144,11 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      // SECURITY FIX: Remove staleTime: Infinity to prevent cross-user data persistence
+      // Use 5 minutes instead of infinity to ensure data expires and doesn't leak between users
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      // Allow data to be considered fresh for a reasonable time, but not forever
+      gcTime: 10 * 60 * 1000, // 10 minutes (garbage collection time)
       retry: false,
     },
     mutations: {
@@ -146,3 +156,31 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Utility function to clear all user-specific queries
+export function clearUserSpecificQueries(userId?: number | null) {
+  if (!userId) {
+    // If no specific user ID, clear everything for safety
+    queryClient.clear();
+    console.log("🧹 Cleared all queries (no specific user ID provided)");
+    return;
+  }
+
+  // Clear queries that contain the specific user ID
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const queryKeyString = JSON.stringify(query.queryKey);
+      return queryKeyString.includes(`${userId}`);
+    }
+  });
+
+  // Also remove the queries from cache entirely
+  queryClient.removeQueries({
+    predicate: (query) => {
+      const queryKeyString = JSON.stringify(query.queryKey);
+      return queryKeyString.includes(`${userId}`);
+    }
+  });
+  
+  console.log(`🧹 Cleared all queries for user ID: ${userId}`);
+}
