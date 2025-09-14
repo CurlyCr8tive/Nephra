@@ -86,14 +86,6 @@ router.post("/process", async (req: Request, res: Response) => {
               tags,
               emotionalScore > 0 ? emotionalScore : undefined
             );
-          } else {
-            // Fallback to basic logging
-            await supabaseService.logChatInteraction(
-              userId,
-              content,
-              result.entry.aiResponse || "No AI response generated",
-              true
-            );
           }
           
           supabaseResult = {
