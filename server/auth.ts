@@ -9,6 +9,12 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User } from "@shared/schema";
 
+// SECURITY: Helper function to strip password from User objects before sending to client
+function toPublicUser(user: User): Omit<User, 'password'> {
+  const { password, ...publicUser } = user;
+  return publicUser;
+}
+
 declare global {
   namespace Express {
     // Define Express.User to be the same as our User type
@@ -81,36 +87,43 @@ export function setupAuth(app: Express) {
   
   app.use(session(sessionSettings));
   
-  // CRITICAL CSRF PROTECTION: Origin/Referer checks for mutating requests
+  // CRITICAL CSRF PROTECTION: Secure origin validation for mutating requests
   app.use((req: any, res: any, next: any) => {
     const method = req.method;
     
     // Apply CSRF protection to state-changing methods
     if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
-      // Compute expected origin from headers
-      const protocol = req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http');
-      const host = req.get('X-Forwarded-Host') || req.get('Host');
-      const expectedOrigin = `${protocol}://${host}`;
+      // Use configured allowed origins (DO NOT trust X-Forwarded-* headers)
+      const allowedOrigins = [
+        'http://localhost:5000',
+        'https://localhost:5000',
+        'http://127.0.0.1:5000',
+        'https://127.0.0.1:5000',
+        // Add production domain when deployed
+        ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
+      ];
       
       // Check Origin header first (preferred)
       const origin = req.get('Origin');
       if (origin) {
-        if (origin !== expectedOrigin) {
-          console.warn(`🚨 CSRF BLOCKED: Origin ${origin} !== expected ${expectedOrigin}`);
+        if (!allowedOrigins.includes(origin)) {
+          console.warn(`🚨 CSRF BLOCKED: Origin ${origin} not in allowed list ${allowedOrigins.join(', ')}`);
           return res.status(403).json({ error: 'CSRF: Invalid origin' });
         }
       } else {
         // Fallback to Referer check if Origin not present
         const referer = req.get('Referer');
-        if (!referer || !referer.startsWith(expectedOrigin)) {
-          console.warn(`🚨 CSRF BLOCKED: Invalid referer ${referer}, expected to start with ${expectedOrigin}`);
+        const refererIsAllowed = referer && allowedOrigins.some(origin => referer.startsWith(origin));
+        if (!refererIsAllowed) {
+          console.warn(`🚨 CSRF BLOCKED: Invalid referer ${referer}, allowed origins: ${allowedOrigins.join(', ')}`);
           return res.status(403).json({ error: 'CSRF: Invalid referer' });
         }
       }
       
-      // Require JSON content-type for API endpoints to block form CSRF
-      if (req.path.startsWith('/api/') && req.get('Content-Type') !== 'application/json') {
-        console.warn(`🚨 CSRF BLOCKED: Non-JSON content-type on ${req.path}`);
+      // Require JSON content-type for API endpoints to block form CSRF (handle charset variations)
+      const contentType = req.get('Content-Type');
+      if (req.path.startsWith('/api/') && (!contentType || !contentType.startsWith('application/json'))) {
+        console.warn(`🚨 CSRF BLOCKED: Non-JSON content-type '${contentType}' on ${req.path}`);
         return res.status(403).json({ error: 'CSRF: JSON required' });
       }
     }
@@ -125,14 +138,17 @@ export function setupAuth(app: Express) {
     next();
   });
   
-  // CSRF Token Protection (temporarily disabled due to configuration issues)
-  // The Origin/Referer checks above provide CSRF protection
-  // TODO: Re-enable csurf once configuration is resolved
-  // const csrfProtection = csrf({
-  //   cookie: false, // Use session storage instead of cookies due to Replit infrastructure
-  //   ignoreMethods: ['GET', 'HEAD', 'OPTIONS'] // Don't require CSRF for safe methods
-  // });
-  // app.use(csrfProtection);
+  // CSRF Token Protection - Re-enabled with proper configuration
+  const csrfProtection = csrf({
+    cookie: false, // Use session storage instead of cookies
+    ignoreMethods: ['GET', 'HEAD', 'OPTIONS'], // Don't require CSRF for safe methods
+    sessionKey: 'session', // Use the session for storing tokens
+    value: (req) => {
+      // Allow CSRF token from multiple sources
+      return req.body._csrf || req.query._csrf || req.headers['x-csrf-token'] || req.headers['csrf-token'];
+    }
+  });
+  app.use(csrfProtection);
   
   app.use(passport.initialize());
   app.use(passport.session());
@@ -187,7 +203,7 @@ export function setupAuth(app: Express) {
 
       req.login(user, (err) => {
         if (err) return next(err);
-        res.status(201).json(user);
+        res.status(201).json(toPublicUser(user));
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -195,8 +211,13 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Demo login function for quick testing
+  // Demo login function for development/testing ONLY
   app.post("/api/login-demo", async (req, res) => {
+    // SECURITY: Only allow demo login in development
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('🚨 SECURITY: Demo login attempted in production');
+      return res.status(403).json({ error: 'Demo login not available in production' });
+    }
     try {
       // For demo purposes, we'll look up the demo user or create one if it doesn't exist
       const demoUsername = "demouser";
@@ -207,7 +228,7 @@ export function setupAuth(app: Express) {
       // First check if user is already logged in
       if (req.isAuthenticated() && req.user && req.user.username === demoUsername) {
         console.log(`Demo user already logged in as ${demoUsername}`);
-        return res.status(200).json(req.user);
+        return res.status(200).json(toPublicUser(req.user));
       }
       
       // Get user directly from storage
@@ -301,39 +322,7 @@ export function setupAuth(app: Express) {
     }
   });
   
-  // Add test login function for debugging
-  app.post("/api/login-test", async (req, res) => {
-    try {
-      const { username } = req.body;
-      console.log("Attempting test login for:", username);
-      
-      // Get user directly from storage
-      const user = await storage.getUserByUsername(username);
-      
-      if (!user) {
-        console.log("Test login - User not found:", username);
-        return res.status(401).json({ error: "User not found" });
-      }
-      
-      // Log user details (excluding password)
-      const userDetails = { ...user, password: "[REDACTED]" };
-      console.log("User found:", JSON.stringify(userDetails, null, 2));
-      
-      // Manually log in
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Test login session error:", err);
-          return res.status(500).json({ error: "Session error" });
-        }
-        
-        console.log("Test login successful for:", username);
-        return res.status(200).json(user);
-      });
-    } catch (error) {
-      console.error("Test login error:", error);
-      res.status(500).json({ error: "Test login failed" });
-    }
-  });
+  // SECURITY: Removed login-test endpoint - it allowed passwordless authentication bypass
   
   // Regular login endpoint
   app.post("/api/login", (req, res, next) => {
@@ -358,7 +347,7 @@ export function setupAuth(app: Express) {
         }
         
         console.log(`User logged in successfully: ${user.username}`);
-        return res.status(200).json(user);
+        return res.status(200).json(toPublicUser(user));
       });
     })(req, res, next);
   });
@@ -372,6 +361,6 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Not authenticated" });
-    res.json(req.user);
+    res.json(toPublicUser(req.user));
   });
 }

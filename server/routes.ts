@@ -142,12 +142,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CSRF Token Endpoint - Provides CSRF tokens to authenticated clients
   app.get('/api/csrf', (req: any, res: any) => {
     try {
-      // Generate and return CSRF token for authenticated users
+      // Generate and return CSRF token (works with session-based csurf)
       const token = req.csrfToken();
       res.json({ csrfToken: token });
     } catch (error) {
       console.error('Error generating CSRF token:', error);
-      res.status(500).json({ error: 'Unable to generate CSRF token' });
+      // If CSRF token generation fails, still return a response
+      res.status(200).json({ csrfToken: null, error: 'CSRF tokens disabled or unavailable' });
     }
   });
   
@@ -163,61 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount health log router for unified health data logging
   app.use('/api', healthLogRouter);
   
-  // Direct health log endpoint for emergency access
-  // This ensures we have at least one working endpoint for health data
-  app.post('/api/emergency-health-log', (req, res) => {
-    console.log("🚨 EMERGENCY ENDPOINT: Received direct health data:", req.body);
-    
-    const { healthData, userId, apiKey } = req.body;
-    
-    // Basic validation
-    if (apiKey !== process.env.NEPHRA_API_KEY && apiKey !== "nephra-health-data-key") {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    if (!healthData || !userId) {
-      return res.status(400).json({ error: "Missing health data or user ID" });
-    }
-    
-    try {
-      // Format data into expected shape - always use user ID 3 (ChericeHeron) for reliable data association
-      const data = {
-        userId: 3, // Hard-coded to user ID 3 (ChericeHeron) to fix data association issues
-        date: new Date(),
-        systolicBP: healthData.systolicBP || 120,
-        diastolicBP: healthData.diastolicBP || 80,
-        hydration: healthData.hydration || 1,
-        painLevel: healthData.painLevel || 0,
-        stressLevel: healthData.stressLevel || 0,
-        fatigueLevel: healthData.fatigueLevel || 0,
-        notes: healthData.notes || "",
-        estimatedGFR: healthData.estimatedGFR || 60,
-      };
-      
-      // Save data directly to storage
-      storage.createHealthMetrics(data)
-        .then(result => {
-          console.log("✅ EMERGENCY ENDPOINT: Successfully saved health data");
-          res.status(200).json({ 
-            success: true,
-            message: "Health data saved via emergency endpoint",
-            result
-          });
-        })
-        .catch(err => {
-          console.error("❌ EMERGENCY ENDPOINT ERROR:", err);
-          // Still return a 200 to client to avoid confusion
-          res.status(200).json({
-            success: true,
-            message: "Health data received but storage failed",
-            error: String(err)
-          });
-        });
-    } catch (error) {
-      console.error("❌ EMERGENCY ENDPOINT CRITICAL ERROR:", error);
-      res.status(500).json({ error: String(error) });
-    }
-  });
+  // SECURITY NOTE: Hardcoded backdoor endpoint removed for security compliance
+  // All health data operations now require proper authentication through standard endpoints
   
   // Mount status router for system monitoring
   app.use('/api/status', statusRouter);
@@ -229,60 +177,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // The user profile endpoints are defined at the bottom of this file
   // We're keeping these comments for clarity
   
-  // Health metrics endpoints - with enhanced robustness for better data saving
+  // Health metrics endpoints - SECURED with mandatory authentication
   app.post("/api/health-metrics", async (req, res) => {
     try {
       console.log("🔧 HEALTH METRICS SAVE - Starting request processing");
       
-      // Extract data from request
-      const requestData = req.body;
-      
-      // Get authenticated user ID from session if available
-      const isAuthenticated = req.isAuthenticated() && req.user;
-      const authenticatedUserId = isAuthenticated ? req.user.id : null;
-      
-      // Determine the effective user ID to use
-      // If session authentication is available, use that
-      // If not, use the userId from the request body
-      // This provides a fallback for when the session has issues but we still want to save data
-      let effectiveUserId = authenticatedUserId || requestData.userId || 3; // Force to use ChericeHeron (ID 3) if all else fails
-      
-      // Enhanced logging for better debugging
-      console.log("🔑 User ID resolution data:", {
-        isAuthenticated: isAuthenticated,
-        authenticatedUserIdFromSession: authenticatedUserId,
-        userIdFromRequestBody: requestData.userId,
-        resolvedEffectiveUserId: effectiveUserId,
-        originalRequestHeaders: req.headers['content-type'],
-        bodyHasUserId: !!requestData.userId
-      });
-      
-      // CRITICAL FIX: If we still can't determine a user ID but have a hardcoded ID in the request, use that
-      // This is a last resort fallback for when both authentication and standard fallbacks fail
-      if (!effectiveUserId && req.body.userId) {
-        effectiveUserId = req.body.userId;
-        console.log(`🔄 FALLBACK: Using hardcoded user ID from request: ${effectiveUserId}`);
+      // SECURITY FIX: Require authentication for ALL health data operations
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        console.warn("🚨 SECURITY: Unauthenticated health metrics submission attempt blocked");
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "You must be logged in to submit health data" 
+        });
       }
       
-      // If we still can't determine a user ID, return an error
-      if (!effectiveUserId) {
-        console.warn("⚠️ Could not determine user ID for health metrics - all fallbacks failed");
-        return res.status(400).json({ error: "User ID could not be determined", details: "Please log in again or ensure you're submitting a userId in the request." });
+      // SECURITY FIX: Use ONLY the authenticated user's ID - no fallbacks
+      const authenticatedUserId = req.user?.id;
+      if (!authenticatedUserId) {
+        console.error("🚨 SECURITY: No user ID available from authenticated session");
+        return res.status(401).json({ 
+          error: "Invalid authentication", 
+          message: "Please log in again" 
+        });
       }
       
-      // Log which authentication method we're using
-      if (isAuthenticated) {
-        console.log(`👤 Authenticated user ${authenticatedUserId} submitting health metrics`);
-      } else {
-        console.log(`📱 User ${effectiveUserId} submitting health metrics (from request body)`);
-        // Update the userId in the request data to the effective user ID for consistency
-        requestData.userId = effectiveUserId;
-      }
+      console.log(`✅ Authenticated user ${authenticatedUserId} submitting health metrics`);
       
-      console.log("📦 Received health metrics payload:", req.body);
+      // SECURITY FIX: Ignore any userId from request body - use only authenticated user ID
+      const requestData = { ...req.body };
+      delete requestData.userId; // Remove any userId from request to prevent tampering
+      
+      console.log("📦 Received health metrics payload:", requestData);
       
       // Handle date conversions before validation
-      const dataWithProperDate = { ...req.body };
+      const dataWithProperDate = { ...requestData };
       
       // Convert string date to Date object if needed
       if (dataWithProperDate.date && typeof dataWithProperDate.date === 'string') {
@@ -294,10 +222,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("🗓️ No date provided, using current date:", dataWithProperDate.date);
       }
       
-      // CRITICAL FIX: Always ensure userId is set with our resolved effectiveUserId
-      // This ensures consistency throughout the process regardless of authentication status 
-      dataWithProperDate.userId = effectiveUserId;
-      console.log(`🔐 Using effective user ID ${effectiveUserId} for health metrics`);
+      // SECURITY FIX: Always use authenticated user ID only
+      dataWithProperDate.userId = authenticatedUserId;
+      console.log(`🔐 Using authenticated user ID ${authenticatedUserId} for health metrics`);
       
       // Parse with more flexibility - use safeParse instead of parse to avoid throwing errors
       const validationResult = insertHealthMetricsSchema.safeParse(dataWithProperDate);
@@ -311,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const data = validationResult.data;
-      console.log(`✅ Validated health metrics for user ${effectiveUserId}`);
+      console.log(`✅ Validated health metrics for user ${authenticatedUserId}`);
       
       // CRITICAL FIX: Try to find user but don't fail if not found
       // We want to save even with minimal data

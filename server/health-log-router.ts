@@ -88,16 +88,40 @@ router.get("/emergency-health-log", async (req: Request, res: Response) => {
  * Emergency health metrics submission endpoint
  * POST /api/emergency-health-log
  * 
- * Provides a reliable alternative for submitting health metrics
- * when the standard endpoints may fail. Uses minimal processing for maximum reliability.
+ * SECURITY: This endpoint is disabled in production for security reasons.
+ * In development, it requires proper authentication.
  */
 router.post("/emergency-health-log", async (req: Request, res: Response) => {
+  // SECURITY: Disable this endpoint in production entirely
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('🚨 SECURITY: Emergency health endpoint accessed in production - BLOCKED');
+    return res.status(404).json({ error: 'Endpoint not available' });
+  }
+  
   try {
+    // SECURITY: Require proper authentication even in development
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("⚠️ Unauthenticated access attempt to emergency health endpoint");
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
     // Extract health data and user ID
     const { healthData, userId } = req.body;
     
     if (!healthData || !userId) {
       return res.status(400).json({ error: "Both healthData and userId are required" });
+    }
+    
+    // SECURITY: Ensure the authenticated user can only submit their own data
+    // @ts-ignore - The req.user property is added by Passport
+    const authenticatedUserId = req.user?.id;
+    
+    if (parseInt(userId) !== authenticatedUserId) {
+      console.warn(`⚠️ Security Alert: User ${authenticatedUserId} attempted to submit health data for user ${userId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only submit health data for your own account" 
+      });
     }
     
     console.log(`📱 Emergency health data submission for user ${userId}`);
@@ -216,26 +240,12 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
       }
     }
     
-    // If not authenticated via session, check API key as fallback
+    // SECURITY: Remove hardcoded API key fallback - use proper authentication only
     if (!isAuthenticated) {
-      // Simple API key security check
-      if (apiKey !== "nephra-health-data-key") {
-        console.error("🔑 API Key validation failed");
-        return res.status(401).json({ 
-          error: "Unauthorized", 
-          message: "Authentication required - invalid or missing API key" 
-        });
-      } else {
-        console.log("✅ Request authenticated via API key");
-        isAuthenticated = true;
-      }
-    }
-    
-    // Require authentication one way or the other
-    if (!isAuthenticated) {
+      console.error("🔑 Authentication required - no valid session found");
       return res.status(401).json({ 
         error: "Unauthorized", 
-        message: "Authentication required" 
+        message: "Authentication required - please log in" 
       });
     }
     
@@ -248,29 +258,25 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
       });
     }
     
-    // SECURITY FIX: Strict user ID validation
-    // If session-authenticated, use that ID and ignore any ID in the request
-    // Only allow API key requests to specify a user ID if we don't have a session ID
-    const effectiveUserId = authenticatedUserId || (userId ? parseInt(userId) : null);
-    
-    if (!effectiveUserId) {
-      console.error("⚠️ Security error: No valid user ID available");
-      return res.status(400).json({ 
-        error: "Missing required data",
-        message: "User ID is required"
+    // SECURITY FIX: Use ONLY the authenticated user's ID - no fallbacks to request body
+    if (!authenticatedUserId) {
+      console.error("⚠️ Security error: No authenticated user ID available");
+      return res.status(401).json({ 
+        error: "Authentication required",
+        message: "Please log in to save health data"
       });
     }
     
-    // SECURITY VALIDATION: If both session ID and requested ID exist, they must match
-    if (authenticatedUserId && userId && authenticatedUserId !== parseInt(userId)) {
-      console.warn(`⚠️ Security Alert: Session user ${authenticatedUserId} attempted to save data for user ${userId}`);
+    // SECURITY FIX: Ignore any userId from request body - only use authenticated session ID
+    if (userId && parseInt(userId) !== authenticatedUserId) {
+      console.warn(`⚠️ Security Alert: User ${authenticatedUserId} attempted to save data for user ${userId}`);
       return res.status(403).json({ 
         error: "Access denied", 
         message: "You can only save health data for your own account" 
       });
     }
     
-    console.log(`🔐 DIRECT API: Processing health data for user ${effectiveUserId}`, testMode ? "(TEST MODE)" : "");
+    console.log(`🔐 DIRECT API: Processing health data for user ${authenticatedUserId}`, testMode ? "(TEST MODE)" : "");
     
     // If we're in test mode, just return success without saving to the database
     if (testMode) {
@@ -281,7 +287,7 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
         success: true,
         message: "Health data received successfully (test mode)",
         testMode: true,
-        userId: effectiveUserId,
+        userId: authenticatedUserId,
         dataSize: JSON.stringify(healthData).length,
         timestamp: new Date().toISOString()
       });
@@ -290,9 +296,9 @@ router.post("/direct-health-log", async (req: Request, res: Response) => {
     // When not in test mode, continue with normal processing
     console.log("📊 DIRECT API: Processing and saving real health data");
     
-    // Format data for our storage system - use the SECURED effective user ID to ensure proper data association
+    // Format data for our storage system - use the authenticated user ID to ensure proper data association
     const formattedData = {
-      userId: effectiveUserId, // CRITICAL SECURITY FIX: Use the validated effective user ID
+      userId: authenticatedUserId, // CRITICAL SECURITY FIX: Use only the authenticated user ID
       date: new Date(),
       systolicBP: healthData.systolicBP || healthData.bp_systolic,
       diastolicBP: healthData.diastolicBP || healthData.bp_diastolic,
