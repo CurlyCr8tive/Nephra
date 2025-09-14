@@ -15,57 +15,57 @@ export function BottomNavigation() {
         {/* Home */}
         <Link
           href="/"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center justify-center gap-1 py-3 h-16 ${
             isActive("/") ? "text-primary" : "text-neutral-500"
           }`}
         >
-          <span className="material-icons">home</span>
-          <span className="text-xs mt-1">Home</span>
+          <span className="material-icons text-2xl leading-none block" aria-hidden>home</span>
+          <span className="text-[11px] leading-none text-center">Home</span>
         </Link>
         
         {/* Track */}
         <Link
           href="/track"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center justify-center gap-1 py-3 h-16 ${
             isActive("/track") || isActive("/trends") ? "text-primary" : "text-neutral-500"
           }`}
           data-testid="nav-track"
         >
-          <span className="material-icons">monitoring</span>
-          <span className="text-xs mt-1">Track</span>
+          <span className="material-icons text-2xl leading-none block" aria-hidden>monitoring</span>
+          <span className="text-[11px] leading-none text-center">Track</span>
         </Link>
         
         {/* Journal (Chat is now part of Journal) */}
         <Link
           href="/journal"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center justify-center gap-1 py-3 h-16 ${
             isActive("/journal") ? "text-primary" : "text-neutral-500"
           }`}
         >
-          <span className="material-icons">edit_note</span>
-          <span className="text-xs mt-1">Journal</span>
+          <span className="material-icons text-2xl leading-none block" aria-hidden>edit_note</span>
+          <span className="text-[11px] leading-none text-center">Journal</span>
         </Link>
         
         {/* Education Hub */}
         <Link
           href="/education"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center justify-center gap-1 py-3 h-16 ${
             isActive("/education") ? "text-primary" : "text-neutral-500"
           }`}
         >
-          <span className="material-icons">school</span>
-          <span className="text-xs mt-1">Education</span>
+          <span className="material-icons text-2xl leading-none block" aria-hidden>school</span>
+          <span className="text-[11px] leading-none text-center">Education</span>
         </Link>
         
         {/* Roadmap */}
         <Link
           href="/transplant"
-          className={`w-1/5 flex flex-col items-center py-3 ${
+          className={`w-1/5 flex flex-col items-center justify-center gap-1 py-3 h-16 ${
             isActive("/transplant") ? "text-primary" : "text-neutral-500"
           }`}
         >
-          <span className="material-icons">map</span>
-          <span className="text-xs mt-1">Roadmap</span>
+          <span className="material-icons text-2xl leading-none block" aria-hidden>map</span>
+          <span className="text-[11px] leading-none text-center">Roadmap</span>
         </Link>
       </div>
     </nav>
