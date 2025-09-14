@@ -49,8 +49,7 @@ export default function JournalPage() {
     
     // Redirect chat tab to the dedicated Chat page
     if (tabParam === 'chat') {
-      // If we have an initial query in localStorage, preserve it for the Chat page
-      const initialQuery = localStorage.getItem('nephraInitialQuery');
+      // SECURITY FIX: No localStorage usage for chat queries to prevent cross-user data leakage
       
       toast({
         title: "Opening Chat",
@@ -67,40 +66,13 @@ export default function JournalPage() {
       setActiveTab(tabParam);
     }
     
-    // Check if we have emotional check-in data in localStorage
-    const emotionData = localStorage.getItem('nephraEmotionData');
-    if (emotionData && activeTab === 'write') {
-      try {
-        const parsedData = JSON.parse(emotionData);
-        // Pre-fill journal with emotional check-in data
-        let journalText = `Emotion: ${parsedData.emotion}\n`;
-        if (parsedData.tags && parsedData.tags.length > 0) {
-          journalText += `Tags: ${parsedData.tags.join(', ')}\n`;
-        }
-        if (parsedData.notes) {
-          journalText += `\n${parsedData.notes}`;
-        }
-        setJournalContent(journalText);
-        // Clear the localStorage data so it doesn't get used again
-        localStorage.removeItem('nephraEmotionData');
-      } catch (error) {
-        console.error('Error parsing emotion data:', error);
-      }
-    }
+    // SECURITY FIX: Removed localStorage usage for emotional health data
+    // All emotional check-in data must be handled through authenticated server sessions only
+    // No localStorage storage to prevent cross-user health data leakage
   }, [location, setLocation, toast]);
   
-  // Auto-submit the initial query if provided via localStorage
-  useEffect(() => {
-    const initialQuery = localStorage.getItem('nephraInitialQuery');
-    // Only submit if we have a query and we're on the chat tab
-    if (initialQuery && activeTab === 'chat' && !isSubmittingFollowUp && followUpPrompt === initialQuery) {
-      // Use a small timeout to ensure UI is rendered first
-      const timer = setTimeout(() => {
-        handleFollowUpSubmit();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [activeTab, followUpPrompt]);
+  // SECURITY FIX: Removed localStorage usage for initial queries
+  // All chat data must remain session-based to prevent cross-user access
   
   // Handle switching between conversation view in write tab and chat tab
   // Make sure conversation state is preserved across tabs

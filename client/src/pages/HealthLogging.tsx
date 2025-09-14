@@ -205,22 +205,8 @@ export default function HealthLogging(props: HealthLoggingProps) {
     }
   };
   
-  // Helper function to extract user ID from localStorage
-  const getUserIdFromLocalStorage = (): number | null => {
-    try {
-      const cachedUser = localStorage.getItem('nephra_user');
-      if (cachedUser) {
-        const userData = JSON.parse(cachedUser);
-        if (userData && userData.id) {
-          return userData.id;
-        }
-      }
-      return null;
-    } catch (e) {
-      console.error("Error getting user ID from localStorage:", e);
-      return null;
-    }
-  };
+  // SECURITY FIX: Removed localStorage fallback to prevent cross-user data leakage
+  // All user identification must come from authenticated sessions only
   
   // Health metrics state
   const [hydration, setHydration] = useState(1.2);
@@ -344,28 +330,18 @@ export default function HealthLogging(props: HealthLoggingProps) {
     const age = user.age || 45;
     console.log("🔢 Using age:", age);
     
-    // Get gender from multiple sources with fallbacks
+    // SECURITY FIX: Get gender only from authenticated user data
     let gender = null;
     
-    // Try getting gender from user object first
+    // Only use gender from authenticated user object - no localStorage fallbacks
     if (user.gender) {
       gender = String(user.gender).toLowerCase();
-      console.log("👤 Using gender from user object:", gender);
+      console.log("👤 Using gender from authenticated user:", gender);
     } 
-    // Try local storage next
-    else if (window.localStorage.getItem('nephra_user_gender')) {
-      gender = window.localStorage.getItem('nephra_user_gender')?.toLowerCase();
-      console.log("💾 Using gender from localStorage:", gender);
-    }
-    // Try session storage as final fallback 
-    else if (window.sessionStorage.getItem('nephra_user_gender')) {
-      gender = window.sessionStorage.getItem('nephra_user_gender')?.toLowerCase();
-      console.log("📂 Using gender from sessionStorage:", gender);
-    }
-    // Last resort - use female as default for demo purposes
+    // No localStorage or sessionStorage fallbacks to prevent cross-user data leakage
     else {
-      gender = 'female';
-      console.log("⚠️ No gender found in any storage, using female as default");
+      gender = 'female'; // Safe default when user data is incomplete
+      console.log("⚠️ No gender in user profile, using safe default");
     }
     
     // Method 1: Calculation based on CKD-EPI 2021 equation if serum creatinine is available
@@ -605,48 +581,28 @@ export default function HealthLogging(props: HealthLoggingProps) {
       if (!user?.id) {
         console.error("No valid user ID available for saving health metrics");
         
-        // Attempt to get user info from localStorage as a fallback
-        const cachedUser = localStorage.getItem('nephra_user');
-        if (cachedUser) {
-          try {
-            const userData = JSON.parse(cachedUser);
-            console.log("Using cached user data for health metrics:", userData.username);
-          } catch (e) {
-            console.error("Error parsing cached user data:", e);
-            toast({
-              title: "Session error",
-              description: "Unable to verify your session. Your data will be saved but you may need to refresh the page.",
-              variant: "warning"
-            });
-          }
-        } else {
-          toast({
-            title: "Session verification issue",
-            description: "Unable to verify your session. Your data will still be saved.",
-            variant: "warning"
-          });
-        }
+        // SECURITY FIX: No localStorage fallbacks - user must be authenticated
+        toast({
+          title: "Authentication required",
+          description: "Please log in to save your health data securely.",
+          variant: "destructive"
+        });
+        return; // Stop execution if no authenticated user
         // Important: We don't return early anymore, allowing the save to continue
       }
       
-      // Get user ID from different sources to ensure we always have one
-      // 1. First try the context user
-      // 2. Try localStorage cached user
-      // 3. Use a hardcoded fallback only as last resort
+      // SECURITY FIX: Only use authenticated user ID - no localStorage fallbacks
       let effectiveUserId = user?.id;
       
-      // If no user ID from context, try localStorage
+      // No localStorage fallbacks to prevent cross-user data leakage
       if (!effectiveUserId) {
-        try {
-          const cachedUserData = localStorage.getItem('nephra_user');
-          if (cachedUserData) {
-            const cachedUser = JSON.parse(cachedUserData);
-            effectiveUserId = cachedUser.id;
-            console.log("Using cached user ID from localStorage:", effectiveUserId);
-          }
-        } catch (e) {
-          console.error("Error getting user ID from localStorage:", e);
-        }
+        console.error("No authenticated user ID available");
+        toast({
+          title: "Authentication required", 
+          description: "Please log in to save your health data.",
+          variant: "destructive"
+        });
+        return;
       }
       
       // Get user ID safely for logging
@@ -679,24 +635,13 @@ export default function HealthLogging(props: HealthLoggingProps) {
       const entryDate = new Date(); // Keep as Date object for the API
       const entryDateISO = entryDate.toISOString(); // ISO string for Supabase
       
-      // If no user ID from context, try localStorage
-      if (!effectiveUserId) {
-        try {
-          const cachedUserData = localStorage.getItem('nephra_user');
-          if (cachedUserData) {
-            const cachedUser = JSON.parse(cachedUserData);
-            effectiveUserId = cachedUser.id;
-            console.log("Using cached user ID from localStorage:", effectiveUserId);
-          }
-        } catch (e) {
-          console.error("Error getting user ID from localStorage:", e);
-        }
-      }
+      // SECURITY FIX: Removed localStorage fallback to prevent cross-user data access
+      // All health data must be saved with authenticated user ID only
       
       // Prepare the health metrics data with the authenticated user ID
       // CRITICAL: We should only save data for authenticated users
       const metricsData = {
-        userId: effectiveUserId || user?.id, // Use context or localStorage, but never fallback to a demo ID
+        userId: effectiveUserId, // Only use authenticated user ID
         date: entryDate, // Send as Date object
         hydration,
         systolicBP: Number(systolicBP),
@@ -715,17 +660,17 @@ export default function HealthLogging(props: HealthLoggingProps) {
       
       // Add additional debugging to see what's happening with the submission
       console.log("📊 DEBUG - Health metrics submission details:", {
-        loggedInUser: user?.username || "User from localStorage",
+        loggedInUser: user?.username || "Unknown user",
         originalUserId: user?.id,
         effectiveUserId: effectiveUserId,
         fallbackUserIdUsed: !user?.id && effectiveUserId !== undefined,
         finalUserId: metricsData.userId,
-        userIdSource: !user?.id && effectiveUserId ? "localStorage" : (user?.id ? "session" : "hardcoded fallback")
+        userIdSource: user?.id ? "authenticated session" : "no user"
       });
       
       // Create Supabase-specific data format for direct database saving
       const supabaseData = {
-        user_id: effectiveUserId || user?.id, // Use same userId as in metricsData for consistency
+        user_id: effectiveUserId, // Only use authenticated user ID
         created_at: entryDateISO, // Use ISO string for Supabase
         bp_systolic: Number(systolicBP),
         bp_diastolic: Number(diastolicBP),

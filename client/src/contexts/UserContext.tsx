@@ -3,32 +3,31 @@ import { User } from "@shared/schema";
 import { UnitSystem } from "@/components/UnitToggle";
 import { useAuth } from "@/hooks/use-auth";
 
-type StorageKey = 'nephra_user_gender' | 'nephra_user_id' | 'nephra_last_refresh' | 'nephra_unit_system';
+// SECURITY FIX: Only use sessionStorage for non-sensitive UI preferences
+// Never store user data, health data, or identifying information in any browser storage
+type StorageKey = 'nephra_unit_system'; // Only store non-sensitive UI preferences
 
-// Helper functions for session storage to maintain critical data between page loads
-const saveToStorage = (key: StorageKey, value: string) => {
+// Helper function for session storage - ONLY for non-sensitive UI preferences
+const saveUIPreference = (key: StorageKey, value: string) => {
   try {
     if (typeof window !== 'undefined') {
+      // SECURITY: Only use sessionStorage for non-sensitive UI preferences
+      // No localStorage to prevent cross-user data sharing
       window.sessionStorage.setItem(key, value);
-      window.localStorage.setItem(key, value); // Also save to localStorage for persistence
     }
   } catch (e) {
-    console.error(`Error saving ${key} to storage:`, e);
+    console.error(`Error saving UI preference ${key}:`, e);
   }
 };
 
-const getFromStorage = (key: StorageKey): string | null => {
+const getUIPreference = (key: StorageKey): string | null => {
   try {
     if (typeof window !== 'undefined') {
-      // Try session first, fall back to local
-      const sessionValue = window.sessionStorage.getItem(key);
-      if (sessionValue) return sessionValue;
-      
-      // Check localStorage as backup
-      return window.localStorage.getItem(key);
+      // SECURITY: Only check sessionStorage for UI preferences
+      return window.sessionStorage.getItem(key);
     }
   } catch (e) {
-    console.error(`Error getting ${key} from storage:`, e);
+    console.error(`Error getting UI preference ${key}:`, e);
   }
   return null;
 };
@@ -73,15 +72,15 @@ export function UserProvider({ children, value }: UserProviderProps) {
   // Use the simple auth system instead of making our own API calls
   const { user: authUser, isLoading: authLoading, error: authError } = useAuth();
   
-  // Unit system preference state
+  // Unit system preference state - SECURITY: Only store UI preferences, never user data
   const [unitSystem, setUnitSystemInternal] = useState<UnitSystem>(() => {
     // Try to use value from props first
     if (value?.unitSystem !== undefined) return value.unitSystem;
     
-    // Otherwise check if we have a unit system preference in storage
-    const savedUnitSystem = getFromStorage('nephra_unit_system');
+    // Otherwise check if we have a unit system preference in session storage
+    const savedUnitSystem = getUIPreference('nephra_unit_system');
     if (savedUnitSystem && (savedUnitSystem === 'metric' || savedUnitSystem === 'imperial')) {
-      console.log("Found saved unit system preference in storage:", savedUnitSystem);
+      console.log("Found saved unit system preference in session:", savedUnitSystem);
       return savedUnitSystem as UnitSystem;
     }
     
@@ -93,8 +92,8 @@ export function UserProvider({ children, value }: UserProviderProps) {
   const setUnitSystem = useCallback((newUnitSystem: UnitSystem) => {
     console.log("Updating unit system preference to:", newUnitSystem);
     
-    // Save to storage for persistence
-    saveToStorage('nephra_unit_system', newUnitSystem);
+    // Save to session storage for UI preference only
+    saveUIPreference('nephra_unit_system', newUnitSystem);
     
     // Update state
     setUnitSystemInternal(newUnitSystem);
@@ -108,14 +107,12 @@ export function UserProvider({ children, value }: UserProviderProps) {
     // The simple auth system handles refreshing automatically via React Query
   }, []);
   
-  // Implement the force update gender function
+  // SECURITY FIX: Gender update function - no localStorage storage
   const forceUpdateGender = useCallback((genderValue: string) => {
     console.log("🔄 Forcing gender update to:", genderValue);
     
-    // First, save to session storage as backup
-    if (genderValue) {
-      saveToStorage('nephra_user_gender', genderValue);
-    }
+    // SECURITY: Never store sensitive user data in browser storage
+    // All gender data must come from and be stored on the server only
     
     // Update on the server if we have a user
     if (authUser?.id) {
@@ -146,18 +143,14 @@ export function UserProvider({ children, value }: UserProviderProps) {
     }
   }, [authUser]);
   
-  // Load gender from session storage if we have a user but missing gender
+  // SECURITY FIX: No localStorage usage for gender data
+  // All user data including gender must come from authenticated server sessions only
   useEffect(() => {
     if (authUser && (!authUser.gender || authUser.gender === '')) {
-      const savedGender = getFromStorage('nephra_user_gender');
-      if (savedGender) {
-        console.log("Restoring gender from session storage:", savedGender);
-        forceUpdateGender(savedGender);
-      }
-    } else if (authUser && authUser.gender) {
-      // We have a gender, save it to session storage
-      saveToStorage('nephra_user_gender', authUser.gender);
+      console.log("User missing gender data - should be updated via server profile update");
+      // No localStorage fallback - all data must come from server
     }
+    // No storing of gender data in browser storage
   }, [authUser, forceUpdateGender]);
 
   const contextValue: UserContextType = {

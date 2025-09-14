@@ -190,17 +190,11 @@ export default function TrackPage() {
       genderStr = String(user.gender).toLowerCase();
       console.log("Using gender from user object:", genderStr);
     } 
-    // Fallback to session storage
+    // SECURITY FIX: No localStorage fallbacks for user data
     else {
-      try {
-        const savedGender = window.localStorage.getItem('nephra_user_gender');
-        if (savedGender) {
-          genderStr = savedGender.toLowerCase();
-          console.log("Using gender from localStorage:", genderStr);
-        }
-      } catch (e) {
-        console.error("Error reading gender from storage:", e);
-      }
+      // Use safe default when user data is incomplete
+      genderStr = 'female'; // Safe default for GFR calculation
+      console.log("Using safe default gender for calculation");
     }
     
     const genderFactor = genderStr === 'female' ? 0.85 : 1.0;

@@ -25,86 +25,8 @@ export default function AIChatView() {
         const history = await getChatHistory(user.id, 10);
         console.log(`📥 Received ${history.length} chat messages from history`);
         
-        // Check if we have a cached response from the AI Companion card
-        const cachedResponseString = localStorage.getItem('nephraLastResponse');
-        const initialQuery = localStorage.getItem('nephraInitialQuery');
-        
-        if (cachedResponseString) {
-          try {
-            const cachedResponse = JSON.parse(cachedResponseString);
-            
-            // Only use the cached response if it looks valid and contains the expected properties
-            if (cachedResponse && 
-                cachedResponse.userMessage && 
-                cachedResponse.aiResponse &&
-                cachedResponse.timestamp) {
-              
-              console.log('📦 Found cached AI response, adding to chat history');
-              
-              // Add the user message and AI response to chat history
-              // This will display as if it were a normal exchange
-              const updatedHistory = [
-                ...history,
-                {
-                  // Create a single entry with both user message and AI response
-                  id: Date.now(),
-                  userId: user.id,
-                  userMessage: cachedResponse.userMessage,
-                  aiResponse: cachedResponse.aiResponse,
-                  timestamp: new Date(cachedResponse.timestamp)
-                }
-              ];
-              
-              // Clean up the localStorage items after using them
-              localStorage.removeItem('nephraLastResponse');
-              localStorage.removeItem('nephraInitialQuery');
-              
-              setChatHistory(updatedHistory.reverse());
-              return; // Early return as we've handled the history
-            }
-          } catch (parseError) {
-            console.error('Error parsing cached response:', parseError);
-          }
-        } else if (initialQuery) {
-          // If we have an initial query but no cached response, show the query
-          // and show the AI as "typing" to encourage waiting for a response
-          const userMessage = { 
-            id: Date.now(), 
-            userId: user.id,
-            userMessage: initialQuery, 
-            timestamp: new Date() 
-          };
-          
-          setChatHistory([userMessage, ...history].reverse());
-          setIsTyping(true); // Show the AI as typing
-          
-          try {
-            // Try to get a response for the initial query
-            const response = await getChatCompletion(user.id, initialQuery);
-            setIsTyping(false);
-            
-            // Update chat history with the AI response
-            setChatHistory(prevHistory => {
-              // Find the latest entry by this user
-              const updatedHistory = [...prevHistory];
-              updatedHistory.unshift(response.chat);
-              return updatedHistory;
-            });
-            
-            // Clean up localStorage
-            localStorage.removeItem('nephraInitialQuery');
-          } catch (responseError) {
-            console.error('Error getting response for initial query:', responseError);
-            setIsTyping(false);
-            toast({
-              title: "Error getting AI response",
-              description: "Please try sending your message again.",
-              variant: "destructive"
-            });
-          }
-          
-          return; // Early return as we've handled the history
-        }
+        // SECURITY FIX: No localStorage usage for AI chat data
+        // All chat data must be handled through authenticated sessions only
         
         // Default case: just show the history as-is
         setChatHistory(history.reverse());

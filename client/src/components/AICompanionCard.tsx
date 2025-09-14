@@ -73,13 +73,8 @@ export function AICompanionCard() {
 
 Remember that stress management is especially important for kidney health, as stress hormones can affect blood pressure and kidney function. Would you like more specific information about how stress directly impacts kidney health?`;
       
-      // Add both the user's query and our pre-prepared relaxation response to localStorage
-      localStorage.setItem('nephraInitialQuery', chatQuery);
-      localStorage.setItem('nephraLastResponse', JSON.stringify({
-        userMessage: chatQuery,
-        aiResponse: relaxationTechniques,
-        timestamp: new Date().toISOString()
-      }));
+      // SECURITY FIX: No localStorage storage for AI chat data
+      // All chat data must remain in memory or be stored server-side to prevent cross-user access
       
       // Still try to make the real API call for logging purposes
       try {

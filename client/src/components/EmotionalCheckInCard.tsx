@@ -91,9 +91,8 @@ export function EmotionalCheckInCard() {
         notes: notes
       };
       
-      // First store data in localStorage BEFORE API call in case API fails
-      // This is the key integration that connects the card to the Journal page
-      localStorage.setItem('nephraEmotionData', JSON.stringify(emotionData));
+      // SECURITY FIX: No localStorage storage for emotional health data
+      // All emotional data must remain server-side to prevent cross-user leakage
       
       // Then try to save to server storage
       try {

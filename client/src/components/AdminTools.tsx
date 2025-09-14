@@ -20,29 +20,14 @@ export default function AdminTools() {
   const [result, setResult] = useState<any>(null);
   const { toast } = useToast();
 
-  // Get the current user's ID from localStorage as fallback
-  const getUserIdFromLocalStorage = (): number | null => {
-    try {
-      const cachedUser = localStorage.getItem('nephra_user');
-      if (cachedUser) {
-        const userData = JSON.parse(cachedUser);
-        if (userData && userData.id) {
-          return userData.id;
-        }
-      }
-      return null;
-    } catch (e) {
-      console.error("Error getting user ID from localStorage:", e);
-      return null;
-    }
-  };
+  // SECURITY FIX: Removed localStorage fallback to prevent cross-user data access
+  // Admin tools must only work with authenticated users
 
-  // Set default target user ID on component mount
+  // SECURITY FIX: Admin tools require proper authentication
+  // No localStorage fallbacks to prevent cross-user data access
   React.useEffect(() => {
-    const userId = getUserIdFromLocalStorage();
-    if (userId) {
-      setTargetUserId(userId);
-    }
+    // Admin tools should only be used by authenticated administrators
+    // No automatic user ID setting from localStorage
   }, []);
 
   const handleTransferData = async () => {
