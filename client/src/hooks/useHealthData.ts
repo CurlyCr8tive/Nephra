@@ -27,7 +27,8 @@ export function useHealthData() {
   // This is safe because we're still respecting the user's session, just
   // ensuring we don't miss the data due to timing issues between components.
   const getSecureUserIdWithFallback = (): number | null => {
-    // First priority: Use the user context if available
+    // SECURITY FIX: Only use authenticated user context, no localStorage fallback
+    // This prevents user ID conflicts and unauthorized data access
     if (userId) {
       console.log("✅ Using authenticated user ID from context:", userId);
       return userId;
@@ -39,34 +40,9 @@ export function useHealthData() {
       return null;
     }
     
-    // Last resort: Try to recover from localStorage
-    try {
-      // Only use localStorage as fallback if we have strong evidence user is logged in
-      const cachedUserData = localStorage.getItem('nephra_user_data');
-      if (cachedUserData) {
-        const userData = JSON.parse(cachedUserData);
-        if (userData && userData.id) {
-          console.log("🔄 Using user ID from localStorage recovery:", userData.id);
-          return userData.id;
-        }
-      }
-      
-      const sessionUserId = window.sessionStorage.getItem('nephra_user_id') || 
-                           window.localStorage.getItem('nephra_user_id');
-      
-      if (sessionUserId) {
-        const parsedId = parseInt(sessionUserId, 10);
-        if (!isNaN(parsedId)) {
-          console.log("🔄 Using user ID from session storage:", parsedId);
-          return parsedId;
-        }
-      }
-    } catch (error) {
-      console.error("Error recovering user ID from storage:", error);
-    }
-    
-    // If we get here, we truly have no user ID available
-    console.warn("⚠️ No user ID available for health data - user appears logged out");
+    // SECURITY: No localStorage/sessionStorage fallback to prevent user ID conflicts
+    // If no authenticated user, return null to prevent unauthorized data access
+    console.warn("⚠️ No authenticated user available for health data access");
     return null;
   };
   

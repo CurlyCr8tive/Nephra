@@ -95,7 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      // Clear all authentication-related data
       queryClient.setQueryData(["/api/user"], null);
+      queryClient.clear(); // Clear all cached queries
+      
+      // Clear localStorage to prevent user ID conflicts
+      localStorage.clear();
       
       // Also display success message
       toast({

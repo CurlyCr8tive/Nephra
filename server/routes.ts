@@ -139,6 +139,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
   setupAuth(app);
   
+  // CSRF Token Endpoint - Provides CSRF tokens to authenticated clients
+  app.get('/api/csrf', (req: any, res: any) => {
+    try {
+      // Generate and return CSRF token for authenticated users
+      const token = req.csrfToken();
+      res.json({ csrfToken: token });
+    } catch (error) {
+      console.error('Error generating CSRF token:', error);
+      res.status(500).json({ error: 'Unable to generate CSRF token' });
+    }
+  });
+  
   // Mount AI router with all AI service endpoints
   app.use('/api/ai', aiRouter);
   

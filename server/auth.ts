@@ -2,6 +2,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
+import csrf from "csurf";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
@@ -30,13 +31,11 @@ async function comparePasswords(supplied: string, stored: string) {
   try {
     // Handle case if stored password doesn't have the expected format
     if (!stored || !stored.includes('.')) {
-      console.warn("Invalid stored password format");
       return false;
     }
     
     const [hashed, salt] = stored.split(".");
     if (!hashed || !salt) {
-      console.warn("Invalid stored password components");
       return false;
     }
     
@@ -44,42 +43,92 @@ async function comparePasswords(supplied: string, stored: string) {
     const hashedBuf = Buffer.from(hashed, "hex");
     const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
     
-    // Check buffer lengths before comparison
-    console.log(`Buffer lengths - stored: ${hashedBuf.length}, supplied: ${suppliedBuf.length}`);
-    
+    // SECURITY: Only use constant-time comparison, no fallbacks
     // Make sure we're comparing equal length buffers
     if (hashedBuf.length !== suppliedBuf.length) {
-      console.warn(`Buffer length mismatch: ${hashedBuf.length} vs ${suppliedBuf.length}`);
-      
-      // For demo purposes with existing mismatched hashes, allow direct string comparison
-      // This is NOT secure for production!
-      return hashed === suppliedBuf.toString("hex");
+      return false;
     }
     
-    // Safe comparison of equal length buffers
+    // Use timing-safe comparison only - no fallback to prevent timing attacks
     return timingSafeEqual(hashedBuf, suppliedBuf);
   } catch (error) {
-    console.error("Error comparing passwords:", error);
+    // Don't log sensitive information
     return false;
   }
 }
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "nephra-health-secret",
+    secret: process.env.SESSION_SECRET || "nephra-health-security-2024", // Rotated secret
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    name: "nephra_secure_session", // New name to invalidate old sessions
+    rolling: true, // Force cookie reissue on each request
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
-      secure: false, // Set to false for development, true in production
-      sameSite: 'lax'
+      secure: process.env.NODE_ENV === "production", // Secure in production
+      sameSite: process.env.NODE_ENV === "production" ? 'strict' : 'lax'
     }
   };
 
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
+  
+  // CRITICAL CSRF PROTECTION: Origin/Referer checks for mutating requests
+  app.use((req: any, res: any, next: any) => {
+    const method = req.method;
+    
+    // Apply CSRF protection to state-changing methods
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+      // Compute expected origin from headers
+      const protocol = req.get('X-Forwarded-Proto') || (req.secure ? 'https' : 'http');
+      const host = req.get('X-Forwarded-Host') || req.get('Host');
+      const expectedOrigin = `${protocol}://${host}`;
+      
+      // Check Origin header first (preferred)
+      const origin = req.get('Origin');
+      if (origin) {
+        if (origin !== expectedOrigin) {
+          console.warn(`🚨 CSRF BLOCKED: Origin ${origin} !== expected ${expectedOrigin}`);
+          return res.status(403).json({ error: 'CSRF: Invalid origin' });
+        }
+      } else {
+        // Fallback to Referer check if Origin not present
+        const referer = req.get('Referer');
+        if (!referer || !referer.startsWith(expectedOrigin)) {
+          console.warn(`🚨 CSRF BLOCKED: Invalid referer ${referer}, expected to start with ${expectedOrigin}`);
+          return res.status(403).json({ error: 'CSRF: Invalid referer' });
+        }
+      }
+      
+      // Require JSON content-type for API endpoints to block form CSRF
+      if (req.path.startsWith('/api/') && req.get('Content-Type') !== 'application/json') {
+        console.warn(`🚨 CSRF BLOCKED: Non-JSON content-type on ${req.path}`);
+        return res.status(403).json({ error: 'CSRF: JSON required' });
+      }
+    }
+    
+    // Legacy cookie attribute fix (kept for completeness)
+    if (req.session && req.session.cookie) {
+      req.session.cookie.sameSite = process.env.NODE_ENV === "production" ? 'strict' : 'lax';
+      req.session.cookie.secure = process.env.NODE_ENV === "production";
+      req.session.cookie.httpOnly = true;
+    }
+    
+    next();
+  });
+  
+  // CSRF Token Protection (defense-in-depth)
+  const csrfProtection = csrf({
+    cookie: false, // Use session storage instead of cookies (Replit overrides cookies)
+    sessionKey: 'csrfSecret',
+    ignoreMethods: ['GET', 'HEAD', 'OPTIONS']
+  });
+  
+  app.use(csrfProtection);
+  
   app.use(passport.initialize());
   app.use(passport.session());
 
