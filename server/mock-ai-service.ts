@@ -5,17 +5,7 @@
  * or when working in a testing environment. Responses are evidence-based but pre-defined.
  */
 
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client if environment variables are available
-let supabaseClient: any = null;
-
-if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
-  supabaseClient = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-  );
-}
+import { supabase as supabaseClient } from './supabase-service';
 
 /**
  * Interface for journal analysis responses

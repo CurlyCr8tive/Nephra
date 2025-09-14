@@ -433,13 +433,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`⚠️ Standard session authentication failed, checking fallback methods...`);
       }
       
-      // 2. If no session auth, try to get userId from query params with API key
-      const apiKey = req.query.apiKey || req.headers['x-api-key'];
-      if (!isAuthenticated && apiKey === process.env.NEPHRA_API_KEY && requestedUserId) {
-        authenticatedUserId = requestedUserId;
-        isAuthenticated = true;
-        console.log(`✅ API key authentication successful for user ${authenticatedUserId}`);
-      }
+      // 2. SECURITY FIX: Remove dangerous API key bypass mechanism
+      // This bypass was allowing unauthorized access when NEPHRA_API_KEY was empty
+      // All health data access must require proper session authentication only
+      console.log("🔒 API key bypass mechanism disabled for security - session authentication required");
       
       // 3. Final validation and security check
       if (!isAuthenticated || !authenticatedUserId) {

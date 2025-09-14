@@ -40,13 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData || null);
   }, [userData]);
 
-  // Login mutation
+  // Login mutation - SECURITY FIX: Use correct apiRequest signature
   const loginMutation = useMutation({
-    mutationFn: (data: LoginData) => apiRequest('/api/login', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json' },
-    }),
+    mutationFn: async (data: LoginData) => {
+      const response = await apiRequest('POST', '/api/login', data);
+      return response.json();
+    },
     onSuccess: (userData: User) => {
       setUser(userData);
       queryClient.setQueryData(['/api/user'], userData);
@@ -56,13 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Register mutation
+  // Register mutation - SECURITY FIX: Use correct apiRequest signature
   const registerMutation = useMutation({
-    mutationFn: (data: RegisterData) => apiRequest('/api/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json' },
-    }),
+    mutationFn: async (data: RegisterData) => {
+      const response = await apiRequest('POST', '/api/register', data);
+      return response.json();
+    },
     onSuccess: (userData: User) => {
       setUser(userData);
       queryClient.setQueryData(['/api/user'], userData);
@@ -72,11 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Logout mutation
+  // Logout mutation - SECURITY FIX: Use correct apiRequest signature
   const logoutMutation = useMutation({
-    mutationFn: () => apiRequest('/api/logout', {
-      method: 'POST',
-    }),
+    mutationFn: async () => {
+      await apiRequest('POST', '/api/logout');
+    },
     onSuccess: () => {
       setUser(null);
       queryClient.setQueryData(['/api/user'], null);

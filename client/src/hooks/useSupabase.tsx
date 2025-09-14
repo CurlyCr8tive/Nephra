@@ -2,9 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useToast } from './use-toast';
 
-// Create a Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || '';
+// SECURITY FIX: Import consolidated Supabase client instead of creating multiple instances
+import { supabase } from '@/lib/supabaseClient';
 
 interface SupabaseContextType {
   supabase: SupabaseClient;
@@ -20,10 +19,18 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [supabase] = useState(() => createClient(supabaseUrl, supabaseKey));
+  // SECURITY FIX: Use consolidated single Supabase instance to prevent multiple GoTrueClient warnings
 
   useEffect(() => {
     async function checkConnection() {
+      // SECURITY FIX: Check if single consolidated Supabase client exists  
+      if (!supabase) {
+        setError(new Error('Supabase client not initialized'));
+        setIsConnected(false);
+        setIsConnecting(false);
+        return;
+      }
+
       try {
         setIsConnecting(true);
         

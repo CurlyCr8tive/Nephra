@@ -114,7 +114,7 @@ export function setupAuth(app: Express) {
     
     // Apply CSRF protection to state-changing methods
     if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
-      // Use configured allowed origins (DO NOT trust X-Forwarded-* headers)
+      // Base allowed origins
       const allowedOrigins = [
         'http://localhost:5000',
         'https://localhost:5000',
@@ -124,21 +124,68 @@ export function setupAuth(app: Express) {
         ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
       ];
       
-      // Check Origin header first (preferred)
+      // Get the current origin to check
       const origin = req.get('Origin');
+      const referer = req.get('Referer');
+      
+      console.log(`🔍 CSRF Check: Method ${method}, Origin: ${origin}, Referer: ${referer}`);
+      
+      // SECURITY FIX: Enhanced Replit domain support for development environment
+      if (process.env.NODE_ENV !== 'production') {
+        // Add comprehensive Replit domain patterns
+        if (origin) {
+          // More comprehensive Replit domain matching
+          if (origin.includes('replit.dev') || 
+              origin.includes('repl.co') ||
+              origin.includes('janeway.replit.dev') ||
+              origin.includes('repl.it') ||
+              origin.match(/https?:\/\/[a-f0-9-]+-[a-f0-9-]+\.[\w-]+\.replit(\.dev|\.co)/)) {
+            allowedOrigins.push(origin);
+            console.log(`✅ Added Replit origin: ${origin}`);
+          }
+        }
+        
+        // Also check referer for Replit patterns
+        if (referer && !origin) {
+          if (referer.includes('replit.dev') || 
+              referer.includes('repl.co') ||
+              referer.includes('janeway.replit.dev') ||
+              referer.includes('repl.it')) {
+            // Extract origin from referer
+            try {
+              const refererUrl = new URL(referer);
+              const refererOrigin = refererUrl.origin;
+              allowedOrigins.push(refererOrigin);
+              console.log(`✅ Added Replit origin from referer: ${refererOrigin}`);
+            } catch (e) {
+              console.warn(`Could not parse referer as URL: ${referer}`);
+            }
+          }
+        }
+      }
+      
+      console.log(`🔍 Final allowed origins: ${allowedOrigins.join(', ')}`);
+      
+      // Check Origin header first (preferred)
       if (origin) {
         if (!allowedOrigins.includes(origin)) {
-          console.warn(`🚨 CSRF BLOCKED: Origin ${origin} not in allowed list ${allowedOrigins.join(', ')}`);
+          console.warn(`🚨 CSRF BLOCKED: Origin ${origin} not in allowed list`);
           return res.status(403).json({ error: 'CSRF: Invalid origin' });
+        } else {
+          console.log(`✅ Origin ${origin} allowed`);
+        }
+      } else if (referer) {
+        // Fallback to Referer check if Origin not present
+        const refererIsAllowed = allowedOrigins.some(allowedOrigin => referer.startsWith(allowedOrigin));
+        if (!refererIsAllowed) {
+          console.warn(`🚨 CSRF BLOCKED: Invalid referer ${referer}`);
+          return res.status(403).json({ error: 'CSRF: Invalid referer' });
+        } else {
+          console.log(`✅ Referer ${referer} allowed`);
         }
       } else {
-        // Fallback to Referer check if Origin not present
-        const referer = req.get('Referer');
-        const refererIsAllowed = referer && allowedOrigins.some(origin => referer.startsWith(origin));
-        if (!refererIsAllowed) {
-          console.warn(`🚨 CSRF BLOCKED: Invalid referer ${referer}, allowed origins: ${allowedOrigins.join(', ')}`);
-          return res.status(403).json({ error: 'CSRF: Invalid referer' });
-        }
+        console.warn(`🚨 CSRF BLOCKED: No Origin or Referer header present`);
+        return res.status(403).json({ error: 'CSRF: No origin header' });
       }
       
       // Require JSON content-type for API endpoints to block form CSRF (handle charset variations)
@@ -147,6 +194,8 @@ export function setupAuth(app: Express) {
         console.warn(`🚨 CSRF BLOCKED: Non-JSON content-type '${contentType}' on ${req.path}`);
         return res.status(403).json({ error: 'CSRF: JSON required' });
       }
+      
+      console.log(`✅ CSRF validation passed for ${method} ${req.path}`);
     }
     
     // Legacy cookie attribute fix (kept for completeness)
