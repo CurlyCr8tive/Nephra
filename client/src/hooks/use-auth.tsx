@@ -7,16 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-// Define our auth types
-type User = {
-  id: number;
-  username: string;
-  firstName: string | null;
-  lastName: string | null;
-  email: string | null;
-  // Other user properties
-};
+import { User } from "@shared/schema";
 
 type LoginData = {
   username: string;

@@ -23,24 +23,16 @@ export function BottomNavigation() {
           <span className="text-xs mt-1">Home</span>
         </Link>
         
-        {/* Track - completely different implementation */}
+        {/* Track */}
         <Link
           href="/track"
-          className={`w-1/5 text-center py-3 ${
+          className={`w-1/5 flex flex-col items-center py-3 ${
             isActive("/track") || isActive("/trends") ? "text-primary" : "text-neutral-500"
           }`}
+          data-testid="nav-track"
         >
-          <div className="flex flex-col items-center">
-            <span className="material-icons">monitoring</span>
-            {/* Custom alignment for Track text only */}
-            <div className="w-full flex justify-center">
-              <div className="text-xs mt-1 translate-x-[-4px]">T</div>
-              <div className="text-xs mt-1 translate-x-[-4px]">r</div>
-              <div className="text-xs mt-1 translate-x-[-4px]">a</div>
-              <div className="text-xs mt-1 translate-x-[-4px]">c</div>
-              <div className="text-xs mt-1 translate-x-[-4px]">k</div>
-            </div>
-          </div>
+          <span className="material-icons">monitoring</span>
+          <span className="text-xs mt-1">Track</span>
         </Link>
         
         {/* Journal (Chat is now part of Journal) */}

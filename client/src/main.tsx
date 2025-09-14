@@ -3,117 +3,22 @@ import App from "./App";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { UserProvider } from "./contexts/UserContext";
+import { AuthProvider } from "./hooks/use-auth";
 import { SupabaseProvider } from "./hooks/useSupabase";
 import { Toaster } from "@/components/ui/toaster";
 
-// Verify connection and environment setup
-const checkApiConnection = async () => {
-  try {
-    console.log("Fetching user data...");
-    const resp = await fetch('/api/user', { 
-      credentials: 'include',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    
-    if (resp.ok) {
-      const userData = await resp.json();
-      console.log("💚 User is authenticated:", userData.username);
-      return { authenticated: true, user: userData };
-    } else if (resp.status === 401) {
-      console.log("User not authenticated");
-      return { authenticated: false };
-    } else {
-      console.warn("API error:", resp.status, resp.statusText);
-      return { error: resp.statusText };
-    }
-  } catch (err) {
-    console.error("API connectivity error:", err);
-    return { error: String(err) };
-  }
-};
-
-// Create a demo user if none exists for testing purposes
-const setupDemoUser = async () => {
-  try {
-    console.log("🔑 Using login-demo endpoint for one-click auth...");
-    const demoLoginResp = await fetch('/api/login-demo', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
-    });
-    
-    if (demoLoginResp.ok) {
-      const userData = await demoLoginResp.json();
-      console.log("💚 Demo login successful:", userData.username);
-      return true;
-    } else {
-      const errorText = await demoLoginResp.text();
-      console.warn("⚠️ Demo login failed:", errorText);
-      
-      // Try the regular login path as fallback
-      console.log("Trying regular login path as fallback...");
-      const loginResp = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          username: 'demouser', 
-          password: 'demopass' 
-        })
-      });
-      
-      if (loginResp.ok) {
-        console.log("💚 Regular demo login successful");
-        return true;
-      } else {
-        console.warn("❌ All login attempts failed for demo user");
-        return false;
-      }
-    }
-  } catch (err) {
-    console.error("Error setting up demo user:", err);
-    return false;
-  }
-};
-
-// Run these checks before mounting the app
-async function initializeApp() {
-  // Check API connection without logging out the user
-  const apiStatus = await checkApiConnection();
-  console.log("API connection status:", apiStatus);
-  
-  // If not authenticated, try to login with the demo user
-  if (!apiStatus.authenticated && !apiStatus.error) {
-    console.log("User not authenticated, attempting demo login...");
-    const demoSuccess = await setupDemoUser();
-    console.log("Demo login attempt result:", demoSuccess);
-  }
-  
-  // Create a root-level provider that fixes the circular dependency with UserContext
-  function AppWithProviders() {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <UserProvider>
-          <SupabaseProvider>
-            <App />
-            <Toaster />
-          </SupabaseProvider>
-        </UserProvider>
-      </QueryClientProvider>
-    );
-  }
-  
-  createRoot(document.getElementById("root")!).render(<AppWithProviders />);
+// Simple app with single auth system - no pre-mount checks
+function AppWithProviders() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SupabaseProvider>
+          <App />
+          <Toaster />
+        </SupabaseProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
 }
 
-// Start the app initialization process
-initializeApp();
+createRoot(document.getElementById("root")!).render(<AppWithProviders />);
