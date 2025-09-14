@@ -15,10 +15,29 @@ const router = Router();
  */
 router.post("/process", async (req: Request, res: Response) => {
   try {
+    // SECURITY FIX: Require authentication for ALL journal processing
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("🚨 SECURITY: Unauthenticated enhanced journal processing attempt blocked");
+      return res.status(401).json({ 
+        error: "Authentication required", 
+        message: "You must be logged in to process journal entries" 
+      });
+    }
+
     const { userId, content } = req.body;
+    const authenticatedUserId = req.user?.id;
     
     if (!userId || !content) {
       return res.status(400).json({ error: "User ID and content are required" });
+    }
+
+    // SECURITY FIX: Users can ONLY process their own journal entries
+    if (userId !== authenticatedUserId) {
+      console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to process journal entry for user ${userId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only process your own journal entries" 
+      });
     }
     
     try {
@@ -80,10 +99,29 @@ router.post("/process", async (req: Request, res: Response) => {
  */
 router.post("/follow-up", async (req: Request, res: Response) => {
   try {
+    // SECURITY FIX: Require authentication for ALL journal follow-up processing
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("🚨 SECURITY: Unauthenticated enhanced journal follow-up attempt blocked");
+      return res.status(401).json({ 
+        error: "Authentication required", 
+        message: "You must be logged in to access journal follow-up" 
+      });
+    }
+
     const { userId, prompt, context, followUpPrompt, previousContext } = req.body;
+    const authenticatedUserId = req.user?.id;
     
     if (!userId || (!prompt && !followUpPrompt)) {
       return res.status(400).json({ error: "User ID and prompt are required" });
+    }
+
+    // SECURITY FIX: Users can ONLY access their own journal follow-up conversations
+    if (userId !== authenticatedUserId) {
+      console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to access journal follow-up for user ${userId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only access your own journal conversations" 
+      });
     }
     
     // Support both field names for flexibility

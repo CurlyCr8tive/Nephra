@@ -99,15 +99,35 @@ router.post("/chat", async (req: Request, res: Response) => {
  */
 router.get("/chat/:userId", async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.userId);
+    // SECURITY FIX: Require authentication for ALL AI chat history access
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("🚨 SECURITY: Unauthenticated AI chat history access attempt blocked");
+      return res.status(401).json({ 
+        error: "Authentication required", 
+        message: "You must be logged in to access chat history" 
+      });
+    }
+
+    const requestedUserId = parseInt(req.params.userId);
+    const authenticatedUserId = req.user?.id;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
     
-    if (isNaN(userId)) {
+    if (isNaN(requestedUserId)) {
       return res.status(400).json({ error: "Invalid user ID" });
     }
+
+    // SECURITY FIX: Users can ONLY access their own AI chat history
+    if (requestedUserId !== authenticatedUserId) {
+      console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to access AI chat history for user ${requestedUserId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only access your own chat history" 
+      });
+    }
     
+    console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own AI chat history`);
     // Get chats from local storage
-    const localChats = await storage.getAiChats(userId, limit);
+    const localChats = await storage.getAiChats(requestedUserId, limit);
     
     // Try to get richer chat data from Supabase if available
     let supabaseChats: any[] = [];
@@ -115,7 +135,7 @@ router.get("/chat/:userId", async (req: Request, res: Response) => {
       if (typeof supabaseService.getChatLogs === 'function') {
         const isConnected = await supabaseService.checkSupabaseConnection();
         if (isConnected) {
-          supabaseChats = await supabaseService.getChatLogs(userId, limit || 10);
+          supabaseChats = await supabaseService.getChatLogs(requestedUserId, limit || 10);
         }
       }
     } catch (supabaseError) {
@@ -142,11 +162,30 @@ router.get("/chat/:userId", async (req: Request, res: Response) => {
  */
 router.get("/chat/:userId/supabase", async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.userId);
+    // SECURITY FIX: Require authentication for ALL Supabase AI chat history access
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.warn("🚨 SECURITY: Unauthenticated Supabase AI chat history access attempt blocked");
+      return res.status(401).json({ 
+        error: "Authentication required", 
+        message: "You must be logged in to access chat history" 
+      });
+    }
+
+    const requestedUserId = parseInt(req.params.userId);
+    const authenticatedUserId = req.user?.id;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
     
-    if (isNaN(userId)) {
+    if (isNaN(requestedUserId)) {
       return res.status(400).json({ error: "Invalid user ID" });
+    }
+
+    // SECURITY FIX: Users can ONLY access their own Supabase AI chat history
+    if (requestedUserId !== authenticatedUserId) {
+      console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to access Supabase AI chat history for user ${requestedUserId}`);
+      return res.status(403).json({ 
+        error: "Access denied", 
+        message: "You can only access your own chat history" 
+      });
     }
     
     // Check if Supabase is available
@@ -158,8 +197,9 @@ router.get("/chat/:userId/supabase", async (req: Request, res: Response) => {
       });
     }
     
+    console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own Supabase AI chat history`);
     // Get chat logs from Supabase
-    const chats = await supabaseService.getChatLogs(userId, limit);
+    const chats = await supabaseService.getChatLogs(requestedUserId, limit);
     
     // Return the chat logs with analytics
     // Filter out undefined/null values and ensure we have valid numerical scores

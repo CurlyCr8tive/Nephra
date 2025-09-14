@@ -518,15 +518,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let authenticatedUserId = req.isAuthenticated() ? req.user.id : null;
       let isAuthenticated = !!authenticatedUserId;
       
-      // For direct access with consistent user ID, allow the request
-      if (isAuthenticated && authenticatedUserId === requestedUserId) {
-        console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own health metrics`);
-      } else {
-        // For debugging during development, allow access to any user's data
-        console.log(`⚠️ Relaxed security: Allowing unauthenticated access to health metrics for user ID: ${requestedUserId}`);
-        authenticatedUserId = requestedUserId;
-        isAuthenticated = true;
+      // SECURITY FIX: Require authentication for ALL health metrics access - NO EXCEPTIONS
+      if (!isAuthenticated || !authenticatedUserId) {
+        console.warn("🚨 SECURITY: Unauthenticated health metrics range access attempt blocked");
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "You must be logged in to access health metrics" 
+        });
       }
+
+      // SECURITY FIX: Users can ONLY access their own health metrics data
+      if (authenticatedUserId !== requestedUserId) {
+        console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to access health metrics for user ${requestedUserId}`);
+        return res.status(403).json({ 
+          error: "Access denied", 
+          message: "You can only access your own health metrics" 
+        });
+      }
+      
+      console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own health metrics`);
       
       // Import our data transformer utility
       // Data transformer utilities are imported at the top of the file
@@ -976,12 +986,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/medical-documents/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // SECURITY FIX: Require authentication for ALL medical document access
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        console.warn("🚨 SECURITY: Unauthenticated medical documents access attempt blocked");
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "You must be logged in to access medical documents" 
+        });
+      }
+      
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user?.id;
+      
+      // SECURITY FIX: Users can ONLY access their own medical documents
+      if (requestedUserId !== authenticatedUserId) {
+        console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to access medical documents for user ${requestedUserId}`);
+        return res.status(403).json({ 
+          error: "Access denied", 
+          message: "You can only access your own medical documents" 
+        });
+      }
+      
+      console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own medical documents`);
       const documentType = req.query.type as string | undefined;
-      const results = await storage.getMedicalDocuments(userId, documentType);
+      const results = await storage.getMedicalDocuments(requestedUserId, documentType);
       res.json(results);
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      console.error("Error accessing medical documents:", error);
+      res.status(500).json({ error: "Failed to access medical documents" });
     }
   });
   
@@ -1112,19 +1144,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get journal entries for a specific user ID (fallback method)
+  // Get journal entries for a specific user ID - SECURED with mandatory authentication
   app.get("/api/journal-entries/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // SECURITY FIX: Require authentication for ALL journal entry access
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        console.warn("🚨 SECURITY: Unauthenticated journal entries access attempt blocked");
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "You must be logged in to access journal entries" 
+        });
+      }
+      
+      const requestedUserId = parseInt(req.params.userId);
+      const authenticatedUserId = req.user?.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       
-      if (isNaN(userId)) {
+      if (isNaN(requestedUserId)) {
         return res.status(400).json({ error: "Invalid user ID format" });
       }
       
-      console.log(`Fetching journal entries for specific user ID: ${userId}`);
-      const results = await storage.getJournalEntries(userId, limit);
-      console.log(`Found ${results.length} journal entries for user ${userId}`);
+      // SECURITY FIX: Users can ONLY access their own journal entries
+      if (requestedUserId !== authenticatedUserId) {
+        console.warn(`🚨 SECURITY: User ${authenticatedUserId} attempted to access journal entries for user ${requestedUserId}`);
+        return res.status(403).json({ 
+          error: "Access denied", 
+          message: "You can only access your own journal entries" 
+        });
+      }
+      
+      console.log(`✅ Authenticated user ${authenticatedUserId} accessing their own journal entries`);
+      const results = await storage.getJournalEntries(requestedUserId, limit);
+      console.log(`Found ${results.length} journal entries for user ${requestedUserId}`);
       
       res.json(results);
     } catch (error) {

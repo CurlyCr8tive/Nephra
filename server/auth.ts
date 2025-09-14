@@ -17,11 +17,32 @@ function toPublicUser(user: User): Omit<User, 'password'> {
 
 declare global {
   namespace Express {
-    // Define Express.User to be the same as our User type
-    interface User extends Omit<User, 'otherHealthConditions' | 'otherSpecialists'> {
-      // These fields need special handling to match the schema definition
+    // Define Express.User to be the same as our User type from schema
+    interface User {
+      id: number;
+      username: string;
+      password: string;
+      email: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      age: number | null;
+      gender: string | null;
+      weight: number | null;
+      height: number | null;
+      race: string | null;
+      kidneyDiseaseType: string | null;
+      kidneyDiseaseStage: number | null;
+      diagnosisDate: Date | null;
       otherHealthConditions: string[] | null;
-      otherSpecialists: any | null; // Using 'any' for jsonb type
+      primaryCareProvider: string | null;
+      nephrologist: string | null;
+      otherSpecialists: any | null;
+      insuranceProvider: string | null;
+      insurancePolicyNumber: string | null;
+      transplantCenter: string | null;
+      transplantCoordinator: string | null;
+      transplantCoordinatorPhone: string | null;
+      createdAt: Date | null;
     }
   }
 }

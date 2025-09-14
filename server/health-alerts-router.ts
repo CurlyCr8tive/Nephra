@@ -62,13 +62,15 @@ router.post("/health-alerts", async (req, res) => {
   try {
     console.log("Creating health alert:", req.body);
     
-    // Check authentication
-    if (!req.isAuthenticated() && !req.body.userId) {
-      return res.status(401).json({ error: "Not authenticated" });
+    // SECURITY FIX: Always require authentication for health alerts
+    if (!req.isAuthenticated() || !req.user) {
+      console.warn("🚨 SECURITY: Unauthenticated health alert creation attempt blocked");
+      return res.status(401).json({ error: "Authentication required" });
     }
 
-    // Use either authenticated user ID or the one provided in the request
-    const userId = req.isAuthenticated() ? (req.user as any).id : req.body.userId;
+    // SECURITY FIX: Always use authenticated user ID, ignore any userId from request body
+    const userId = (req.user as any).id;
+    console.log(`✅ Creating health alert for authenticated user ${userId}`);
     
     // Validate request data
     const validationResult = insertHealthAlertSchema.safeParse({
