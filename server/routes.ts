@@ -12,7 +12,8 @@ import {
   insertEducationResourceSchema,
   insertTransplantStepSchema,
   insertUserTransplantProgressSchema,
-  insertMedicationReminderSchema
+  insertMedicationReminderSchema,
+  insertMedicalAppointmentSchema
 } from "@shared/schema";
 import { estimateGfrScore, interpretGfr, getGfrRecommendation } from "./utils/gfr-calculator";
 
@@ -841,6 +842,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Medication reminder deleted successfully" });
     } catch (error) {
       console.error("Error deleting medication reminder:", error);
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+
+  // Medical appointments endpoints
+  app.get("/api/medical-appointments/:userId", async (req, res) => {
+    try {
+      // Parse requested user ID
+      const requestedUserId = parseInt(req.params.userId);
+      
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to access medical appointments" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // For security, only allow access to own data
+      if (authenticatedUserId !== requestedUserId) {
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only access your own medical appointments" 
+        });
+      }
+      
+      console.log(`📅 Fetching medical appointments for user ${authenticatedUserId}`);
+      const appointments = await storage.getMedicalAppointments(authenticatedUserId);
+      
+      res.json(appointments);
+    } catch (error) {
+      console.error("Error fetching medical appointments:", error);
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+
+  app.post("/api/medical-appointments", async (req, res) => {
+    try {
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to create medical appointments" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // Validate request body
+      const validatedData = insertMedicalAppointmentSchema.parse({
+        ...req.body,
+        userId: authenticatedUserId // Always use authenticated user ID for security
+      });
+      
+      console.log(`📝 Creating medical appointment for user ${authenticatedUserId}`);
+      const result = await storage.createMedicalAppointment(validatedData);
+      
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error creating medical appointment:", error);
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+
+  app.patch("/api/medical-appointments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to update medical appointments" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // Ensure the medical appointment exists and belongs to the user
+      const existingAppointment = await storage.getMedicalAppointment(id);
+      if (!existingAppointment) {
+        return res.status(404).json({ error: "Medical appointment not found" });
+      }
+      
+      if (existingAppointment.userId !== authenticatedUserId) {
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only update your own medical appointments" 
+        });
+      }
+      
+      // Validate update data (partial schema validation)
+      const updateData = req.body;
+      
+      console.log(`📝 Updating medical appointment ${id} for user ${authenticatedUserId}`);
+      const result = await storage.updateMedicalAppointment(id, updateData);
+      
+      if (!result) {
+        return res.status(500).json({ error: "Failed to update medical appointment" });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating medical appointment:", error);
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+
+  app.delete("/api/medical-appointments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to delete medical appointments" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // Ensure the medical appointment exists and belongs to the user
+      const existingAppointment = await storage.getMedicalAppointment(id);
+      if (!existingAppointment) {
+        return res.status(404).json({ error: "Medical appointment not found" });
+      }
+      
+      if (existingAppointment.userId !== authenticatedUserId) {
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only delete your own medical appointments" 
+        });
+      }
+      
+      console.log(`🗑️ Deleting medical appointment ${id} for user ${authenticatedUserId}`);
+      const success = await storage.deleteMedicalAppointment(id);
+      
+      if (!success) {
+        return res.status(500).json({ error: "Failed to delete medical appointment" });
+      }
+      
+      res.json({ success: true, message: "Medical appointment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting medical appointment:", error);
       res.status(500).json({ error: handleError(error) });
     }
   });

@@ -10,6 +10,7 @@ import { SliderWithLabel } from "@/components/SliderWithLabel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HealthCalendar } from "@/components/HealthCalendar";
+import { AppointmentScheduler } from "@/components/AppointmentScheduler";
 import { useToast } from "@/hooks/use-toast";
 import Chart from "chart.js/auto";
 import { format, subDays, startOfDay, endOfDay, isSameDay } from "date-fns";
@@ -620,8 +621,12 @@ export default function TrackPage() {
             </TabsContent>
             
             {/* Calendar tab content */}
-            <TabsContent value="calendar">
-              <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+            <TabsContent value="calendar" className="space-y-6">
+              {/* Medical Appointments Section */}
+              <AppointmentScheduler className="w-full" />
+              
+              {/* Health Calendar Section */}
+              <div className="bg-white rounded-xl shadow-sm p-4">
                 <h2 className="font-display font-bold text-lg mb-4">Health Calendar</h2>
                 {/* Health Calendar Component */}
                 {isLoadingWeekly ? (

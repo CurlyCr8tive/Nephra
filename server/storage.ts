@@ -9,7 +9,8 @@ import {
   medicalDocuments, type MedicalDocument, type InsertMedicalDocument,
   educationResources, type EducationResource, type InsertEducationResource,
   healthAlerts, type HealthAlert, type InsertHealthAlert,
-  medicationReminders, type MedicationReminder, type InsertMedicationReminder
+  medicationReminders, type MedicationReminder, type InsertMedicationReminder,
+  medicalAppointments, type MedicalAppointment, type InsertMedicalAppointment
 } from "@shared/schema";
 
 import session from "express-session";
@@ -71,6 +72,13 @@ export interface IStorage {
   updateMedicationReminder(id: number, reminder: Partial<InsertMedicationReminder>): Promise<MedicationReminder | undefined>;
   deleteMedicationReminder(id: number): Promise<boolean>;
   
+  // Medical appointments methods
+  getMedicalAppointments(userId: number): Promise<MedicalAppointment[]>;
+  getMedicalAppointment(id: number): Promise<MedicalAppointment | undefined>;
+  createMedicalAppointment(appointment: InsertMedicalAppointment): Promise<MedicalAppointment>;
+  updateMedicalAppointment(id: number, appointment: Partial<InsertMedicalAppointment>): Promise<MedicalAppointment | undefined>;
+  deleteMedicalAppointment(id: number): Promise<boolean>;
+  
   // Session storage
   sessionStore: session.Store;
 }
@@ -87,6 +95,7 @@ export class MemStorage implements IStorage {
   private educationResources: Map<number, EducationResource>;
   private healthAlerts: Map<number, HealthAlert>;
   private medicationReminders: Map<number, MedicationReminder>;
+  private medicalAppointments: Map<number, MedicalAppointment>;
 
   private userId: number;
   private healthMetricsId: number;
@@ -99,6 +108,7 @@ export class MemStorage implements IStorage {
   private educationResourceId: number;
   private healthAlertId: number;
   private medicationReminderId: number;
+  private medicalAppointmentId: number;
   
   // Session store for express-session
   public sessionStore: session.Store;
@@ -116,6 +126,7 @@ export class MemStorage implements IStorage {
     this.educationResources = new Map();
     this.healthAlerts = new Map();
     this.medicationReminders = new Map();
+    this.medicalAppointments = new Map();
 
     // Initialize IDs
     this.userId = 1;
@@ -129,6 +140,7 @@ export class MemStorage implements IStorage {
     this.educationResourceId = 1;
     this.healthAlertId = 1;
     this.medicationReminderId = 1;
+    this.medicalAppointmentId = 1;
     
     // Initialize session store
     const MemoryStore = createMemoryStore(session);
@@ -934,6 +946,55 @@ class DatabaseStorage implements IStorage {
       .where(eq(medicationReminders.id, id));
     
     console.log(`Deleted medication reminder with ID ${id}`);
+    return result.rowCount > 0;
+  }
+
+  // Medical appointments methods
+  async getMedicalAppointments(userId: number): Promise<MedicalAppointment[]> {
+    return await db.select()
+      .from(medicalAppointments)
+      .where(eq(medicalAppointments.userId, userId))
+      .orderBy(medicalAppointments.appointmentDate);
+  }
+
+  async getMedicalAppointment(id: number): Promise<MedicalAppointment | undefined> {
+    const [appointment] = await db.select()
+      .from(medicalAppointments)
+      .where(eq(medicalAppointments.id, id));
+    return appointment;
+  }
+
+  async createMedicalAppointment(appointment: InsertMedicalAppointment): Promise<MedicalAppointment> {
+    const [result] = await db.insert(medicalAppointments).values({
+      ...appointment,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    
+    console.log(`Created medical appointment with ID ${result.id} for user ${appointment.userId}`);
+    return result;
+  }
+
+  async updateMedicalAppointment(id: number, appointment: Partial<InsertMedicalAppointment>): Promise<MedicalAppointment | undefined> {
+    const [result] = await db
+      .update(medicalAppointments)
+      .set({
+        ...appointment,
+        updatedAt: new Date()
+      })
+      .where(eq(medicalAppointments.id, id))
+      .returning();
+    
+    console.log(`Updated medical appointment with ID ${id}`);
+    return result;
+  }
+
+  async deleteMedicalAppointment(id: number): Promise<boolean> {
+    const result = await db
+      .delete(medicalAppointments)
+      .where(eq(medicalAppointments.id, id));
+    
+    console.log(`Deleted medical appointment with ID ${id}`);
     return result.rowCount > 0;
   }
 }
