@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 // Supabase table interfaces
 export interface SupabaseHealthLog {
@@ -92,14 +93,30 @@ export const supabaseHealthLogSchema = z.object({
   metadata: z.record(z.any()).optional(),
 });
 
+// Session storage table for Replit Auth - use existing 'session' table
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const sessions = pgTable(
+  "session", // Use existing table name
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
 // User profile table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  username: text("username"), // Made optional for Replit Auth users
+  password: text("password"), // Made optional for Replit Auth users  
   email: text("email"),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  // Replit Auth fields
+  replitUserId: varchar("replit_user_id").unique(), // Maps to Replit's user ID
+  profileImageUrl: varchar("profile_image_url"),
+  authProvider: text("auth_provider").default("local"), // 'local' or 'replit'
   age: integer("age"),
   gender: text("gender"),
   weight: doublePrecision("weight"), // in kg

@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import { setupAuth as setupReplitAuth, isAuthenticated as isReplitAuthenticated } from "./replitAuth";
 import { 
   insertUserSchema, 
   insertHealthMetricsSchema, 
@@ -138,9 +139,46 @@ function estimateGFR(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up authentication
-  setupAuth(app);
+  // Set up hybrid authentication (custom auth + Replit Auth)
+  // In production with REPL_ID, use Replit Auth; otherwise use custom auth
+  if (process.env.REPL_ID && process.env.NODE_ENV === "production") {
+    console.log("[Auth] Setting up Replit Auth for production deployment");
+    await setupReplitAuth(app);
+  } else {
+    console.log("[Auth] Setting up custom auth for development");
+    setupAuth(app);
+  }
   
+  // Hybrid Auth User Endpoint - Works with both custom auth and Replit Auth  
+  app.get('/api/auth/user', async (req: any, res: any) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Handle Replit Auth user (has claims)
+      if (req.user && req.user.claims) {
+        const replitUserId = req.user.claims.sub;
+        const user = await storage.getUserByReplitId(replitUserId);
+        if (user) {
+          const { password, ...userWithoutPassword } = user;
+          return res.json(userWithoutPassword);
+        }
+      }
+
+      // Handle custom auth user (has direct user object)
+      if (req.user && req.user.id) {
+        const { password, ...userWithoutPassword } = req.user;
+        return res.json(userWithoutPassword);
+      }
+
+      return res.status(401).json({ message: "Unauthorized" });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      return res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   // CSRF Token Endpoint - Provides CSRF tokens to authenticated clients
   app.get('/api/csrf', (req: any, res: any) => {
     try {

@@ -14,7 +14,7 @@ import { eq, and, desc, gte, lte } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
-import { IStorage } from "./storage";
+import { IStorage, type UpsertReplitUser } from "./storage";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -275,5 +275,46 @@ export class DatabaseStorage implements IStorage {
       
       console.log("[database] Database initialized with transplant steps");
     }
+  }
+
+  // Replit Auth methods implementation
+  async upsertReplitUser(userData: UpsertReplitUser): Promise<User> {
+    // First check if user already exists
+    const existingUser = await this.getUserByReplitId(userData.replitUserId);
+    
+    if (existingUser) {
+      // Update existing user
+      const [user] = await db
+        .update(users)
+        .set({
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          authProvider: "replit",
+        })
+        .where(eq(users.replitUserId, userData.replitUserId))
+        .returning();
+      return user;
+    } else {
+      // Create new user
+      const [user] = await db
+        .insert(users)
+        .values({
+          replitUserId: userData.replitUserId,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          authProvider: "replit",
+        })
+        .returning();
+      return user;
+    }
+  }
+
+  async getUserByReplitId(replitUserId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.replitUserId, replitUserId));
+    return user;
   }
 }

@@ -16,12 +16,25 @@ import {
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
+// Define types for Replit Auth
+export type UpsertReplitUser = {
+  replitUserId: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+};
+
 export interface IStorage {
-  // User methods
+  // User methods (existing auth)
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  
+  // Replit Auth methods
+  upsertReplitUser(userData: UpsertReplitUser): Promise<User>;
+  getUserByReplitId(replitUserId: string): Promise<User | undefined>;
 
   // Health metrics methods
   getHealthMetrics(userId: number, limit?: number): Promise<HealthMetrics[]>;
@@ -174,6 +187,66 @@ export class MemStorage implements IStorage {
     });
   }
   
+  // Replit Auth methods (MemStorage implementation)
+  async upsertReplitUser(userData: UpsertReplitUser): Promise<User> {
+    // Check if user already exists
+    const existingUser = await this.getUserByReplitId(userData.replitUserId);
+    
+    if (existingUser) {
+      // Update existing user
+      const updatedUser: User = {
+        ...existingUser,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        profileImageUrl: userData.profileImageUrl,
+      };
+      this.users.set(existingUser.id, updatedUser);
+      return updatedUser;
+    } else {
+      // Create new user
+      const id = this.userId++;
+      const newUser: User = {
+        id,
+        username: null, // Replit Auth users don't have usernames
+        password: null, // Replit Auth users don't have passwords
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        replitUserId: userData.replitUserId,
+        profileImageUrl: userData.profileImageUrl,
+        authProvider: "replit",
+        age: null,
+        gender: null,
+        weight: null,
+        height: null,
+        race: null,
+        kidneyDiseaseType: null,
+        kidneyDiseaseStage: null,
+        diagnosisDate: null,
+        otherHealthConditions: [],
+        primaryCareProvider: null,
+        nephrologist: null,
+        otherSpecialists: null,
+        insuranceProvider: null,
+        insurancePolicyNumber: null,
+        transplantCenter: null,
+        transplantCoordinator: null,
+        transplantCoordinatorPhone: null,
+        preferredUnitSystem: null,
+        createdAt: new Date(),
+      };
+      this.users.set(id, newUser);
+      return newUser;
+    }
+  }
+
+  async getUserByReplitId(replitUserId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.replitUserId === replitUserId,
+    );
+  }
+
   // Initialize demo user with profile information
   private initializeDemoUser() {
     // The password "password123" was hashed with the same algorithm used in auth.ts

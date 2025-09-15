@@ -63,4 +63,4 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_anthropic==1.0.0", "javascript_supabase==1.0.0", "javascript_websocket==1.0.0", "perplexity_v0==1.0.0", "javascript_openai==1.0.0"]
+integrations = ["javascript_anthropic:1.0.0", "javascript_supabase:1.0.0", "javascript_websocket:1.0.0", "perplexity_v0:1.0.0", "javascript_openai:1.0.0", "javascript_log_in_with_replit:1.0.0"]
