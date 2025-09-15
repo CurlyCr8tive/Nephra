@@ -18,9 +18,9 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
-  loginMutation: ReturnType<typeof useMutation>;
-  logoutMutation: ReturnType<typeof useMutation>;
-  registerMutation: ReturnType<typeof useMutation>;
+  loginMutation: ReturnType<typeof useMutation<User, Error, LoginData>>;
+  logoutMutation: ReturnType<typeof useMutation<void, Error, void>>;
+  registerMutation: ReturnType<typeof useMutation<User, Error, RegisterData>>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,14 +37,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Update local user state when query data changes
   useEffect(() => {
-    setUser(userData || null);
+    // Ensure userData is a valid User object or null
+    if (userData && typeof userData === 'object' && 'id' in userData) {
+      setUser(userData as User);
+    } else {
+      setUser(null);
+    }
   }, [userData]);
 
   // Login mutation - SECURITY FIX: Use correct apiRequest signature
   const loginMutation = useMutation({
-    mutationFn: async (data: LoginData) => {
+    mutationFn: async (data: LoginData): Promise<User> => {
       const response = await apiRequest('POST', '/api/login', data);
-      return response.json();
+      return await response.json();
     },
     onSuccess: (userData: User) => {
       setUser(userData);
@@ -59,9 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Register mutation - SECURITY FIX: Use correct apiRequest signature
   const registerMutation = useMutation({
-    mutationFn: async (data: RegisterData) => {
+    mutationFn: async (data: RegisterData): Promise<User> => {
       const response = await apiRequest('POST', '/api/register', data);
-      return response.json();
+      return await response.json();
     },
     onSuccess: (userData: User) => {
       setUser(userData);
@@ -76,8 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logout mutation - SECURITY FIX: Use correct apiRequest signature
   const logoutMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest('POST', '/api/logout', {});
+    mutationFn: async (): Promise<void> => {
+      await apiRequest('POST', '/api/logout');
     },
     onSuccess: () => {
       setUser(null);
