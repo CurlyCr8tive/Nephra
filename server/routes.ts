@@ -11,7 +11,8 @@ import {
   insertJournalEntrySchema,
   insertEducationResourceSchema,
   insertTransplantStepSchema,
-  insertUserTransplantProgressSchema
+  insertUserTransplantProgressSchema,
+  insertMedicationReminderSchema
 } from "@shared/schema";
 import { estimateGfrScore, interpretGfr, getGfrRecommendation } from "./utils/gfr-calculator";
 
@@ -684,6 +685,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(results);
     } catch (error) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Medication reminders endpoints
+  app.get("/api/medication-reminders/:userId", async (req, res) => {
+    try {
+      // Parse requested user ID
+      const requestedUserId = parseInt(req.params.userId);
+      
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        console.warn("❌ Unauthenticated medication reminders access attempt blocked");
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to access medication reminders" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // For security, only allow access to own data
+      if (authenticatedUserId !== requestedUserId) {
+        console.warn(`⚠️ User ${authenticatedUserId} attempted to access medication reminders for user ${requestedUserId}`);
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only access your own medication reminders" 
+        });
+      }
+      
+      console.log(`📊 Fetching medication reminders for user ${authenticatedUserId}`);
+      const results = await storage.getMedicationReminders(authenticatedUserId);
+      console.log(`Found ${results.length} medication reminders for user ${authenticatedUserId}`);
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching medication reminders:", error);
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+
+  app.post("/api/medication-reminders", async (req, res) => {
+    try {
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to create medication reminders" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // Parse and validate the request data
+      const data = insertMedicationReminderSchema.parse({
+        ...req.body,
+        userId: authenticatedUserId // Always use authenticated user ID for security
+      });
+      
+      console.log(`💊 Creating medication reminder for user ${authenticatedUserId}:`, data.medicationName);
+      const result = await storage.createMedicationReminder(data);
+      
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error creating medication reminder:", error);
+      if (error.name === 'ZodError') {
+        res.status(400).json({ 
+          error: "Invalid medication reminder data", 
+          details: error.errors 
+        });
+      } else {
+        res.status(500).json({ error: handleError(error) });
+      }
+    }
+  });
+
+  app.patch("/api/medication-reminders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to update medication reminders" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // Ensure the medication reminder exists and belongs to the user
+      const existingReminder = await storage.getMedicationReminder(id);
+      if (!existingReminder) {
+        return res.status(404).json({ error: "Medication reminder not found" });
+      }
+      
+      if (existingReminder.userId !== authenticatedUserId) {
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only update your own medication reminders" 
+        });
+      }
+      
+      // Validate update data (partial schema validation)
+      const updateData = req.body;
+      
+      console.log(`📝 Updating medication reminder ${id} for user ${authenticatedUserId}`);
+      const result = await storage.updateMedicationReminder(id, updateData);
+      
+      if (!result) {
+        return res.status(500).json({ error: "Failed to update medication reminder" });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating medication reminder:", error);
+      res.status(500).json({ error: handleError(error) });
+    }
+  });
+
+  app.delete("/api/medication-reminders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check authentication
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          message: "Please log in to delete medication reminders" 
+        });
+      }
+      
+      const authenticatedUserId = req.user.id;
+      
+      // Ensure the medication reminder exists and belongs to the user
+      const existingReminder = await storage.getMedicationReminder(id);
+      if (!existingReminder) {
+        return res.status(404).json({ error: "Medication reminder not found" });
+      }
+      
+      if (existingReminder.userId !== authenticatedUserId) {
+        return res.status(403).json({ 
+          error: "Unauthorized", 
+          message: "You can only delete your own medication reminders" 
+        });
+      }
+      
+      console.log(`🗑️ Deleting medication reminder ${id} for user ${authenticatedUserId}`);
+      const success = await storage.deleteMedicationReminder(id);
+      
+      if (!success) {
+        return res.status(500).json({ error: "Failed to delete medication reminder" });
+      }
+      
+      res.json({ success: true, message: "Medication reminder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting medication reminder:", error);
+      res.status(500).json({ error: handleError(error) });
     }
   });
 

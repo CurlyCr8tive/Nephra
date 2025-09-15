@@ -8,7 +8,8 @@ import {
   journalEntries, type JournalEntry, type InsertJournalEntry,
   medicalDocuments, type MedicalDocument, type InsertMedicalDocument,
   educationResources, type EducationResource, type InsertEducationResource,
-  healthAlerts, type HealthAlert, type InsertHealthAlert
+  healthAlerts, type HealthAlert, type InsertHealthAlert,
+  medicationReminders, type MedicationReminder, type InsertMedicationReminder
 } from "@shared/schema";
 
 import session from "express-session";
@@ -63,6 +64,13 @@ export interface IStorage {
   createHealthAlert(alert: InsertHealthAlert): Promise<HealthAlert>;
   acknowledgeHealthAlert(id: number): Promise<HealthAlert | undefined>;
   
+  // Medication reminders methods
+  getMedicationReminders(userId: number): Promise<MedicationReminder[]>;
+  getMedicationReminder(id: number): Promise<MedicationReminder | undefined>;
+  createMedicationReminder(reminder: InsertMedicationReminder): Promise<MedicationReminder>;
+  updateMedicationReminder(id: number, reminder: Partial<InsertMedicationReminder>): Promise<MedicationReminder | undefined>;
+  deleteMedicationReminder(id: number): Promise<boolean>;
+  
   // Session storage
   sessionStore: session.Store;
 }
@@ -78,6 +86,7 @@ export class MemStorage implements IStorage {
   private medicalDocuments: Map<number, MedicalDocument>;
   private educationResources: Map<number, EducationResource>;
   private healthAlerts: Map<number, HealthAlert>;
+  private medicationReminders: Map<number, MedicationReminder>;
 
   private userId: number;
   private healthMetricsId: number;
@@ -89,6 +98,7 @@ export class MemStorage implements IStorage {
   private medicalDocumentId: number;
   private educationResourceId: number;
   private healthAlertId: number;
+  private medicationReminderId: number;
   
   // Session store for express-session
   public sessionStore: session.Store;
@@ -105,6 +115,7 @@ export class MemStorage implements IStorage {
     this.medicalDocuments = new Map();
     this.educationResources = new Map();
     this.healthAlerts = new Map();
+    this.medicationReminders = new Map();
 
     // Initialize IDs
     this.userId = 1;
@@ -117,6 +128,7 @@ export class MemStorage implements IStorage {
     this.medicalDocumentId = 1;
     this.educationResourceId = 1;
     this.healthAlertId = 1;
+    this.medicationReminderId = 1;
     
     // Initialize session store
     const MemoryStore = createMemoryStore(session);
@@ -874,6 +886,55 @@ class DatabaseStorage implements IStorage {
     
     console.log(`Acknowledged health alert with ID ${id}`);
     return result;
+  }
+
+  // Medication reminders methods
+  async getMedicationReminders(userId: number): Promise<MedicationReminder[]> {
+    return await db.select()
+      .from(medicationReminders)
+      .where(eq(medicationReminders.userId, userId))
+      .orderBy(medicationReminders.medicationName);
+  }
+
+  async getMedicationReminder(id: number): Promise<MedicationReminder | undefined> {
+    const [reminder] = await db.select()
+      .from(medicationReminders)
+      .where(eq(medicationReminders.id, id));
+    return reminder;
+  }
+
+  async createMedicationReminder(reminder: InsertMedicationReminder): Promise<MedicationReminder> {
+    const [result] = await db.insert(medicationReminders).values({
+      ...reminder,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    
+    console.log(`Created medication reminder with ID ${result.id} for user ${reminder.userId}`);
+    return result;
+  }
+
+  async updateMedicationReminder(id: number, reminder: Partial<InsertMedicationReminder>): Promise<MedicationReminder | undefined> {
+    const [result] = await db
+      .update(medicationReminders)
+      .set({
+        ...reminder,
+        updatedAt: new Date()
+      })
+      .where(eq(medicationReminders.id, id))
+      .returning();
+    
+    console.log(`Updated medication reminder with ID ${id}`);
+    return result;
+  }
+
+  async deleteMedicationReminder(id: number): Promise<boolean> {
+    const result = await db
+      .delete(medicationReminders)
+      .where(eq(medicationReminders.id, id));
+    
+    console.log(`Deleted medication reminder with ID ${id}`);
+    return result.rowCount > 0;
   }
 }
 
