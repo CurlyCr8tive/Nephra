@@ -4,6 +4,7 @@ import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { AuthProvider } from "@/hooks/use-auth";
+import { UserProvider } from "@/contexts/UserContext";
 import { SupabaseProvider } from "./hooks/useSupabase";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -12,10 +13,12 @@ function AppWithProviders() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <SupabaseProvider>
-          <App />
-          <Toaster />
-        </SupabaseProvider>
+        <UserProvider>
+          <SupabaseProvider>
+            <App />
+            <Toaster />
+          </SupabaseProvider>
+        </UserProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
