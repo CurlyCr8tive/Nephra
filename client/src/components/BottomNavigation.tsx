@@ -31,7 +31,7 @@ export function BottomNavigation() {
           }`}
           data-testid="nav-track"
         >
-          <span className="material-icons text-2xl leading-none block" style={{ lineHeight: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '24px' }} aria-hidden>monitoring</span>
+          <span className="material-icons text-2xl leading-none block" aria-hidden>show_chart</span>
           <span className="text-[11px] leading-none text-center">Track</span>
         </Link>
         
