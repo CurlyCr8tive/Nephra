@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HealthCalendar } from "@/components/HealthCalendar";
 import { AppointmentScheduler } from "@/components/AppointmentScheduler";
+import { MedicationReminder } from "@/components/MedicationReminder";
 import { useToast } from "@/hooks/use-toast";
 import Chart from "chart.js/auto";
 import { format, subDays, startOfDay, endOfDay, isSameDay } from "date-fns";
@@ -622,29 +623,78 @@ export default function TrackPage() {
             
             {/* Calendar tab content */}
             <TabsContent value="calendar" className="space-y-6">
-              {/* Medical Appointments Section */}
-              <AppointmentScheduler className="w-full" />
-              
-              {/* Health Calendar Section */}
               <div className="bg-white rounded-xl shadow-sm p-4">
-                <h2 className="font-display font-bold text-lg mb-4">Health Calendar</h2>
-                {/* Health Calendar Component */}
-                {isLoadingWeekly ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-                    <span className="ml-2">Loading health data...</span>
-                  </div>
-                ) : weeklyMetrics && weeklyMetrics.length > 0 ? (
-                  <HealthCalendar 
-                    healthData={weeklyMetrics} 
-                    userId={user?.id} 
-                  />
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-lg font-medium">No health data available</p>
-                    <p className="text-muted-foreground mt-2">Log your first health entry to see it on the calendar</p>
-                  </div>
-                )}
+                <h2 className="font-display font-bold text-lg mb-4">Calendar & Scheduling</h2>
+                
+                {/* Nested tabs for Calendar features */}
+                <Tabs defaultValue="health-data" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="health-data" className="flex items-center gap-2" data-testid="tab-health-data">
+                      <CalendarDays className="w-4 h-4" />
+                      <span className="hidden sm:inline">Health Data</span>
+                      <span className="sm:hidden">Health</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="medications" className="flex items-center gap-2" data-testid="tab-medications">
+                      <Pill className="w-4 h-4" />
+                      <span className="hidden sm:inline">Medications</span>
+                      <span className="sm:hidden">Meds</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="appointments" className="flex items-center gap-2" data-testid="tab-appointments">
+                      <Stethoscope className="w-4 h-4" />
+                      <span className="hidden sm:inline">Appointments</span>
+                      <span className="sm:hidden">Appts</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Health Data Tab */}
+                  <TabsContent value="health-data" className="mt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CalendarDays className="w-5 h-5 text-primary" />
+                        <h3 className="font-medium text-lg">Health Calendar</h3>
+                      </div>
+                      {isLoadingWeekly ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                          <span className="ml-2">Loading health data...</span>
+                        </div>
+                      ) : weeklyMetrics && weeklyMetrics.length > 0 ? (
+                        <HealthCalendar 
+                          healthData={weeklyMetrics} 
+                          userId={user?.id} 
+                        />
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                          <CalendarDays className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-lg font-medium text-gray-600">No health data available</p>
+                          <p className="text-gray-500 mt-2">Log your first health entry to see it on the calendar</p>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Medications Tab */}
+                  <TabsContent value="medications" className="mt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Pill className="w-5 h-5 text-primary" />
+                        <h3 className="font-medium text-lg">Medication Management</h3>
+                      </div>
+                      <MedicationReminder className="w-full" />
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Appointments Tab */}
+                  <TabsContent value="appointments" className="mt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Stethoscope className="w-5 h-5 text-primary" />
+                        <h3 className="font-medium text-lg">Medical Appointments</h3>
+                      </div>
+                      <AppointmentScheduler className="w-full" />
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             </TabsContent>
             

@@ -127,8 +127,10 @@ export function AppointmentScheduler({ className }: AppointmentSchedulerProps) {
         appointmentDate: data.appointmentDate.toISOString(),
       };
       
-      const response = await apiRequest("POST", "/api/medical-appointments", appointmentData);
-      return await response.json();
+      return apiRequest("/api/medical-appointments", {
+        method: "POST",
+        body: JSON.stringify(appointmentData),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medical-appointments"] });
@@ -156,8 +158,10 @@ export function AppointmentScheduler({ className }: AppointmentSchedulerProps) {
         ...(data.appointmentDate && { appointmentDate: data.appointmentDate.toISOString() }),
       };
       
-      const response = await apiRequest("PATCH", `/api/medical-appointments/${id}`, appointmentData);
-      return await response.json();
+      return apiRequest(`/api/medical-appointments/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(appointmentData),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medical-appointments"] });
@@ -181,8 +185,9 @@ export function AppointmentScheduler({ className }: AppointmentSchedulerProps) {
   // Delete appointment mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("DELETE", `/api/medical-appointments/${id}`);
-      return await response.json();
+      return apiRequest(`/api/medical-appointments/${id}`, {
+        method: "DELETE",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medical-appointments"] });
@@ -203,8 +208,10 @@ export function AppointmentScheduler({ className }: AppointmentSchedulerProps) {
   // Mark appointment as completed mutation
   const completeMutation = useMutation({
     mutationFn: async ({ id, isCompleted }: { id: number, isCompleted: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/medical-appointments/${id}`, { isCompleted });
-      return await response.json();
+      return apiRequest(`/api/medical-appointments/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isCompleted }),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/medical-appointments"] });
