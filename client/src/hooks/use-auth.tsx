@@ -31,6 +31,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Query to get current user on app load
   const { data: userData, isLoading, error } = useQuery({
     queryKey: ['/api/user'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/user', {
+          credentials: 'include',
+        });
+        if (res.status === 401) {
+          return null; // User not authenticated
+        }
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        return await res.json();
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        return null;
+      }
+    },
     retry: false, // Don't retry if user is not authenticated
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
