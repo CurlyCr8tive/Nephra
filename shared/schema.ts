@@ -242,6 +242,40 @@ export const educationResources = pgTable("education_resources", {
   sortOrder: integer("sort_order"),
 });
 
+// Medication reminders table
+export const medicationReminders = pgTable("medication_reminders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  medicationName: text("medication_name").notNull(),
+  dosage: text("dosage").notNull(),
+  frequency: text("frequency").notNull(), // "daily", "twice_daily", "weekly", etc.
+  times: text("times").array().notNull(), // Array of time strings like ["08:00", "20:00"]
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Medical appointments table  
+export const medicalAppointments = pgTable("medical_appointments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  title: text("title").notNull(),
+  appointmentType: text("appointment_type").notNull(), // "checkup", "specialist", "lab", "dialysis", etc.
+  doctorName: text("doctor_name"),
+  location: text("location"),
+  appointmentDate: timestamp("appointment_date").notNull(),
+  duration: integer("duration"), // Duration in minutes
+  notes: text("notes"),
+  reminderSet: boolean("reminder_set").default(true),
+  reminderTime: integer("reminder_time").default(24), // Hours before appointment
+  isCompleted: boolean("is_completed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Community support features
 
 // Community forums - categories table
@@ -440,6 +474,18 @@ export const insertDirectMessageSchema = createInsertSchema(directMessages).omit
   createdAt: true,
 });
 
+export const insertMedicationReminderSchema = createInsertSchema(medicationReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMedicalAppointmentSchema = createInsertSchema(medicalAppointments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -495,3 +541,9 @@ export type SupportGroupEvent = typeof supportGroupEvents.$inferSelect;
 
 export type InsertDirectMessage = z.infer<typeof insertDirectMessageSchema>;
 export type DirectMessage = typeof directMessages.$inferSelect;
+
+export type InsertMedicationReminder = z.infer<typeof insertMedicationReminderSchema>;
+export type MedicationReminder = typeof medicationReminders.$inferSelect;
+
+export type InsertMedicalAppointment = z.infer<typeof insertMedicalAppointmentSchema>;
+export type MedicalAppointment = typeof medicalAppointments.$inferSelect;
