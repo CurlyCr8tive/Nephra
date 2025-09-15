@@ -49,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (userData: User) => {
       setUser(userData);
       queryClient.setQueryData(['/api/user'], userData);
+      // Force refresh the user query to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     },
     onError: (error: any) => {
       console.error('Login failed:', error);
@@ -64,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (userData: User) => {
       setUser(userData);
       queryClient.setQueryData(['/api/user'], userData);
+      // Force refresh the user query to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     },
     onError: (error: any) => {
       console.error('Registration failed:', error);
