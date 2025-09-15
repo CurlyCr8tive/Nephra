@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Logout mutation - SECURITY FIX: Use correct apiRequest signature
   const logoutMutation = useMutation({
     mutationFn: async (): Promise<void> => {
-      await apiRequest('POST', '/api/logout');
+      await apiRequest('POST', '/api/logout', {});
     },
     onSuccess: () => {
       setUser(null);
