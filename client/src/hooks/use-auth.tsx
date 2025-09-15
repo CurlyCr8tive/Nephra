@@ -33,18 +33,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ['/api/user'],
     queryFn: async () => {
       try {
+        console.log('🔍 AuthProvider: Fetching user data...');
         const res = await fetch('/api/user', {
           credentials: 'include',
         });
+        console.log(`🔍 AuthProvider: Got response status ${res.status}`);
+        
         if (res.status === 401) {
+          console.log('🔍 AuthProvider: User not authenticated (401)');
           return null; // User not authenticated
         }
         if (!res.ok) {
           throw new Error(`${res.status}: ${res.statusText}`);
         }
-        return await res.json();
+        
+        const userData = await res.json();
+        console.log('🔍 AuthProvider: Parsed user data:', userData);
+        return userData;
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error('🔍 AuthProvider: Error fetching user:', error);
         return null;
       }
     },
