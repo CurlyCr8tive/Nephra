@@ -1,0 +1,87 @@
+[0:00 – 0:20 | Quick Intro]
+Hi everyone, I’m Cherice, and I want to introduce you to Nephra—an AI-powered health companion built for people living with advanced stage kidney disease and the families supporting them.
+
+[0:20 – 1:10 | What the App Does]
+Right now, Nephra supports four main functions:
+Health Tracking – Patients can log hydration, blood pressure, and other symptoms.
+
+
+GFR Monitoring – They can view personalized kidney function trends using their estimated GFR.
+
+
+AI Journal Companion – A daily journal with AI-generated stress support, encouragement, and symptom tracking.
+
+
+Education & Advocacy – Articles and tools to help patients understand their condition and prepare for transplant conversations and journey.
+
+
+Nephra brings all of these into one cohesive platform, designed to be simple, accessible, and supportive.
+
+[1:10 – 2:30 | MVP Progress + Accessibility Enhancements]
+Since the last version, I’ve focused on accessibility, responsiveness, and accuracy. Here are some of the improvements:
+✅ Color Contrast
+I’ve updated our UI to meet WCAG standards—text and chat bubbles now meet the 4.5:1 contrast ratio for readability.
+
+
+⌨️ Keyboard Navigation
+Every interactive element, especially in the chat interface, is fully keyboard-accessible.
+
+
+
+
+
+🦾 Screen Reader Compatibility
+Icons like the AI avatar and material icons now include proper ARIA labels.
+
+
+📱 Responsive Design
+We capped chat bubble width at 80%, so text resizes cleanly across devices.
+
+
+🧮 GFR Calculator Upgrade
+It now accepts both mg/dL and μmol/L, with built-in unit conversion logic to keep estimates accurate regardless of format.
+
+
+
+[2:30 – 3:40 | Live Demo Walkthrough]
+(Begin screen share or walk through clickable prototype)
+Let’s take a quick look at what’s working today in the MVP.
+Home Dashboard
+ Here, patients get an overview of their most recent entries—hydration, blood pressure, symptoms—and their latest GFR estimate.
+
+
+(Show health summary cards or top-of-page view)
+GFR Calculator + Trends
+ This is the trend chart where users can monitor their kidney function over time.
+ The new calculator lets them enter either mg/dL or μmol/L, and the app handles the math in the background.
+
+
+(Open calculator form briefly and highlight unit toggle or conversion)
+Health Input Tracking
+ Logging hydration and blood pressure is fast and simple.
+ It saves automatically and updates the trend chart in real-time.
+
+
+(Show a hydration entry submission and feedback state)
+Journal + AI Support
+ In the journal tab, users can reflect on their day or symptoms.
+ When they submit a journal entry, the AI responds with encouragement or a stress-relief prompt personalized to their health status.
+
+
+(Demo submitting a journal entry and receiving an AI response)
+Accessibility in Action
+ Now, I’ll tab through the app to show keyboard navigation.
+ You’ll see that each element is focusable and labeled—this is critical for users with motor or vision impairments.
+
+
+(Tab through interface to highlight focus rings and ARIA-labeled elements)
+Responsive Layout Check
+ Lastly, I want to note that everything resizes cleanly on mobile and tablet views.
+ The app is fully responsive, so no functionality is lost on smaller screens.
+
+
+
+[3:40 – 4:00 | Wrap-Up]
+That’s where Nephra stands today—functional, accessible, and grounded in the lived experience of kidney patients.
+
+I’m not feeling great today. My head has been hurting alot and my blood pressure has been pretty high. 
