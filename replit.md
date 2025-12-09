@@ -86,3 +86,14 @@ Session-based authentication with comprehensive user management:
 - **Public Health APIs**: Integration with CDC, NIH, and National Kidney Foundation resources
 - **Medical Literature**: PubMed and ClinicalTrials.gov integration for evidence-based content
 - **Transplant Data**: UNOS and OPTN public data sources for transplant information
+
+## News Aggregation System (Added December 2025)
+Multi-source news aggregation for real-time kidney health content:
+- **Perplexity AI**: Real-time AI-powered news search for latest kidney health developments
+- **PubMed API**: Free access to medical research abstracts via NCBI E-utilities
+- **RSS Feeds**: Configured for NKF, NIH, and FDA medical device news (URLs may need updating)
+- **Caching**: 30-minute cache with forced refresh capability
+- **API Endpoints**:
+  - `GET /api/kidney-news` - Aggregated news from all sources
+  - `GET /api/kidney-news/category/:category` - Filter by category (research, treatment, policy, prevention, general)
+  - `GET /api/kidney-news/status` - Cache status and metadata

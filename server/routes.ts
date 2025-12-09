@@ -35,7 +35,7 @@ import { ensureUserHasHealthData } from "./utils/demoDataGenerator";
 // Import data transformation utilities
 import { transformHealthMetrics, logDataResults } from "./utils/dataTransformer";
 // Import news scraper
-import { fetchLatestKidneyNews, NewsArticle } from "./news-scraper";
+import { fetchLatestKidneyNews, fetchNewsByCategory, refreshNewsCache, getNewsCacheStatus, NewsArticle } from "./news-scraper";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -1211,19 +1211,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // News endpoint
+  // News endpoint - aggregates from Perplexity, RSS feeds, and PubMed
   app.get("/api/kidney-news", async (req, res) => {
     try {
-      console.log("🔍 Fetching latest kidney health news...");
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-      const articles = await fetchLatestKidneyNews(limit);
+      console.log("🔍 Fetching latest kidney health news from all sources...");
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 15;
+      const forceRefresh = req.query.refresh === 'true';
+      
+      const articles = forceRefresh 
+        ? await refreshNewsCache()
+        : await fetchLatestKidneyNews(limit);
+      
+      const cacheStatus = getNewsCacheStatus();
       
       console.log(`✅ Successfully retrieved ${articles.length} news articles`);
       res.json({
         success: true,
-        articles: articles,
+        articles: articles.slice(0, limit),
         count: articles.length,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: cacheStatus.lastUpdate?.toISOString() || new Date().toISOString(),
+        sources: cacheStatus.activeSources
       });
     } catch (error) {
       console.error("Error fetching kidney news:", error);
@@ -1232,6 +1239,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to fetch latest news", 
         articles: [] 
       });
+    }
+  });
+
+  // News by category endpoint
+  app.get("/api/kidney-news/category/:category", async (req, res) => {
+    try {
+      const category = req.params.category as 'research' | 'treatment' | 'policy' | 'prevention' | 'general';
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      
+      console.log(`🔍 Fetching ${category} kidney health news...`);
+      const articles = await fetchNewsByCategory(category, limit);
+      
+      res.json({
+        success: true,
+        category,
+        articles,
+        count: articles.length
+      });
+    } catch (error) {
+      console.error("Error fetching news by category:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to fetch news by category", 
+        articles: [] 
+      });
+    }
+  });
+
+  // News cache status endpoint
+  app.get("/api/kidney-news/status", async (req, res) => {
+    try {
+      const status = getNewsCacheStatus();
+      res.json({
+        success: true,
+        ...status,
+        cacheAgeMinutes: status.lastUpdate 
+          ? Math.round((Date.now() - status.lastUpdate.getTime()) / 60000) 
+          : null
+      });
+    } catch (error) {
+      console.error("Error getting news status:", error);
+      res.status(500).json({ success: false, error: "Failed to get news status" });
     }
   });
 

@@ -18,6 +18,23 @@ interface NewsArticle {
   link: string;
   category: 'research' | 'treatment' | 'policy' | 'prevention' | 'general';
   relevanceScore: number;
+  sourceType?: 'perplexity' | 'rss' | 'pubmed' | 'curated';
+}
+
+// Helper to get source type label
+function getSourceTypeLabel(sourceType?: string): { label: string; color: string } {
+  switch (sourceType) {
+    case 'perplexity':
+      return { label: 'AI Live', color: 'bg-violet-100 text-violet-700' };
+    case 'rss':
+      return { label: 'RSS Feed', color: 'bg-blue-100 text-blue-700' };
+    case 'pubmed':
+      return { label: 'Research', color: 'bg-emerald-100 text-emerald-700' };
+    case 'curated':
+      return { label: 'Curated', color: 'bg-amber-100 text-amber-700' };
+    default:
+      return { label: '', color: '' };
+  }
 }
 
 const EducationHub = () => {
@@ -345,12 +362,24 @@ const EducationHub = () => {
 
           {newsData?.success && newsData.articles.length > 0 && (
             <div className="space-y-4">
-              <div className="text-xs text-neutral-500 flex items-center gap-2">
-                <Calendar className="w-3 h-3" />
-                Last updated: {new Date(newsData.lastUpdated).toLocaleString()}
-                <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs">
-                  {newsData.count} articles
-                </span>
+              <div className="text-xs text-neutral-500 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Calendar className="w-3 h-3" />
+                  Last updated: {new Date(newsData.lastUpdated).toLocaleString()}
+                  <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs">
+                    {newsData.count} articles
+                  </span>
+                </div>
+                {newsData.sources && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-neutral-400">Sources:</span>
+                    {newsData.sources.map((source: string, idx: number) => (
+                      <span key={idx} className="px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded text-xs">
+                        {source}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               
               {newsData.articles.map((article: NewsArticle) => (
@@ -358,14 +387,12 @@ const EducationHub = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-lg leading-tight pr-2">{article.title}</CardTitle>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Tag className={`w-3 h-3 ${
-                          article.category === 'research' ? 'text-blue-600' :
-                          article.category === 'treatment' ? 'text-green-600' :
-                          article.category === 'policy' ? 'text-purple-600' :
-                          article.category === 'prevention' ? 'text-orange-600' :
-                          'text-neutral-600'
-                        }`} />
+                      <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
+                        {article.sourceType && getSourceTypeLabel(article.sourceType).label && (
+                          <span className={`text-xs px-2 py-0.5 rounded ${getSourceTypeLabel(article.sourceType).color}`}>
+                            {getSourceTypeLabel(article.sourceType).label}
+                          </span>
+                        )}
                         <span className={`text-xs px-2 py-1 rounded-full capitalize ${
                           article.category === 'research' ? 'bg-blue-50 text-blue-700' :
                           article.category === 'treatment' ? 'bg-green-50 text-green-700' :
