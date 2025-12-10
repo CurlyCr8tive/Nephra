@@ -87,6 +87,15 @@ Session-based authentication with comprehensive user management:
 - **Medical Literature**: PubMed and ClinicalTrials.gov integration for evidence-based content
 - **Transplant Data**: UNOS and OPTN public data sources for transplant information
 
+## Authentication (Updated December 2025)
+The app uses local username/password authentication with Passport.js:
+- **Backend**: Express sessions with PostgreSQL session store (connect-pg-simple)
+- **Password Hashing**: scrypt with 64-byte keys and random salts
+- **CSRF Protection**: Origin validation + token-based protection
+- **API Endpoints**: `/api/login`, `/api/register`, `/api/logout`, `/api/user`
+- **Demo Login**: `/api/login-demo` available in development only
+- **Supabase**: Optional - only used for file storage features (avatars, documents), not required for core functionality
+
 ## News Aggregation System (Added December 2025)
 Multi-source news aggregation for real-time kidney health content:
 - **Perplexity AI**: Real-time AI-powered news search for latest kidney health developments
