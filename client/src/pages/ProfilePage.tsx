@@ -7,7 +7,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { apiRequest } from "@/lib/queryClient";
-import { supabase } from "@/lib/supabaseClient";
+
+// Supabase for optional file storage - may not be configured
+let supabase: any = null;
+try {
+  const { supabase: sb } = require("@/lib/supabaseClient");
+  supabase = sb;
+} catch (e) {
+  console.warn("Supabase not available - file storage features disabled");
+}
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

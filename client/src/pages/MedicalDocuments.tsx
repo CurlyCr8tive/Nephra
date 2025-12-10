@@ -4,7 +4,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { validateMedicalDocument } from "@/lib/documentValidation";
-import { supabase } from "@/lib/supabaseClient";
+
+// Supabase for optional file storage - may not be configured
+let supabase: any = null;
+try {
+  const { supabase: sb } = require("@/lib/supabaseClient");
+  supabase = sb;
+} catch (e) {
+  console.warn("Supabase not available - file storage features disabled");
+}
 
 // UI Components
 import { Button } from "@/components/ui/button";
