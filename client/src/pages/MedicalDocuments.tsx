@@ -220,7 +220,7 @@ export default function MedicalDocuments() {
     }
   };
   
-  // Submit form with Supabase file upload
+  // Submit form with Replit Object Storage file upload
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -237,39 +237,59 @@ export default function MedicalDocuments() {
     setUploadProgress(0);
     
     try {
-      // Create a unique file path in Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const filePath = `medical-documents/${fileName}`;
+      // Get presigned upload URL from backend
+      const uploadRes = await fetch('/api/objects/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
       
-      // Check if supabase client is available
-      if (!supabase) {
-        throw new Error("Supabase client is not initialized");
+      if (!uploadRes.ok) {
+        throw new Error('Failed to get upload URL');
       }
       
-      // Upload the file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+      const { uploadURL } = await uploadRes.json();
+      setUploadProgress(30);
       
-      if (uploadError) {
-        throw new Error(`File upload failed: ${uploadError.message}`);
+      // Upload file directly to object storage
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('File upload failed');
       }
       
-      // Get the public URL for the uploaded file
-      const { data: { publicUrl } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
+      setUploadProgress(70);
+      
+      // Register the uploaded document with backend
+      const registerRes = await fetch('/api/documents/uploaded', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          uploadURL,
+          isPrivate: true,
+        }),
+      });
+      
+      if (!registerRes.ok) {
+        throw new Error('Failed to register document');
+      }
+      
+      const { objectPath } = await registerRes.json();
+      setUploadProgress(90);
       
       // Prepare document data with the file URL
       const documentData = {
         ...formData,
         metadata: metadataFields,
         uploadDate: new Date(),
-        fileUrl: publicUrl,
+        fileUrl: objectPath,
       };
       
       // Save document metadata to the database

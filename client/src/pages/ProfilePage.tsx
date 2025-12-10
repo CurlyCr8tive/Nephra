@@ -538,12 +538,10 @@ export default function ProfilePage() {
   };
   
   const uploadDocument = async () => {
-    if (!selectedFile || !userId || !supabase) {
+    if (!selectedFile || !userId) {
       toast({
         title: "Upload error",
-        description: !selectedFile 
-          ? "Please select a file to upload" 
-          : "Document storage is unavailable. Please try again later.",
+        description: "Please select a file to upload",
         variant: "destructive"
       });
       return;
@@ -554,42 +552,51 @@ export default function ProfilePage() {
     setUploadError(null);
     
     try {
-      // Create a unique filename
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+      // Get presigned upload URL from backend
+      const uploadRes = await fetch('/api/objects/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
       
-      // Upload file to Supabase Storage with custom progress tracking
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, selectedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
-        
-      if (uploadError) {
-        throw new Error(uploadError.message);
+      if (!uploadRes.ok) {
+        throw new Error('Failed to get upload URL');
       }
       
-      // Set progress to complete after successful upload
+      const { uploadURL } = await uploadRes.json();
+      setUploadProgress(30);
+      
+      // Upload file directly to object storage
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: {
+          'Content-Type': selectedFile.type || 'application/octet-stream',
+        },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('File upload failed');
+      }
+      
+      setUploadProgress(70);
+      
+      // Register the uploaded document with backend
+      const registerRes = await fetch('/api/documents/uploaded', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          uploadURL,
+          isPrivate: true,
+        }),
+      });
+      
+      if (!registerRes.ok) {
+        throw new Error('Failed to register document');
+      }
+      
       setUploadProgress(100);
-      
-      // Save document metadata to Supabase DB
-      const { error: dbError } = await supabase
-        .from('documents')
-        .insert({
-          userId: userId,
-          filename: fileName,
-          originalName: selectedFile.name,
-          fileSize: selectedFile.size,
-          fileType: selectedFile.type,
-          documentType: documentType,
-          createdAt: new Date().toISOString()
-        });
-        
-      if (dbError) {
-        throw new Error(dbError.message);
-      }
       
       toast({
         title: "Document uploaded",
@@ -617,48 +624,24 @@ export default function ProfilePage() {
   };
   
   const deleteDocument = async (documentId: string) => {
-    if (!userId || !supabase) {
+    if (!userId) {
       toast({
         title: "Error",
-        description: "Document storage is unavailable. Please try again later.",
+        description: "Please log in to delete documents.",
         variant: "destructive"
       });
       return;
     }
     
     try {
-      // First get the document to get the filename
-      const { data: document, error: fetchError } = await supabase
-        .from('documents')
-        .select('filename')
-        .eq('id', documentId)
-        .single();
-        
-      if (fetchError) {
-        throw new Error(fetchError.message);
-      }
+      // Delete document via API
+      const deleteRes = await fetch(`/api/medical-documents/${documentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       
-      if (!document) {
-        throw new Error('Document not found');
-      }
-      
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('documents')
-        .remove([`${userId}/${document.filename}`]);
-        
-      if (storageError) {
-        throw new Error(storageError.message);
-      }
-      
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from('documents')
-        .delete()
-        .eq('id', documentId);
-        
-      if (dbError) {
-        throw new Error(dbError.message);
+      if (!deleteRes.ok) {
+        throw new Error('Failed to delete document');
       }
       
       // Update local state

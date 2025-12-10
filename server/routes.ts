@@ -36,6 +36,9 @@ import { ensureUserHasHealthData } from "./utils/demoDataGenerator";
 import { transformHealthMetrics, logDataResults } from "./utils/dataTransformer";
 // Import news scraper
 import { fetchLatestKidneyNews, fetchNewsByCategory, refreshNewsCache, getNewsCacheStatus, NewsArticle } from "./news-scraper";
+// Import object storage service for file uploads
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -1281,6 +1284,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting news status:", error);
       res.status(500).json({ success: false, error: "Failed to get news status" });
+    }
+  });
+
+  // Object Storage - File Upload Endpoints (replaces Supabase file storage)
+  
+  // Get presigned URL for file upload
+  app.post("/api/objects/upload", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Serve uploaded objects
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      
+      // Check if user can access the object
+      const userId = req.isAuthenticated() ? String(req.user?.id) : undefined;
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      
+      if (!canAccess) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      return res.status(500).json({ error: "Error serving file" });
+    }
+  });
+
+  // Serve public objects from search paths
+  app.get("/public-objects/:filePath(*)", async (req, res) => {
+    const filePath = req.params.filePath;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error searching for public object:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update document/profile image after upload
+  app.put("/api/documents/uploaded", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    if (!req.body.uploadURL) {
+      return res.status(400).json({ error: "uploadURL is required" });
+    }
+    
+    const userId = String(req.user?.id);
+    
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.uploadURL,
+        {
+          owner: userId,
+          visibility: req.body.isPrivate ? "private" : "public",
+        }
+      );
+      
+      res.status(200).json({ objectPath });
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
