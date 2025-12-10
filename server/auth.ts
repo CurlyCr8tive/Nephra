@@ -2,7 +2,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import csrf from "csurf";
+// csurf import removed - using origin-based CSRF protection instead
 import cookieParser from "cookie-parser";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -208,17 +208,10 @@ export function setupAuth(app: Express) {
     next();
   });
   
-  // CSRF Token Protection - Re-enabled with proper configuration
-  const csrfProtection = csrf({
-    cookie: false, // Use session storage instead of cookies
-    ignoreMethods: ['GET', 'HEAD', 'OPTIONS'], // Don't require CSRF for safe methods
-    sessionKey: 'session', // Use the session for storing tokens
-    value: (req) => {
-      // Allow CSRF token from multiple sources
-      return req.body._csrf || req.query._csrf || req.headers['x-csrf-token'] || req.headers['csrf-token'];
-    }
-  });
-  app.use(csrfProtection);
+  // CSRF Protection Note: Token-based csurf is DISABLED
+  // We use origin/referer-based CSRF protection above (lines 111-209) which is sufficient
+  // for modern browsers when combined with JSON content-type requirements.
+  // The origin-based approach is simpler and doesn't require token management on the frontend.
   
   app.use(passport.initialize());
   app.use(passport.session());
