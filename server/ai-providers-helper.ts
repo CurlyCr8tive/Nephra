@@ -87,7 +87,7 @@ export const fetchFromPerplexity = async (
       throw new Error('Perplexity API key not configured');
     }
     
-    const model = options.model || 'llama-3.1-sonar-small-128k-online';
+    const model = options.model || 'sonar';
     const temperature = options.temperature ?? 0.2;
     const maxTokens = options.max_tokens ?? 500;
     
@@ -220,7 +220,7 @@ export const getResponseFromAvailableProvider = async (
           const client = initGemini();
           if (!client) continue;
           
-          const model = client.getGenerativeModel({ model: "gemini-1.5-pro" });
+          const model = client.getGenerativeModel({ model: "gemini-1.5-flash" });
           const result = await model.generateContent([
             systemPrompt, 
             fullPrompt

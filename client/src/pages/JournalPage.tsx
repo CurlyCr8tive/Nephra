@@ -46,6 +46,7 @@ export default function JournalPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
+    const contentParam = params.get('content');
     
     // Redirect chat tab to the dedicated Chat page
     if (tabParam === 'chat') {
@@ -64,6 +65,19 @@ export default function JournalPage() {
     // Set the active tab for other valid tabs
     if (tabParam && ['write', 'history'].includes(tabParam)) {
       setActiveTab(tabParam);
+    }
+    
+    // Pre-fill journal content if emotional check-in data is passed via URL
+    if (contentParam) {
+      try {
+        const decodedContent = decodeURIComponent(contentParam);
+        setJournalContent(decodedContent);
+        
+        // Clean URL after loading content (remove query params)
+        window.history.replaceState({}, '', '/journal?tab=write');
+      } catch (error) {
+        console.error("Error decoding journal content:", error);
+      }
     }
     
     // SECURITY FIX: Removed localStorage usage for emotional health data

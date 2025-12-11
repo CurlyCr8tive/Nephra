@@ -37,13 +37,26 @@ interface AIJournalAnalysis {
  */
 export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysis> {
   const systemPrompt = `
-    You are a compassionate emotional wellness assistant for kidney patients.
-    Estimate stress and fatigue from 1–10, then give a kind, encouraging reply.
+    You are a compassionate wellness assistant specifically for patients with late-stage kidney disease, dialysis patients, and kidney transplant recipients.
     
-    Your response must fit in a mobile app card (under 400 words).
-    Keep your language simple and supportive, focusing on the most important feedback.
+    When analyzing entries, consider kidney-specific concerns:
+    - Fluid retention, swelling, and bloating
+    - Fatigue related to anemia, dialysis, or kidney function
+    - Dietary restrictions (sodium, potassium, phosphorus, protein)
+    - Medication side effects and adherence
+    - Dialysis-related symptoms (if mentioned)
+    - Transplant recovery and immunosuppression concerns (if applicable)
+    - Blood pressure and cardiovascular health
+    - Emotional challenges of chronic kidney disease
     
-    Also, include a single suggestion from a public health source and a relevant link.
+    Estimate stress and fatigue from 1–10, then provide a supportive, kidney-focused response.
+    Keep your response under 400 words, simple, and actionable.
+    
+    When including a resource link, ONLY use these verified URLs:
+    - https://www.kidney.org (National Kidney Foundation)
+    - https://www.niddk.nih.gov/health-information/kidney-disease (NIDDK)
+    - https://www.kidneyfund.org (American Kidney Fund)
+    - https://unos.org/transplant (UNOS Transplant)
     
     Output this JSON: { "stress": X, "fatigue": Y, "response": "...", "link": "..." }
     Make sure to properly escape any quotes or special characters in your response.
@@ -132,29 +145,43 @@ export async function analyzeWithOpenAI(entry: string): Promise<AIJournalAnalysi
  */
 async function analyzeWithGemini(entry: string): Promise<AIJournalAnalysis> {
   try {
-    // Use the current 1.5 model which replaced gemini-pro
+    // Use gemini-1.5-flash for reliable API access
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-pro",
+      model: "gemini-1.5-flash",
       generationConfig: {
         maxOutputTokens: 800 // Increased token limit for more complete responses
       }
     });
     
     const prompt = `
-      As a wellness assistant for kidney patients, analyze this journal entry:
+      As a specialized wellness assistant for late-stage kidney disease, dialysis, and kidney transplant patients, analyze this journal entry:
       "${entry}"
+      
+      Consider kidney-specific factors:
+      - Fluid retention, bloating, swelling
+      - Fatigue from anemia, dialysis, or reduced kidney function
+      - Diet concerns (sodium, potassium, phosphorus limits)
+      - Medication effects and adherence
+      - Dialysis symptoms (if applicable)
+      - Transplant recovery and immunosuppression (if applicable)
+      - Blood pressure and cardiovascular health
+      - Emotional impact of chronic kidney disease
       
       1. Estimate stress level (integer between 1-10)
       2. Estimate fatigue level (integer between 1-10)
-      3. Write a supportive response (maximum 300 words) that fits in a mobile app UI card
-      4. Include a relevant health resource link if appropriate
+      3. Write a kidney-focused supportive response (maximum 300 words) that fits in a mobile app UI card
+      4. If including a link, ONLY use one of these verified URLs:
+         - https://www.kidney.org
+         - https://www.niddk.nih.gov/health-information/kidney-disease
+         - https://www.kidneyfund.org
+         - https://unos.org/transplant
       
       OUTPUT FORMAT MUST BE VALID JSON (with properly escaped quotes and characters):
       {
         "stress": [number],
         "fatigue": [number],
-        "response": "[your supportive response]",
-        "link": "[optional url to health resource]"
+        "response": "[your kidney-focused supportive response]",
+        "link": "[one of the verified URLs above if relevant]"
       }
       
       IMPORTANT: Do not include any text, explanations, or formatting outside of the JSON. Your entire response must be parseable as JSON.
@@ -299,7 +326,7 @@ export async function getJournalFollowUpResponse(
     const messages: {role: 'system' | 'user' | 'assistant', content: string}[] = [
       {
         role: "system",
-        content: "You are a compassionate wellness assistant for kidney patients. Provide supportive, evidence-based responses. Include credible health information when appropriate. IMPORTANT: Keep your responses concise (under 400 words) and in plain language as they will be displayed in a mobile app UI card."
+        content: "You are a specialized wellness assistant for late-stage kidney disease patients, dialysis patients, and kidney transplant recipients. When answering questions:\n\n- Focus on kidney-specific health concerns (fluid retention, fatigue from anemia, dietary restrictions for sodium/potassium/phosphorus, medication adherence, dialysis symptoms, transplant care)\n- Provide evidence-based, kidney-focused advice\n- When including links, ONLY use these verified kidney health resources:\n  * National Kidney Foundation: https://www.kidney.org\n  * NIDDK Kidney Disease Info: https://www.niddk.nih.gov/health-information/kidney-disease\n  * American Kidney Fund: https://www.kidneyfund.org\n  * UNOS Transplant Info: https://unos.org/transplant\n- Keep responses under 400 words for mobile app display\n- Use plain, supportive language\n- Consider the unique challenges of living with kidney disease\n\nAlways clarify you're providing general information, not medical advice. Encourage consulting their nephrologist or kidney care team for specific guidance."
       }
     ];
     
@@ -343,8 +370,8 @@ export async function getJournalFollowUpResponse(
     
     // Fallback to Gemini
     try {
-      // Use the current 1.5 model which replaced gemini-pro
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+      // Use gemini-1.5-flash for reliable API access
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       // Format context for Gemini
       let contextText = "Previous conversation:\n";
@@ -357,7 +384,7 @@ export async function getJournalFollowUpResponse(
         
         User: ${followUpPrompt}
         
-        You are a compassionate wellness assistant for kidney patients. Provide a supportive, evidence-based response.
+        You are a specialized wellness assistant for late-stage kidney disease, dialysis, and kidney transplant patients. Provide a kidney-focused, supportive, evidence-based response. Consider dietary restrictions (sodium, potassium, phosphorus), fluid management, anemia, dialysis concerns, and transplant care. Include relevant links to kidney resources when helpful (NKF, NIDDK, kidney.org). Keep under 400 words.
       `;
       
       const result = await model.generateContent(prompt);
@@ -368,7 +395,7 @@ export async function getJournalFollowUpResponse(
       // Try Perplexity as a final fallback
       try {
         // Create a simple prompt for Perplexity
-        const systemPrompt = "You are a compassionate wellness assistant for kidney patients. Provide supportive, evidence-based responses.";
+        const systemPrompt = "You are a specialized wellness assistant for late-stage kidney disease patients, dialysis patients, and kidney transplant recipients. Provide kidney-focused, supportive, evidence-based responses with practical advice for managing kidney disease. Include relevant links to kidney health resources (NKF, NIDDK, kidney.org, unos.org) when appropriate.";
         
         // Format context for Perplexity
         let contextPrompt = "Previous conversation:\n";
@@ -385,7 +412,7 @@ export async function getJournalFollowUpResponse(
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: "llama-3.1-sonar-small-128k-online",
+            model: "sonar",
             messages: [
               {
                 role: "system",

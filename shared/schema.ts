@@ -152,6 +152,7 @@ export const healthMetrics = pgTable("health_metrics", {
   hydration: doublePrecision("hydration"), // in liters
   systolicBP: integer("systolic_bp"),
   diastolicBP: integer("diastolic_bp"),
+  pulse: integer("pulse"), // heart rate in bpm (beats per minute)
   painLevel: integer("pain_level"),
   stressLevel: integer("stress_level"),
   fatigueLevel: integer("fatigue_level"), // 1-10 scale for fatigue

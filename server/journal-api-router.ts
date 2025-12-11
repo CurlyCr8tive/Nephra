@@ -192,7 +192,7 @@ router.post("/analyze-gemini", async (req: Request, res: Response) => {
     }
     
     // Using the fetch API for Google Gemini
-    const response = await fetch("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -203,21 +203,33 @@ router.post("/analyze-gemini", async (req: Request, res: Response) => {
           {
             parts: [
               {
-                text: `You are a health assistant specialized in analyzing journal entries from kidney disease patients.
+                text: `You are a specialized health assistant for late-stage kidney disease patients, dialysis patients, and kidney transplant recipients. Analyze this journal entry with a kidney-focused perspective.
+                
                 ${pastEntriesContext ? pastEntriesContext : ""}
                 
-                Analyze the following journal entry:
+                Journal Entry:
                 "${content}"
                 
-                Provide these insights:
-                1. Stress level (1-10)
-                2. Fatigue level (1-10)
-                3. Pain level (1-10)
-                4. Overall sentiment (positive, negative, neutral)
-                5. Key health concerns or symptoms mentioned
-                6. A brief supportive response (1-2 sentences)
+                Consider kidney-specific factors like:
+                - Fluid retention, bloating, swelling
+                - Fatigue from anemia or dialysis
+                - Dietary restrictions (sodium, potassium, phosphorus)
+                - Medication side effects
+                - Dialysis symptoms (if mentioned)
+                - Transplant recovery (if applicable)
+                - Blood pressure and cardiovascular health
                 
-                Format your response as JSON with these keys: stressScore, fatigueScore, painScore, sentiment, keywords, supportiveResponse, healthInsights.
+                Provide analysis as JSON with:
+                1. stressScore (1-10)
+                2. fatigueScore (1-10)
+                3. painScore (1-10)
+                4. sentiment (positive/negative/neutral)
+                5. keywords (array of kidney-related terms found)
+                6. supportiveResponse (kidney-focused, supportive message with specific advice)
+                7. healthInsights (kidney-specific observations)
+                8. educationLinks (array of relevant links to NKF, NIDDK, or transplant resources)
+                
+                Format: {"stressScore": X, "fatigueScore": Y, "painScore": Z, "sentiment": "...", "keywords": [...], "supportiveResponse": "...", "healthInsights": "...", "educationLinks": [{"title": "...", "url": "..."}]}
                 `
               }
             ]
@@ -316,7 +328,7 @@ router.post("/analyze-perplexity", async (req: Request, res: Response) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.1-sonar-small-128k-online",
+        model: "sonar",
         messages: [
           {
             role: "system",

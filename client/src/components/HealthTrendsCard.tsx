@@ -39,7 +39,7 @@ export function HealthTrendsCard() {
       if (!ctx) return;
 
       const labels = getLabels();
-      const data = getChartData();
+      const { data: chartData, diastolicData } = getChartDataWithDiastolic();
 
       const colors = {
         hydration: {
@@ -62,7 +62,7 @@ export function HealthTrendsCard() {
           labels,
           datasets: [{
             label: getDatasetLabel(),
-            data,
+            data: chartData,
             backgroundColor: colors[activeTab].background,
             borderColor: colors[activeTab].border,
             borderWidth: 2,
@@ -90,7 +90,17 @@ export function HealthTrendsCard() {
                 size: 14
               },
               padding: 10,
-              cornerRadius: 6
+              cornerRadius: 6,
+              callbacks: {
+                label: function(context) {
+                  if (activeTab === "bp" && diastolicData && diastolicData.length > 0) {
+                    const systolic = context.parsed.y;
+                    const diastolic = diastolicData[context.dataIndex];
+                    return `Systolic BP (mmHg): ${systolic}/${diastolic}`;
+                  }
+                  return context.dataset.label + ": " + context.parsed.y;
+                }
+              }
             }
           },
           scales: {
@@ -120,6 +130,68 @@ export function HealthTrendsCard() {
     }
   }, [weeklyMetrics, activeTab, isLoadingWeekly]);
 
+  // Helper function to aggregate multiple readings per day
+  const aggregateByDay = () => {
+    if (!weeklyMetrics || weeklyMetrics.length === 0) {
+      return { labels: [], data: [] };
+    }
+
+    // Group metrics by day
+    const dailyGroups = new Map<string, typeof weeklyMetrics>();
+    
+    weeklyMetrics.forEach(metric => {
+      if (!metric.date) return;
+      
+      // Use date string (YYYY-MM-DD) as key to group by day
+      const dateKey = new Date(metric.date).toISOString().split('T')[0];
+      
+      if (!dailyGroups.has(dateKey)) {
+        dailyGroups.set(dateKey, []);
+      }
+      dailyGroups.get(dateKey)!.push(metric);
+    });
+
+    // Sort by date (oldest to newest)
+    const sortedDays = Array.from(dailyGroups.entries()).sort((a, b) => 
+      a[0].localeCompare(b[0])
+    );
+
+    // Generate labels and aggregated data
+    const labels = sortedDays.map(([dateKey]) => {
+      const date = new Date(dateKey);
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    });
+
+    const data = sortedDays.map(([, dayMetrics]) => {
+      switch (activeTab) {
+        case "hydration":
+          // Sum all hydration entries for the day (cumulative intake)
+          return dayMetrics.reduce((sum, m) => sum + (m.hydration || 0), 0);
+          
+        case "bp":
+          // Average systolic BP for multiple readings per day
+          const systolicSum = dayMetrics.reduce((sum, m) => sum + (m.systolicBP || 0), 0);
+          return Math.round(systolicSum / dayMetrics.length);
+          
+        case "gfr":
+          // Average GFR if multiple readings (typically one per day)
+          const gfrSum = dayMetrics.reduce((sum, m) => sum + (m.estimatedGFR || 0), 0);
+          return Math.round(gfrSum / dayMetrics.length);
+          
+        default:
+          return 0;
+      }
+    });
+
+    // For BP, also calculate diastolic values
+    const diastolicData = activeTab === "bp" ? sortedDays.map(([, dayMetrics]) => {
+      const diastolicSum = dayMetrics.reduce((sum, m) => sum + (m.diastolicBP || 0), 0);
+      return Math.round(diastolicSum / dayMetrics.length);
+    }) : [];
+
+    return { labels, data, diastolicData };
+  };
+
   const getLabels = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
       // Return default labels for the past week
@@ -132,39 +204,28 @@ export function HealthTrendsCard() {
       return labels;
     }
 
-    // Extract dates from metrics and format them, handling null values
-    return weeklyMetrics.map(metric => {
-      if (!metric.date) return '';
-      return new Date(metric.date).toLocaleDateString('en-US', { weekday: 'short' });
-    });
+    return aggregateByDay().labels;
   };
 
   const getChartData = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
       console.log("No weekly metrics data available for chart");
-      // Return empty array instead of mock data to better reflect real situation
       return [];
     }
 
     console.log("Weekly metrics data for charts:", weeklyMetrics);
-    
-    // Extract appropriate data based on active tab
-    switch (activeTab) {
-      case "hydration":
-        return weeklyMetrics.map(metric => metric.hydration || 0);
-      case "bp":
-        return weeklyMetrics.map(metric => metric.systolicBP || 0);
-      case "gfr":
-        // Add logging to see the GFR values being extracted
-        const gfrValues = weeklyMetrics.map(metric => {
-          console.log(`GFR data point: ${metric.estimatedGFR}`);
-          return metric.estimatedGFR || 0;
-        });
-        console.log("GFR values for chart:", gfrValues);
-        return gfrValues;
-      default:
-        return [];
+    return aggregateByDay().data;
+  };
+
+  const getChartDataWithDiastolic = () => {
+    if (!weeklyMetrics || weeklyMetrics.length === 0) {
+      console.log("No weekly metrics data available for chart");
+      return { data: [], diastolicData: [] };
     }
+
+    console.log("Weekly metrics data for charts:", weeklyMetrics);
+    const aggregated = aggregateByDay();
+    return { data: aggregated.data, diastolicData: aggregated.diastolicData || [] };
   };
 
   const getDatasetLabel = () => {
@@ -228,29 +289,43 @@ export function HealthTrendsCard() {
 
     console.log("Calculating average for", activeTab, "with", weeklyMetrics.length, "entries");
 
+    const { data: dailyData } = aggregateByDay();
+    
+    if (dailyData.length === 0) {
+      return "--";
+    }
+
     switch (activeTab) {
       case "hydration": {
-        const total = weeklyMetrics.reduce((sum, metric) => sum + (metric.hydration || 0), 0);
-        return `${(total / weeklyMetrics.length).toFixed(1)}L / day`;
+        const total = dailyData.reduce((sum, value) => sum + value, 0);
+        return `${(total / dailyData.length).toFixed(1)}L / day`;
       }
       case "bp": {
-        const systolicTotal = weeklyMetrics.reduce((sum, metric) => sum + (metric.systolicBP || 0), 0);
-        const diastolicTotal = weeklyMetrics.reduce((sum, metric) => sum + (metric.diastolicBP || 0), 0);
-        const avgSystolic = Math.round(systolicTotal / weeklyMetrics.length);
-        const avgDiastolic = Math.round(diastolicTotal / weeklyMetrics.length);
+        // For BP, we need to also calculate average diastolic from raw data
+        const dailyGroups = new Map<string, typeof weeklyMetrics>();
+        weeklyMetrics.forEach(metric => {
+          if (!metric.date) return;
+          const dateKey = new Date(metric.date).toISOString().split('T')[0];
+          if (!dailyGroups.has(dateKey)) {
+            dailyGroups.set(dateKey, []);
+          }
+          dailyGroups.get(dateKey)!.push(metric);
+        });
+        
+        const avgSystolic = Math.round(dailyData.reduce((sum, value) => sum + value, 0) / dailyData.length);
+        
+        // Calculate average diastolic
+        const dailyDiastolic = Array.from(dailyGroups.values()).map(dayMetrics => {
+          const sum = dayMetrics.reduce((s, m) => s + (m.diastolicBP || 0), 0);
+          return Math.round(sum / dayMetrics.length);
+        });
+        const avgDiastolic = Math.round(dailyDiastolic.reduce((sum, value) => sum + value, 0) / dailyDiastolic.length);
+        
         return `${avgSystolic}/${avgDiastolic}`;
       }
       case "gfr": {
-        // Log each GFR value to ensure we're accessing the correct property
-        weeklyMetrics.forEach((metric, index) => {
-          console.log(`GFR entry ${index}:`, metric.estimatedGFR);
-        });
-        
-        const gfrValues = weeklyMetrics.map(metric => metric.estimatedGFR || 0);
-        const total = gfrValues.reduce((sum, value) => sum + value, 0);
-        const average = Math.round(total / gfrValues.length);
-        
-        console.log("GFR average calculation:", total, "÷", gfrValues.length, "=", average);
+        const average = Math.round(dailyData.reduce((sum, value) => sum + value, 0) / dailyData.length);
+        console.log("GFR average calculation:", average);
         return `${average}`;
       }
       default:

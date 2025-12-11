@@ -85,7 +85,7 @@ export interface MedicalTermsExplanation {
 async function callPerplexityAPI(
   systemPrompt: string,
   userPrompt: string,
-  model: string = "llama-3.1-sonar-small-128k-online"
+  model: string = "sonar"
 ): Promise<PerplexityResponse> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   
@@ -351,18 +351,32 @@ export async function analyzeJournalEntry(entry: string): Promise<{
   link?: string;
 }> {
   try {
-    const systemPrompt = `You are a compassionate emotional wellness assistant for kidney patients.
-      Analyze this journal entry, estimate stress and fatigue levels (1-10 scale), and provide a supportive response.
+    const systemPrompt = `You are a specialized wellness assistant for late-stage kidney disease patients, dialysis patients, and kidney transplant recipients.
       
-      IMPORTANT: Your entire response must be valid JSON.
-      FORMAT: { "stress": number, "fatigue": number, "response": "your supportive message", "link": "optional url" }
+      When analyzing journal entries, consider kidney-specific concerns:
+      - Fluid retention, bloating, swelling
+      - Fatigue from anemia or dialysis
+      - Dietary restrictions (sodium, potassium, phosphorus)
+      - Medication side effects and adherence
+      - Dialysis symptoms
+      - Transplant recovery and immunosuppression
+      - Blood pressure and cardiovascular health
       
-      Keep your response message under 300 words and focus on being encouraging and helpful.
-      Properly escape any quotes or special characters in your JSON response.`;
+      Estimate stress and fatigue levels (1-10 scale) and provide a kidney-focused supportive response with practical advice.
+      
+      IMPORTANT: If including a link, ONLY use one of these verified kidney health resource URLs:
+      - https://www.kidney.org (National Kidney Foundation)
+      - https://www.niddk.nih.gov/health-information/kidney-disease (NIDDK)
+      - https://www.kidneyfund.org (American Kidney Fund)
+      - https://unos.org/transplant (UNOS for transplant info)
+      
+      FORMAT: { "stress": number, "fatigue": number, "response": "your kidney-focused supportive message", "link": "one of the verified URLs above" }
+      
+      Keep your response under 300 words, kidney-specific, and include actionable advice. Properly escape quotes.`;
 
-    const userPrompt = `Journal entry: "${entry}"
+    const userPrompt = `Kidney patient journal entry: "${entry}"
       
-      Please analyze this entry and respond with properly formatted JSON only.`;
+      Analyze from a kidney disease perspective and respond with JSON including a verified kidney health resource link if relevant.`;
     
     const response = await callPerplexityAPI(systemPrompt, userPrompt);
     const content = response.choices[0].message.content;

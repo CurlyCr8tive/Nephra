@@ -119,12 +119,25 @@ export function EmotionalCheckInCard() {
       
       // Check if user is still logged in before redirecting
       if (user && user.id) {
-        // Redirect to journal page with write tab active
+        // Format emotional check-in data for journal entry
+        const emotionLabel = emotionOptions.find(e => e.value === selectedEmotion)?.label || selectedEmotion;
+        const emotionEmoji = emotionOptions.find(e => e.value === selectedEmotion)?.emoji || "";
+        const tagsText = selectedTags.map(tag => {
+          const tagLabel = emotionTags.find(t => t.value === tag)?.label;
+          return tagLabel;
+        }).filter(Boolean).join(", ");
+        
+        const journalText = `${emotionEmoji} Feeling ${emotionLabel.toLowerCase()}
+${tagsText ? `\nRelated to: ${tagsText}` : ""}${notes ? `\n\n${notes}` : ""}`;
+        
+        // Redirect to journal page with pre-filled content via URL parameter
+        const encodedContent = encodeURIComponent(journalText);
+        setLocation(`/journal?tab=write&content=${encodedContent}`);
+        
         toast({
           title: "Opening journal",
           description: "You can now add more details to your entry",
         });
-        setLocation("/journal?tab=write");
       } else {
         toast({
           title: "Session expired",

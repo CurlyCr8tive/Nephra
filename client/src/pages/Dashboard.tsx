@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import WelcomeCard from "@/components/WelcomeCard";
@@ -8,13 +9,12 @@ import HealthTrendsCard from "@/components/HealthTrendsCard";
 import TransplantRoadmapCard from "@/components/TransplantRoadmapCard";
 import { EnhancedTrendAnalysis } from "@/components/EnhancedTrendAnalysis";
 import HealthStatusCard from "@/components/HealthStatusCard";
-import HealthLogging from "@/pages/HealthLogging";
 import { useHealthData } from "@/hooks/useHealthData";
 import { useUser } from "@/contexts/UserContext";
 import HealthMetricAlert from "@/components/HealthMetricAlert";
 
 export default function Dashboard() {
-  const [showLoggingForm, setShowLoggingForm] = useState(false);
+  const [, navigate] = useLocation();
   const [showEnhancedAnalysis, setShowEnhancedAnalysis] = useState(false);
   
   // Get user data to ensure we're properly authenticated
@@ -44,11 +44,7 @@ export default function Dashboard() {
   }, [user, weeklyMetrics, latestMetrics, isLoadingWeekly]);
 
   const handleLogClick = () => {
-    setShowLoggingForm(true);
-  };
-
-  const handleCloseLoggingForm = () => {
-    setShowLoggingForm(false);
+    navigate("/track");
   };
 
   return (
@@ -56,30 +52,26 @@ export default function Dashboard() {
       <Header />
       
       <main className="flex-grow pt-20 pb-20">
-        {showLoggingForm ? (
-          <HealthLogging onClose={handleCloseLoggingForm} />
-        ) : (
-          <div className="px-4 py-4">
-            <WelcomeCard onLogClick={handleLogClick} />
-            <HealthStatusCard />
-            <EmotionalCheckInCard />
-            
-            {/* Show enhanced analysis if there's data, otherwise show basic trends */}
-            {showEnhancedAnalysis ? (
-              <EnhancedTrendAnalysis />
-            ) : (
-              <HealthTrendsCard />
-            )}
-            
-            <AICompanionCard />
-            <TransplantRoadmapCard />
-            
-            {/* Display health metric alerts if we have latest metrics data */}
-            {latestMetrics && (
-              <HealthMetricAlert metrics={latestMetrics} />
-            )}
-          </div>
-        )}
+        <div className="px-4 py-4">
+          <WelcomeCard onLogClick={handleLogClick} />
+          <HealthStatusCard />
+          <EmotionalCheckInCard />
+          
+          {/* Show enhanced analysis if there's data, otherwise show basic trends */}
+          {showEnhancedAnalysis ? (
+            <EnhancedTrendAnalysis />
+          ) : (
+            <HealthTrendsCard />
+          )}
+          
+          <AICompanionCard />
+          <TransplantRoadmapCard />
+          
+          {/* Display health metric alerts if we have latest metrics data */}
+          {latestMetrics && (
+            <HealthMetricAlert metrics={latestMetrics} />
+          )}
+        </div>
       </main>
       
       <BottomNavigation />
