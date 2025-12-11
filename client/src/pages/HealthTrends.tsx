@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { KSLSCard } from "@/components/KSLSCard";
 import { useUser } from "@/contexts/UserContext";
 import { useHealthData } from "@/hooks/useHealthData";
+import { useKSLSFromMetrics } from "@/hooks/useKSLS";
 import Chart from "chart.js/auto";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { HealthMetrics } from "@shared/schema";
@@ -12,6 +14,9 @@ export default function HealthTrends() {
   // Use authenticated user's data only without fallbacks
   const { user } = useUser();
   const userId = user?.id;
+  
+  // Fetch KSLS data
+  const { data: kslsData } = useKSLSFromMetrics(userId);
   
   // Log user info to help with debugging
   useEffect(() => {
@@ -334,6 +339,17 @@ export default function HealthTrends() {
       
       <main className="flex-grow pt-20 pb-20">
         <div className="px-4 py-4">
+          {/* KSLS Card - Full display for detailed analysis */}
+          {kslsData && (
+            <div className="mb-6">
+              <KSLSCard 
+                result={kslsData.result} 
+                interpretation={kslsData.interpretation}
+                showDetails={true}
+              />
+            </div>
+          )}
+          
           <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-display font-bold text-lg">Health Analytics</h2>

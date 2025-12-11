@@ -9,7 +9,7 @@ import { DataMigrationButton } from "@/components/DataMigrationButton";
 export function HealthTrendsCard() {
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
-  const [activeTab, setActiveTab] = useState<"hydration" | "bp" | "gfr">("hydration");
+  const [activeTab, setActiveTab] = useState<"hydration" | "bp" | "gfr" | "ksls">("hydration");
   
   // Get the real user data from context
   const { user } = useUser();
@@ -53,6 +53,10 @@ export function HealthTrendsCard() {
         gfr: {
           border: "rgba(255, 152, 0, 1)",
           background: "rgba(255, 152, 0, 0.2)",
+        },
+        ksls: {
+          border: "rgba(59, 130, 246, 1)",
+          background: "rgba(59, 130, 246, 0.2)",
         },
       };
 
@@ -178,6 +182,11 @@ export function HealthTrendsCard() {
           const gfrSum = dayMetrics.reduce((sum, m) => sum + (m.estimatedGFR || 0), 0);
           return Math.round(gfrSum / dayMetrics.length);
           
+        case "ksls":
+          // Average KSLS if multiple readings
+          const kslsSum = dayMetrics.reduce((sum, m) => sum + (m.kslsScore || 0), 0);
+          return Math.round(kslsSum / dayMetrics.length);
+          
         default:
           return 0;
       }
@@ -236,6 +245,8 @@ export function HealthTrendsCard() {
         return "Systolic BP (mmHg)";
       case "gfr":
         return "Estimated GFR";
+      case "ksls":
+        return "KSLS Score (0-100)";
       default:
         return "";
     }
@@ -263,6 +274,8 @@ export function HealthTrendsCard() {
         }
         return 120; // Default for empty data
       }
+      case "ksls":
+        return 100;
       default:
         return 100;
     }
@@ -276,6 +289,8 @@ export function HealthTrendsCard() {
         return 40;
       case "gfr":
         return 30;
+      case "ksls":
+        return 10;
       default:
         return 10;
     }
@@ -366,7 +381,23 @@ export function HealthTrendsCard() {
           }`}
           onClick={() => setActiveTab("gfr")}
         >
-          GFR
+          <span className="flex items-center justify-center gap-1">
+            GFR
+            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">eGFR</span>
+          </span>
+        </button>
+        <button 
+          className={`flex-1 text-sm py-2 border-b-2 ${
+            activeTab === "ksls" 
+              ? "border-blue-500 text-blue-600 font-medium" 
+              : "border-neutral-200 text-neutral-500"
+          }`}
+          onClick={() => setActiveTab("ksls")}
+        >
+          <span className="flex items-center justify-center gap-1">
+            KSLS
+            <span className="text-xs bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded">Stress</span>
+          </span>
         </button>
       </div>
       

@@ -6,6 +6,7 @@ import * as journalService from "./journal-service";
 import * as supabaseService from "./supabase-service";
 import { storage } from "./storage";
 import journalApiRouter from "./journal-api-router";
+import { estimateSymptomsFromText, shouldSuggestKSLS } from "./utils/symptom-extractor";
 
 const router = Router();
 
@@ -26,27 +27,52 @@ router.post("/chat", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
     
-    // Get the AI response
-    const aiResponse = await openaiService.getNephraSupportChat(userMessage, context);
+    // Extract symptoms using advanced NLP before getting AI response
+    const symptomAnalysis = estimateSymptomsFromText(userMessage);
+    const kslsSuggestion = shouldSuggestKSLS(symptomAnalysis);
     
-    // Extract tags and emotions from content
+    // Build enhanced context with symptom data for AI
+    const enhancedContext = context || "";
+    const symptomContext = symptomAnalysis.confidence !== "none" 
+      ? `\n[Symptom Analysis: Fatigue=${symptomAnalysis.fatigue_score}/10, Pain=${symptomAnalysis.pain_score}/10, Stress=${symptomAnalysis.stress_score}/10, Confidence=${symptomAnalysis.confidence}]`
+      : "";
+    
+    // Get the AI response with symptom-enhanced context
+    let aiResponse = await openaiService.getNephraSupportChat(userMessage, enhancedContext + symptomContext);
+    
+    // Add KSLS tracking suggestion if symptoms are significant
+    if (kslsSuggestion) {
+      aiResponse += "\n\n💡 " + kslsSuggestion.message;
+    }
+    
+    // Extract tags and emotions from symptom analysis
     let tags: string[] = [];
     let emotionalScore: number | undefined = undefined;
     
-    // Simple keyword matching for tagging (will be enhanced by AI in production)
-    if (userMessage.toLowerCase().includes('tired') || userMessage.toLowerCase().includes('fatigue')) {
+    // Use symptom extractor results for tagging
+    if (symptomAnalysis.fatigue_score >= 5) {
       tags.push('fatigue');
-      emotionalScore = 7;
+      emotionalScore = Math.max(emotionalScore || 0, symptomAnalysis.fatigue_score);
     }
     
-    if (userMessage.toLowerCase().includes('pain') || userMessage.toLowerCase().includes('hurt')) {
+    if (symptomAnalysis.pain_score >= 3) {
       tags.push('pain');
-      emotionalScore = 8;
+      emotionalScore = Math.max(emotionalScore || 0, symptomAnalysis.pain_score);
     }
     
-    if (userMessage.toLowerCase().includes('stress') || userMessage.toLowerCase().includes('anxiety')) {
+    if (symptomAnalysis.stress_score >= 5) {
       tags.push('stress');
-      emotionalScore = 6;
+      emotionalScore = Math.max(emotionalScore || 0, symptomAnalysis.stress_score);
+    }
+    
+    // Add detected trigger keywords as additional tags
+    if (symptomAnalysis.detected_triggers && symptomAnalysis.detected_triggers.length > 0) {
+      symptomAnalysis.detected_triggers.forEach(trigger => {
+        const triggerTag = trigger.replace(/\s+/g, '_').toLowerCase();
+        if (!tags.includes(triggerTag)) {
+          tags.push(triggerTag);
+        }
+      });
     }
     
     // Save the chat to the local database

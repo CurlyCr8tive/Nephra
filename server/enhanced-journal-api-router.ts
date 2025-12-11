@@ -6,6 +6,7 @@ import { Router, Request, Response } from "express";
 import { processEnhancedJournalEntry, getJournalFollowUpResponse } from "./enhanced-journal-service";
 import { InsertJournalEntry, journalEntries } from "@shared/schema";
 import { db } from "./db";
+import { estimateSymptomsFromText, shouldSuggestKSLS } from "./utils/symptom-extractor";
 
 const router = Router();
 
@@ -44,13 +45,28 @@ router.post("/process", async (req: Request, res: Response) => {
       // Try to process with our AI services
       const result = await processEnhancedJournalEntry(userId, content);
       
+      // Extract symptoms from journal text for enhanced analysis
+      const symptomAnalysis = estimateSymptomsFromText(content);
+      const kslsSuggestion = shouldSuggestKSLS(symptomAnalysis);
+      
+      // Enhance AI response with symptom-based suggestions if applicable
+      let enhancedResponse = result.aiAnalysis.response;
+      if (kslsSuggestion) {
+        enhancedResponse += "\n\n💡 " + kslsSuggestion.message;
+      }
+      
       return res.status(200).json({
         entry: result.entry,
         analysis: {
           stress: result.aiAnalysis.stress,
           fatigue: result.aiAnalysis.fatigue,
-          response: result.aiAnalysis.response,
-          link: result.aiAnalysis.link || null
+          response: enhancedResponse,
+          link: result.aiAnalysis.link || null,
+          symptoms: {
+            detected: symptomAnalysis,
+            kslsRecommended: kslsSuggestion ? true : false,
+            triggers: symptomAnalysis.detected_triggers
+          }
         }
       });
     } catch (aiError) {

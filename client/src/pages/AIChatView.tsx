@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useUser } from "@/contexts/UserContext";
 import { getChatCompletion, getChatHistory } from "@/lib/openai";
 import { useToast } from "@/hooks/use-toast";
+import { BottomNavigation } from "@/components/BottomNavigation";
 
 export default function AIChatView() {
   const { user } = useUser();
@@ -245,38 +246,5 @@ export default function AIChatView() {
       
       <BottomNavigation />
     </div>
-  );
-}
-
-// Include BottomNavigation component
-function BottomNavigation() {
-  const [location] = useLocation();
-
-  const isActive = (path: string) => location === path;
-
-  const navItems = [
-    { path: "/", icon: "home", label: "Home" },
-    { path: "/track", icon: "monitoring", label: "Track" },
-    { path: "/chat", icon: "chat", label: "Chat" },
-    { path: "/transplant", icon: "map", label: "Roadmap" },
-  ];
-
-  return (
-    <nav className="bg-white shadow-lg fixed bottom-0 left-0 right-0 z-10 border-t border-neutral-200">
-      <div className="flex justify-around">
-        {navItems.map((item) => (
-          <Link
-            key={item.path}
-            href={item.path}
-            className={`flex flex-col items-center py-3 px-5 ${
-              isActive(item.path) ? "text-primary" : "text-neutral-500"
-            }`}
-          >
-            <span className="material-icons">{item.icon}</span>
-            <span className="text-xs mt-1">{item.label}</span>
-          </Link>
-        ))}
-      </div>
-    </nav>
   );
 }

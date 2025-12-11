@@ -7,6 +7,7 @@ KidneyHealth is a mobile-first kidney health tracking application that leverages
 ## Key Features
 
 - **Health Metrics Tracking**: Monitor GFR, creatinine, blood pressure, pain, stress, and fatigue
+- **Kidney Stress Load Score (KSLS)**: Daily wellness index combining BP, hydration, symptoms, and BMI into a 0-100 score with demographic-informed insights (NEW!)
 - **AI-Powered Journal**: Intelligent analysis of your journal entries with emotional wellness support
 - **Multi-AI Provider System**: Uses OpenAI, Perplexity, Google Gemini, and Anthropic with fallback options
 - **Education & Advocacy Hub**: Resources on kidney health, treatment options, and self-advocacy
@@ -92,6 +93,33 @@ The application uses a multi-modal AI system with fallback options:
 2. Secondary: OpenAI for general health insights
 3. Tertiary: Perplexity for evidence-based information
 4. Backup: Google Gemini and Anthropic Claude
+
+### Kidney Stress Load Score (KSLS)
+KSLS is a 0-100 wellness index that helps users understand daily kidney stress from health metrics. **NOT** a measure of kidney function (GFR) or a diagnostic tool.
+
+**Key Principles:**
+- Demographics **NEVER** affect the numeric score (equity-focused design)
+- Combines 6 factors: blood pressure (35%), hydration (15%), fatigue (15%), pain (10%), stress (10%), BMI (15%)
+- Score bands: Stable (0-33), Elevated (34-66), High (67-100)
+- Demographic-informed interpretation layer provides personalized educational context
+- Based on evidence from JNC 8, KDIGO, KDOQI, and NKF guidelines
+
+**Usage:**
+```typescript
+// API endpoint
+POST /api/ksls/calculate
+POST /api/ksls/calculate-from-metrics/:userId
+
+// React hook
+import { useKSLS } from '@/hooks/useKSLS';
+const { calculateKSLS } = useKSLS();
+
+// Component
+import { KSLSCard } from '@/components/KSLSCard';
+<KSLSCard result={result} interpretation={interpretation} />
+```
+
+See [KSLS Documentation](./docs/KSLS.md) for full details.
 
 ## Contributing
 

@@ -45,7 +45,7 @@ export default function TrackPage() {
   const { toast } = useToast();
   // Use state to explicitly control active tab to prevent reset issues
   const [activeSection, setActiveSection] = useState("analytics");
-  const [activeDataTab, setActiveDataTab] = useState<"hydration" | "bp" | "gfr" | "pain" | "stress" | "fatigue">("hydration");
+  const [activeDataTab, setActiveDataTab] = useState<"hydration" | "bp" | "gfr" | "ksls" | "pain" | "stress" | "fatigue">("hydration");
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("7d");
   
   // State for health data entry
@@ -58,6 +58,7 @@ export default function TrackPage() {
   const [fatigueLevel, setFatigueLevel] = useState<number>(3);
   const [medicalNotes, setMedicalNotes] = useState<string>("");
   const [estimatedGFR, setEstimatedGFR] = useState<number>(70);
+  const [calculatedKSLS, setCalculatedKSLS] = useState<{ score: number; band: string } | null>(null);
   const [medications, setMedications] = useState<Medication[]>([
     { name: "Lisinopril", dosage: "10mg", frequency: "Once daily", taken: false },
     { name: "Metoprolol", dosage: "25mg", frequency: "Twice daily", taken: false },
@@ -351,6 +352,9 @@ export default function TrackPage() {
       case "gfr":
         dataPoints = sortedData.map((metric: HealthMetrics) => metric.estimatedGFR || 0);
         break;
+      case "ksls":
+        dataPoints = sortedData.map((metric: HealthMetrics) => metric.kslsScore || 0);
+        break;
       case "pain":
         dataPoints = sortedData.map((metric: HealthMetrics) => metric.painLevel || 0);
         break;
@@ -395,6 +399,10 @@ export default function TrackPage() {
         gfr: {
           border: "rgba(255, 152, 0, 1)",
           background: "rgba(255, 152, 0, 0.2)",
+        },
+        ksls: {
+          border: "rgba(59, 130, 246, 1)",
+          background: "rgba(59, 130, 246, 0.2)",
         },
         pain: {
           border: "rgba(244, 67, 54, 1)",
@@ -482,6 +490,8 @@ export default function TrackPage() {
         return "Systolic BP (mmHg)";
       case "gfr":
         return "Estimated GFR";
+      case "ksls":
+        return "KSLS Score (0-100)";
       case "pain":
         return "Pain Level (1-10)";
       case "stress":
@@ -501,6 +511,8 @@ export default function TrackPage() {
         return 200;
       case "gfr":
         return 120;
+      case "ksls":
+        return 100;
       case "pain":
       case "stress":
       case "fatigue":
@@ -518,6 +530,8 @@ export default function TrackPage() {
         return 20;
       case "gfr":
         return 15;
+      case "ksls":
+        return 10;
       case "pain":
       case "stress":
       case "fatigue":
@@ -544,6 +558,8 @@ export default function TrackPage() {
         return `${Math.round(avg)}`;
       case "gfr":
         return `${Math.round(avg)}`;
+      case "ksls":
+        return `${Math.round(avg)}/100`;
       case "pain":
       case "stress":
       case "fatigue":
@@ -638,6 +654,7 @@ export default function TrackPage() {
                     <TabsTrigger value="hydration" className="flex-1">Hydration</TabsTrigger>
                     <TabsTrigger value="bp" className="flex-1">BP</TabsTrigger>
                     <TabsTrigger value="gfr" className="flex-1">GFR</TabsTrigger>
+                    <TabsTrigger value="ksls" className="flex-1">KSLS</TabsTrigger>
                     <TabsTrigger value="pain" className="flex-1">Pain</TabsTrigger>
                     <TabsTrigger value="stress" className="flex-1">Stress</TabsTrigger>
                     <TabsTrigger value="fatigue" className="flex-1">Fatigue</TabsTrigger>
@@ -665,17 +682,228 @@ export default function TrackPage() {
                   </div>
                   
                   <div className="mt-6">
-                    <h3 className="font-medium text-sm mb-2">Insights</h3>
-                    <div className="bg-neutral-100 rounded-lg p-4">
-                      <p className="text-sm text-neutral-600">
-                        {activeDataTab === "hydration" && "Maintaining proper hydration is crucial for kidney health. Aim for a consistent daily water intake."}
-                        {activeDataTab === "bp" && "Keeping your blood pressure under control helps protect your kidneys from further damage."}
-                        {activeDataTab === "gfr" && "Your GFR (Glomerular Filtration Rate) is an important indicator of kidney function. Monitor changes over time."}
-                        {activeDataTab === "pain" && "Tracking pain levels can help your healthcare provider adjust your treatment plan."}
-                        {activeDataTab === "stress" && "Reducing stress may help improve your overall health and potentially your kidney function."}
-                        {activeDataTab === "fatigue" && "Monitoring fatigue levels is important for kidney patients. Rest when needed and discuss persistent fatigue with your healthcare provider."}
-                      </p>
-                    </div>
+                    <h3 className="font-medium text-sm mb-2">Detailed Insights</h3>
+                    
+                    {/* GFR Insights */}
+                    {activeDataTab === "gfr" && weeklyMetrics && weeklyMetrics.length > 0 && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <h4 className="font-semibold text-primary">Kidney Function Analysis</h4>
+                        </div>
+                        
+                        <p className={`font-medium text-sm mb-2 ${
+                          weeklyMetrics[0].gfrTrend === 'significant_improvement' || weeklyMetrics[0].gfrTrend === 'moderate_improvement' ? 'text-green-600' : 
+                          weeklyMetrics[0].gfrTrend === 'stable' ? 'text-blue-600' : 
+                          weeklyMetrics[0].gfrTrend === 'possible_decline' ? 'text-amber-600' : 
+                          'text-red-600'
+                        }`}>
+                          {weeklyMetrics[0].gfrTrendDescription || "Your kidney function appears stable based on recent measurements."}
+                        </p>
+                        
+                        {weeklyMetrics[0].gfrChangePercent && (
+                          <p className="text-xs text-neutral-700 mb-2">
+                            {weeklyMetrics[0].gfrChangePercent > 0 ? '+' : ''}{weeklyMetrics[0].gfrChangePercent.toFixed(1)}% change
+                            {weeklyMetrics[0].gfrAbsoluteChange && 
+                              ` (${weeklyMetrics[0].gfrAbsoluteChange > 0 ? '+' : ''}${weeklyMetrics[0].gfrAbsoluteChange.toFixed(1)} points)`}
+                          </p>
+                        )}
+                        
+                        {weeklyMetrics[0].gfrLongTermTrend && (
+                          <div className="flex items-center mb-2">
+                            <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                              weeklyMetrics[0].gfrLongTermTrend === 'improving' ? 'bg-green-500' : 
+                              weeklyMetrics[0].gfrLongTermTrend === 'stable' ? 'bg-blue-500' : 
+                              'bg-amber-500'
+                            }`}></span>
+                            <p className="text-xs font-medium text-neutral-700">
+                              {weeklyMetrics[0].gfrLongTermTrend === 'improving' ? 'Your kidney function has shown improvement over time' :
+                               weeklyMetrics[0].gfrLongTermTrend === 'stable' ? 'Your kidney function has been stable for 3+ weeks' :
+                               'Your kidney function shows changes that may need attention'}
+                            </p>
+                          </div>
+                        )}
+                        
+                        <div className="mt-3 bg-white p-3 rounded border border-blue-200">
+                          <p className="text-xs text-neutral-700">
+                            <strong>Recommendation:</strong> {weeklyMetrics[0].gfrTrend === 'significant_decline' || weeklyMetrics[0].gfrTrend === 'moderate_decline' ? 
+                              "Speak with your doctor about this change in kidney function." :
+                              weeklyMetrics[0].gfrTrend === 'possible_decline' ?
+                              "Consider discussing these recent changes with your healthcare provider at your next appointment." :
+                              "Continue monitoring and maintaining your current health regimen."}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Hydration Insights */}
+                    {activeDataTab === "hydration" && weeklyMetrics && weeklyMetrics.length > 0 && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <h4 className="font-semibold text-primary">Hydration Analysis</h4>
+                        </div>
+                        
+                        <p className="font-medium text-sm mb-2 text-blue-600">
+                          {weeklyMetrics[0]?.hydration && weeklyMetrics[0].hydration >= 2.5 ? 
+                            "Your hydration levels are excellent! Great work staying well-hydrated." :
+                            weeklyMetrics[0]?.hydration && weeklyMetrics[0].hydration >= 1.5 ?
+                            "Your hydration is adequate, but could be improved for optimal kidney health." :
+                            "Your hydration appears lower than recommended. Try to increase your water intake."}
+                        </p>
+                        
+                        {weeklyMetrics.length > 3 && (
+                          <p className="text-xs text-neutral-700 mb-2">
+                            {(() => {
+                              const recent = weeklyMetrics.slice(0, 3).reduce((sum, m) => sum + (m.hydration || 0), 0) / 3;
+                              const older = weeklyMetrics.slice(3, 6).reduce((sum, m) => sum + (m.hydration || 0), 0) / 3;
+                              const change = recent - older;
+                              const percentChange = older ? (change / older) * 100 : 0;
+                              return `${Math.abs(percentChange).toFixed(1)}% ${percentChange > 0 ? 'increase' : 'decrease'} in water intake compared to previous week`;
+                            })()}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center mb-2">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                            weeklyMetrics[0].hydration >= 2 ? 'bg-green-500' : 
+                            weeklyMetrics[0].hydration >= 1.5 ? 'bg-blue-500' : 
+                            'bg-amber-500'
+                          }`}></span>
+                          <p className="text-xs font-medium text-neutral-700">
+                            {weeklyMetrics[0].hydration >= 2.5 ? 'Excellent hydration helps protect kidney function' :
+                             weeklyMetrics[0].hydration >= 1.5 ? 'Moderate hydration - aim for 2-3L daily' :
+                             'Low hydration may impact kidney function over time'}
+                          </p>
+                        </div>
+                        
+                        <div className="mt-3 bg-white p-3 rounded border border-blue-200">
+                          <p className="text-xs text-neutral-700">
+                            <strong>Tip:</strong> {weeklyMetrics[0].hydration < 1.5 ? 
+                              "Try setting water intake reminders throughout the day. Aim for at least 2L daily for kidney health." :
+                              weeklyMetrics[0].hydration < 2 ?
+                              "You're on track with hydration. Try adding another glass of water in the morning and evening." :
+                              "Excellent hydration habits! Keep up the good work to maintain kidney health."}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Blood Pressure Insights */}
+                    {activeDataTab === "bp" && weeklyMetrics && weeklyMetrics.length > 0 && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <h4 className="font-semibold text-primary">Blood Pressure Analysis</h4>
+                        </div>
+                        
+                        <p className={`font-medium text-sm mb-2 ${
+                          weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 'text-red-600' : 
+                          weeklyMetrics[0].systolicBP >= 130 || weeklyMetrics[0].diastolicBP >= 85 ? 'text-amber-600' : 
+                          'text-green-600'
+                        }`}>
+                          {weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 
+                            "Your blood pressure is elevated. This can impact kidney health over time." :
+                            weeklyMetrics[0].systolicBP >= 130 || weeklyMetrics[0].diastolicBP >= 85 ?
+                            "Your blood pressure is slightly elevated. Monitor closely." :
+                            "Your blood pressure is within a healthy range. Great work!"}
+                        </p>
+                        
+                        {weeklyMetrics.length > 3 && (
+                          <p className="text-xs text-neutral-700 mb-2">
+                            {(() => {
+                              const recentSys = weeklyMetrics.slice(0, 3).reduce((sum, m) => sum + (m.systolicBP || 0), 0) / 3;
+                              const olderSys = weeklyMetrics.slice(3, 6).reduce((sum, m) => sum + (m.systolicBP || 0), 0) / 3;
+                              const change = recentSys - olderSys;
+                              return `${Math.abs(change).toFixed(1)} mmHg ${change > 0 ? 'increase' : 'decrease'} in systolic BP compared to previous week`;
+                            })()}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center mb-2">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                            weeklyMetrics[0].systolicBP < 130 && weeklyMetrics[0].diastolicBP < 80 ? 'bg-green-500' : 
+                            weeklyMetrics[0].systolicBP < 140 && weeklyMetrics[0].diastolicBP < 90 ? 'bg-amber-500' : 
+                            'bg-red-500'
+                          }`}></span>
+                          <p className="text-xs font-medium text-neutral-700">
+                            {weeklyMetrics[0].systolicBP < 130 && weeklyMetrics[0].diastolicBP < 80 ? 
+                              'Healthy blood pressure is protective for kidneys' :
+                             weeklyMetrics[0].systolicBP < 140 && weeklyMetrics[0].diastolicBP < 90 ? 
+                              'Borderline blood pressure - monitor closely' :
+                              'Elevated blood pressure increases kidney disease risk'}
+                          </p>
+                        </div>
+                        
+                        <div className="mt-3 bg-white p-3 rounded border border-blue-200">
+                          <p className="text-xs text-neutral-700">
+                            <strong>Action:</strong> {weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 
+                              "Discuss your blood pressure readings with your healthcare provider. Regular monitoring is essential." :
+                              weeklyMetrics[0].systolicBP >= 130 || weeklyMetrics[0].diastolicBP >= 85 ?
+                              "Consider lifestyle changes like reduced sodium intake and regular exercise to help manage blood pressure." :
+                              "Maintain your healthy diet and exercise routine to keep your blood pressure in this optimal range."}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* KSLS Insights */}
+                    {activeDataTab === "ksls" && weeklyMetrics && weeklyMetrics.length > 0 && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <h4 className="font-semibold text-primary">Kidney Stress Analysis</h4>
+                        </div>
+                        
+                        <p className="text-sm text-neutral-700 mb-3">
+                          KSLS (Kidney Symptom Load Score) combines 6 health factors into a wellness index: blood pressure, hydration, fatigue, pain, stress, and BMI. Lower scores indicate better symptom management.
+                        </p>
+                        
+                        {weeklyMetrics[0].kslsScore !== null && (
+                          <>
+                            <p className={`font-medium text-sm mb-2 ${
+                              weeklyMetrics[0].kslsBand === 'stable' ? 'text-green-600' :
+                              weeklyMetrics[0].kslsBand === 'elevated' ? 'text-amber-600' :
+                              'text-red-600'
+                            }`}>
+                              {weeklyMetrics[0].kslsBand === 'stable' ?
+                                "Your kidney stress indicators are within healthy ranges. Continue maintaining good habits." :
+                                weeklyMetrics[0].kslsBand === 'elevated' ?
+                                "Some kidney stress indicators are elevated. Focus on hydration and stress management." :
+                                "Multiple kidney stress indicators are high. Prioritize rest and consult your healthcare provider."}
+                            </p>
+                            
+                            <div className="mt-3 bg-white p-3 rounded border border-blue-200">
+                              <p className="text-xs text-neutral-700">
+                                <strong>Focus Areas:</strong> Based on your current score of {weeklyMetrics[0].kslsScore}/100, 
+                                {weeklyMetrics[0].kslsBand === 'stable' ?
+                                  " maintain your current routine of hydration, blood pressure management, and stress reduction." :
+                                  " focus on improving hydration, managing blood pressure, and reducing physical and emotional stress."}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Pain/Stress/Fatigue generic insights for when no specific data */}
+                    {(activeDataTab === "pain" || activeDataTab === "stress" || activeDataTab === "fatigue") && (
+                      <div className="bg-neutral-100 rounded-lg p-4">
+                        <p className="text-sm text-neutral-600">
+                          {activeDataTab === "pain" && "Tracking pain levels helps your healthcare provider adjust your treatment plan. Consistent high pain levels may indicate a need for medication review."}
+                          {activeDataTab === "stress" && "Chronic stress can impact kidney function and overall health. Consider stress-reduction techniques like meditation, deep breathing, or gentle exercise."}
+                          {activeDataTab === "fatigue" && "Fatigue is common in kidney disease. Monitor patterns and discuss persistent fatigue with your doctor, as it may indicate anemia or other treatable conditions."}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </Tabs>
               </div>
@@ -873,6 +1101,113 @@ export default function TrackPage() {
                     </Button>
                     <p className="mt-2 text-xs text-gray-500 px-1">
                       Using CKD-EPI 2021 equation: eGFR = 142 × min(SCr/K, 1)^α × max(SCr/K, 1)^–1.200 × 0.9938^Age × 1.012 [if female]
+                    </p>
+                  </div>
+
+                  {/* Calculate KSLS Button */}
+                  <div>
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-green-300 text-green-600 hover:bg-green-50"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/ksls/calculate-from-metrics/${user?.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          
+                          if (response.ok) {
+                            const data = await response.json();
+                            setCalculatedKSLS({ 
+                              score: data.result.ksls, 
+                              band: data.result.band 
+                            });
+                            toast({
+                              title: "KSLS Calculated",
+                              description: `Your KSLS score is ${data.result.ksls} (${data.result.band})`,
+                              duration: 4000
+                            });
+                          } else {
+                            const error = await response.json();
+                            toast({
+                              title: "KSLS Calculation Failed",
+                              description: error.error || "Please log your health data first",
+                              variant: "destructive",
+                              duration: 4000
+                            });
+                          }
+                        } catch (error) {
+                          console.error("KSLS calculation error:", error);
+                          toast({
+                            title: "Error",
+                            description: "Failed to calculate KSLS. Please try again.",
+                            variant: "destructive",
+                            duration: 4000
+                          });
+                        }
+                      }}
+                    >
+                      <Activity className="mr-2 h-4 w-4" />
+                      Calculate KSLS Score
+                    </Button>
+                    {calculatedKSLS && (
+                      <div className={`mt-2 p-4 border rounded-lg ${
+                        calculatedKSLS.band === 'stable' ? 'bg-green-50 border-green-200' :
+                        calculatedKSLS.band === 'elevated' ? 'bg-yellow-50 border-yellow-200' :
+                        'bg-red-50 border-red-200'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-lg font-bold ${
+                            calculatedKSLS.band === 'stable' ? 'text-green-900' :
+                            calculatedKSLS.band === 'elevated' ? 'text-yellow-900' :
+                            'text-red-900'
+                          }">
+                            KSLS: {calculatedKSLS.score}/100
+                          </p>
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                            calculatedKSLS.band === 'stable' ? 'bg-green-200 text-green-800' :
+                            calculatedKSLS.band === 'elevated' ? 'bg-yellow-200 text-yellow-800' :
+                            'bg-red-200 text-red-800'
+                          }`}>
+                            {calculatedKSLS.band === 'stable' ? 'Stable' :
+                             calculatedKSLS.band === 'elevated' ? 'Elevated' : 'High'}
+                          </span>
+                        </div>
+                        <p className={`text-sm mb-2 ${
+                          calculatedKSLS.band === 'stable' ? 'text-green-800' :
+                          calculatedKSLS.band === 'elevated' ? 'text-yellow-800' :
+                          'text-red-800'
+                        }`}>
+                          {calculatedKSLS.band === 'stable' 
+                            ? 'Your kidney stress indicators are within healthy ranges. Continue maintaining good hydration and managing blood pressure.'
+                            : calculatedKSLS.band === 'elevated'
+                            ? 'Some kidney stress indicators are elevated. Focus on hydration, blood pressure control, and reducing physical stress.'
+                            : 'Multiple kidney stress indicators are high. Consult your healthcare provider and prioritize hydration and rest.'}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t ${
+                          calculatedKSLS.band === 'stable' ? 'border-green-200' :
+                          calculatedKSLS.band === 'elevated' ? 'border-yellow-200' :
+                          'border-red-200'
+                        }">
+                          <p className={`text-xs ${
+                            calculatedKSLS.band === 'stable' ? 'text-green-700' :
+                            calculatedKSLS.band === 'elevated' ? 'text-yellow-700' :
+                            'text-red-700'
+                          }`}>
+                            Based on BP, hydration, fatigue, pain, stress & BMI
+                          </p>
+                          <p className={`text-xs font-medium ${
+                            calculatedKSLS.band === 'stable' ? 'text-green-700' :
+                            calculatedKSLS.band === 'elevated' ? 'text-yellow-700' :
+                            'text-red-700'
+                          }`}>
+                            View trends above →
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <p className="mt-2 text-xs text-gray-500 px-1">
+                      KSLS is a daily wellness index combining 6 health factors. Not a medical diagnosis or GFR measurement.
                     </p>
                   </div>
                   

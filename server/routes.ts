@@ -25,6 +25,7 @@ import supabaseRouter from "./supabase-router-fixed";
 import healthLogRouter from "./health-log-router";
 import healthAlertsRouter from "./health-alerts-router";
 import statusRouter from "./status-router";
+import kslsRouter from "./ksls-router";
 import { getEvidenceBasedHealthInfo, explainMedicalTerms } from "./perplexity-service";
 
 // Import OpenAI
@@ -206,6 +207,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount health log router for unified health data logging
   app.use('/api', healthLogRouter);
+  
+  // Mount KSLS router for Kidney Stress Load Score calculations
+  app.use('/api/ksls', kslsRouter);
   
   // SECURITY NOTE: Hardcoded backdoor endpoint removed for security compliance
   // All health data operations now require proper authentication through standard endpoints

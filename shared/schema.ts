@@ -170,6 +170,13 @@ export const healthMetrics = pgTable("health_metrics", {
   gfrAbsoluteChange: doublePrecision("gfr_absolute_change"), // Absolute change in GFR value
   gfrLongTermTrend: text("gfr_long_term_trend"), // Long-term trend analysis
   gfrStability: text("gfr_stability"), // Assessment of GFR stability over time
+  
+  // KSLS (Kidney Stress Load Score) fields
+  kslsScore: doublePrecision("ksls_score"), // 0-100 wellness index score
+  kslsBand: text("ksls_band"), // "stable", "elevated", or "high"
+  kslsFactors: jsonb("ksls_factors"), // JSON object with normalized factor values
+  kslsBmi: doublePrecision("ksls_bmi"), // BMI calculated at time of KSLS
+  kslsConfidence: text("ksls_confidence"), // "high", "moderate", "low" (if symptoms estimated from AI)
 });
 
 // Emotional check-ins table
