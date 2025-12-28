@@ -141,6 +141,9 @@ export const users = pgTable("users", {
   transplantCoordinator: text("transplant_coordinator"),
   transplantCoordinatorPhone: text("transplant_coordinator_phone"),
   
+  // User preferences
+  preferredUnitSystem: text("preferred_unit_system").default("metric"), // "metric" or "imperial"
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 

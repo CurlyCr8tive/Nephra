@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { setupAuth as setupReplitAuth, isAuthenticated as isReplitAuthenticated } from "./replitAuth";
+import { calculateKSLS, interpretKSLS } from "./utils/ksls-calculator";
 import { 
   insertUserSchema, 
   insertHealthMetricsSchema, 
@@ -447,6 +448,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else {
         console.log("Missing health metrics for GFR estimation");
+      }
+      
+      // Calculate KSLS if we have the required data
+      if (user && data.systolicBP && data.diastolicBP && data.hydration && 
+          data.painLevel !== undefined && data.stressLevel !== undefined && data.fatigueLevel !== undefined) {
+        try {
+          const kslsInput = {
+            age: user.age || 30,
+            weight_kg: user.weight || 70,
+            height_cm: user.height || 170,
+            systolic_bp: data.systolicBP,
+            diastolic_bp: data.diastolicBP,
+            pain_score: data.painLevel,
+            stress_score: data.stressLevel,
+            fatigue_score: data.fatigueLevel,
+            fluid_intake_liters: data.hydration,
+            fluid_target_liters: 2.0 // Default target, could be user preference
+          };
+          
+          const kslsResult = calculateKSLS(kslsInput);
+          const kslsInterpretation = interpretKSLS(kslsResult);
+          
+          // Add KSLS data to health metrics
+          (data as any).kslsScore = kslsResult.ksls;
+          (data as any).kslsBand = kslsResult.band;
+          (data as any).kslsFactors = kslsResult.factors;
+          (data as any).kslsBmi = kslsResult.bmi;
+          (data as any).kslsConfidence = 'high'; // Since we have all required data
+          
+          console.log(`✅ KSLS calculated: ${kslsResult.ksls.toFixed(1)} (${kslsResult.band})`);
+        } catch (kslsError) {
+          console.warn("Failed to calculate KSLS:", kslsError);
+          // Non-critical, continue without KSLS
+        }
       }
       
       console.log("Saving health metrics to database:", data);

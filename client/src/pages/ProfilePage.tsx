@@ -60,6 +60,29 @@ import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { UnitToggle, UnitSystem } from "@/components/UnitToggle";
 
+// Conversion utility functions
+function kgToLbs(kg: number | null): number | null {
+  if (kg === null || kg === undefined) return null;
+  return Math.round(kg * 2.20462);
+}
+
+function lbsToKg(lbs: number | null): number | null {
+  if (lbs === null || lbs === undefined) return null;
+  return Math.round(lbs / 2.20462);
+}
+
+function cmToFeetInches(cm: number | null): { feet: number; inches: number } | null {
+  if (cm === null || cm === undefined) return null;
+  const totalInches = cm / 2.54;
+  const feet = Math.floor(totalInches / 12);
+  const inches = Math.round(totalInches % 12);
+  return { feet, inches };
+}
+
+function feetInchesToCm(feet: number, inches: number): number {
+  return Math.round((feet * 12 + inches) * 2.54);
+}
+
 export default function ProfilePage() {
   // Use userId state to dynamically fetch profile data
   const [userId, setUserId] = useState<number | null>(null);
@@ -891,43 +914,107 @@ export default function ProfilePage() {
                           <FormField
                             control={form.control}
                             name="weight"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Weight (kg)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    placeholder="Weight" 
-                                    {...field} 
-                                    disabled={!isEditing}
-                                    value={field.value || ""}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
+                            render={({ field }) => {
+                              // Display value based on unit system
+                              const displayValue = unitSystem === 'imperial' && field.value 
+                                ? kgToLbs(field.value) 
+                                : field.value;
+                              
+                              return (
+                                <FormItem>
+                                  <FormLabel>
+                                    Weight ({unitSystem === 'metric' ? 'kg' : 'lbs'})
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      type="number" 
+                                      placeholder={unitSystem === 'metric' ? 'Weight in kg' : 'Weight in lbs'} 
+                                      disabled={!isEditing}
+                                      value={displayValue || ""}
+                                      onChange={(e) => {
+                                        const inputValue = e.target.value ? parseInt(e.target.value) : null;
+                                        // Convert back to kg for storage if in imperial
+                                        const kgValue = unitSystem === 'imperial' && inputValue 
+                                          ? lbsToKg(inputValue) 
+                                          : inputValue;
+                                        field.onChange(kgValue);
+                                      }} 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
                           />
                           
                           <FormField
                             control={form.control}
                             name="height"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Height (cm)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    placeholder="Height" 
-                                    {...field} 
-                                    disabled={!isEditing}
-                                    value={field.value || ""}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
+                            render={({ field }) => {
+                              // For imperial, show as "5'10"" format or separate input
+                              let displayValue = "";
+                              if (unitSystem === 'imperial' && field.value) {
+                                const converted = cmToFeetInches(field.value);
+                                if (converted) {
+                                  displayValue = `${converted.feet}'${converted.inches}"`;
+                                }
+                              } else {
+                                displayValue = field.value?.toString() || "";
+                              }
+                              
+                              return (
+                                <FormItem>
+                                  <FormLabel>
+                                    Height ({unitSystem === 'metric' ? 'cm' : 'ft\'in"'})
+                                  </FormLabel>
+                                  <FormControl>
+                                    {unitSystem === 'imperial' ? (
+                                      <div className="flex gap-2">
+                                        <Input 
+                                          type="number" 
+                                          placeholder="Feet" 
+                                          disabled={!isEditing}
+                                          value={field.value ? cmToFeetInches(field.value)?.feet || "" : ""}
+                                          onChange={(e) => {
+                                            const feet = e.target.value ? parseInt(e.target.value) : 0;
+                                            const currentInches = field.value ? (cmToFeetInches(field.value)?.inches || 0) : 0;
+                                            const cm = feetInchesToCm(feet, currentInches);
+                                            field.onChange(cm || null);
+                                          }}
+                                          className="w-20"
+                                        />
+                                        <span className="self-center text-sm text-muted-foreground">ft</span>
+                                        <Input 
+                                          type="number" 
+                                          placeholder="Inches" 
+                                          disabled={!isEditing}
+                                          min={0}
+                                          max={11}
+                                          value={field.value ? cmToFeetInches(field.value)?.inches || "" : ""}
+                                          onChange={(e) => {
+                                            const inches = e.target.value ? parseInt(e.target.value) : 0;
+                                            const currentFeet = field.value ? (cmToFeetInches(field.value)?.feet || 0) : 0;
+                                            const cm = feetInchesToCm(currentFeet, inches);
+                                            field.onChange(cm || null);
+                                          }}
+                                          className="w-20"
+                                        />
+                                        <span className="self-center text-sm text-muted-foreground">in</span>
+                                      </div>
+                                    ) : (
+                                      <Input 
+                                        type="number" 
+                                        placeholder="Height in cm" 
+                                        disabled={!isEditing}
+                                        value={field.value || ""}
+                                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)} 
+                                      />
+                                    )}
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
                           />
                         </div>
                         
@@ -1486,8 +1573,9 @@ export default function ProfilePage() {
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        <SelectItem value="liters">Liters</SelectItem>
+                                        <SelectItem value="liters">Liters (L)</SelectItem>
                                         <SelectItem value="cups">Cups</SelectItem>
+                                        <SelectItem value="fl_oz">Fluid Ounces (fl oz)</SelectItem>
                                       </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -1508,9 +1596,11 @@ export default function ProfilePage() {
                                   return (
                                     <p>
                                       {hydrationUnit === "liters" ? (
-                                        <>Your goal: {hydrationGoal} liters (~{Math.round(hydrationGoal * 4.2)} cups) per day</>
+                                        <>Your goal: {hydrationGoal} liters (~{Math.round(hydrationGoal * 4.2)} cups / ~{Math.round(hydrationGoal * 33.8)} fl oz) per day</>
+                                      ) : hydrationUnit === "cups" ? (
+                                        <>Your goal: {hydrationGoal} cups (~{(hydrationGoal / 4.2).toFixed(1)} liters / ~{Math.round(hydrationGoal * 8)} fl oz) per day</>
                                       ) : (
-                                        <>Your goal: {hydrationGoal} cups (~{(hydrationGoal / 4.2).toFixed(1)} liters) per day</>
+                                        <>Your goal: {hydrationGoal} fl oz (~{(hydrationGoal / 33.8).toFixed(1)} liters / ~{(hydrationGoal / 8).toFixed(1)} cups) per day</>
                                       )}
                                     </p>
                                   );

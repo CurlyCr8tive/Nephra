@@ -748,6 +748,41 @@ export default function TrackPage() {
                           <h4 className="font-semibold text-primary">Hydration Analysis</h4>
                         </div>
                         
+                        {/* Goal Progress Indicator */}
+                        {user?.recommendedDailyHydration && weeklyMetrics[0]?.hydration && (
+                          <div className="mb-3">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-gray-600">Daily Goal Progress</span>
+                              <span className="font-medium">
+                                {weeklyMetrics[0].hydration.toFixed(1)}L / {user.recommendedDailyHydration}L
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                              <div 
+                                className={`h-2.5 rounded-full ${
+                                  weeklyMetrics[0].hydration >= user.recommendedDailyHydration 
+                                    ? 'bg-green-500' 
+                                    : weeklyMetrics[0].hydration >= user.recommendedDailyHydration * 0.8
+                                    ? 'bg-blue-500'
+                                    : 'bg-amber-500'
+                                }`}
+                                style={{ 
+                                  width: `${Math.min(100, (weeklyMetrics[0].hydration / user.recommendedDailyHydration) * 100)}%` 
+                                }}
+                              ></div>
+                            </div>
+                            <p className="text-xs mt-1 font-medium">
+                              {weeklyMetrics[0].hydration >= user.recommendedDailyHydration ? (
+                                <span className="text-green-600">✓ Goal met!</span>
+                              ) : (
+                                <span className="text-amber-600">
+                                  {((user.recommendedDailyHydration - weeklyMetrics[0].hydration) * 1000).toFixed(0)}ml more to reach goal
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                        
                         <p className="font-medium text-sm mb-2 text-blue-600">
                           {weeklyMetrics[0]?.hydration && weeklyMetrics[0].hydration >= 2.5 ? 
                             "Your hydration levels are excellent! Great work staying well-hydrated." :
@@ -802,6 +837,70 @@ export default function TrackPage() {
                           </svg>
                           <h4 className="font-semibold text-primary">Blood Pressure Analysis</h4>
                         </div>
+                        
+                        {/* Goal Progress Indicator */}
+                        {user?.targetBloodPressureSystolic && user?.targetBloodPressureDiastolic && weeklyMetrics[0]?.systolicBP && weeklyMetrics[0]?.diastolicBP && (
+                          <div className="mb-3 space-y-2">
+                            <div>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-gray-600">Systolic BP Goal</span>
+                                <span className="font-medium">
+                                  {weeklyMetrics[0].systolicBP} / {user.targetBloodPressureSystolic} mmHg
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                                  <div 
+                                    className={`h-2.5 rounded-full ${
+                                      weeklyMetrics[0].systolicBP <= user.targetBloodPressureSystolic 
+                                        ? 'bg-green-500' 
+                                        : weeklyMetrics[0].systolicBP <= user.targetBloodPressureSystolic + 10
+                                        ? 'bg-amber-500'
+                                        : 'bg-red-500'
+                                    }`}
+                                    style={{ 
+                                      width: `${Math.min(100, (weeklyMetrics[0].systolicBP / user.targetBloodPressureSystolic) * 100)}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                                {weeklyMetrics[0].systolicBP <= user.targetBloodPressureSystolic ? (
+                                  <span className="text-xs text-green-600 font-medium">✓</span>
+                                ) : (
+                                  <span className="text-xs text-red-600 font-medium">↑</span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-gray-600">Diastolic BP Goal</span>
+                                <span className="font-medium">
+                                  {weeklyMetrics[0].diastolicBP} / {user.targetBloodPressureDiastolic} mmHg
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                                  <div 
+                                    className={`h-2.5 rounded-full ${
+                                      weeklyMetrics[0].diastolicBP <= user.targetBloodPressureDiastolic 
+                                        ? 'bg-green-500' 
+                                        : weeklyMetrics[0].diastolicBP <= user.targetBloodPressureDiastolic + 5
+                                        ? 'bg-amber-500'
+                                        : 'bg-red-500'
+                                    }`}
+                                    style={{ 
+                                      width: `${Math.min(100, (weeklyMetrics[0].diastolicBP / user.targetBloodPressureDiastolic) * 100)}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                                {weeklyMetrics[0].diastolicBP <= user.targetBloodPressureDiastolic ? (
+                                  <span className="text-xs text-green-600 font-medium">✓</span>
+                                ) : (
+                                  <span className="text-xs text-red-600 font-medium">↑</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         
                         <p className={`font-medium text-sm mb-2 ${
                           weeklyMetrics[0].systolicBP >= 140 || weeklyMetrics[0].diastolicBP >= 90 ? 'text-red-600' : 

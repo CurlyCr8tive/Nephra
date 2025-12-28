@@ -129,9 +129,9 @@ export default function JournalPage() {
     }
   ];
   
-  // Default to enhanced chatbot
+  // Default to OpenAI (enhanced has issues)
   useEffect(() => {
-    setSelectedAIProvider("enhanced");
+    setSelectedAIProvider("openai");
   }, []);
 
   // Query to fetch journal entries
