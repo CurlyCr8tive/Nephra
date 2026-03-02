@@ -262,7 +262,7 @@ export default function ProfilePage() {
     transplantCoordinator: z.string().optional(),
     transplantCoordinatorPhone: z.string().optional(),
     // Health preference settings
-    recommendedDailyHydration: z.number().min(0).max(10).optional().nullable(),
+    recommendedDailyHydration: z.number().min(0).max(1000).optional().nullable(),
     targetBloodPressureSystolic: z.number().min(90).max(200).optional().nullable(),
     targetBloodPressureDiastolic: z.number().min(60).max(120).optional().nullable(),
     preferredHydrationUnit: z.string().optional().nullable(),
@@ -333,90 +333,19 @@ export default function ProfilePage() {
         preferredHydrationUnit: profileData.preferredHydrationUnit || "liters",
       });
     }
-  }, [profileData, form]);
-
-  // Update profile mutation
-  // Function to manually fetch user profile data after an update
-  const fetchUserProfile = async () => {
-    console.log("Manually fetching fresh user profile data...");
-    try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: "GET",
-        headers: {
-          "Cache-Control": "no-cache",
-          "Pragma": "no-cache"
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch user profile: ${response.statusText}`);
-      }
-      
-      const freshUserData = await response.json();
-      console.log("Fresh user profile data retrieved:", freshUserData);
-      return freshUserData;
-    } catch (err) {
-      console.error("Error fetching fresh user profile:", err);
-      return null;
-    }
-  };
+  }, [profileData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { mutate: updateProfile, isPending: isUpdating } = useMutation({
     mutationFn: async (data: any) => {
-      console.log("Updating profile with data:", data);
-      console.log("User ID:", userId);
-      
-      try {
-        // Try using fetch directly with more logging
-        const url = `/api/users/${userId}`;
-        console.log("Making request to:", url);
-        
-        const response = await fetch(url, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        });
-        
-        console.log("Response status:", response.status);
-        const responseData = await response.text();
-        console.log("Response body:", responseData);
-        
-        if (!response.ok) {
-          throw new Error(`API returned status ${response.status}: ${responseData}`);
-        }
-        
-        return responseData ? JSON.parse(responseData) : {};
-      } catch (err) {
-        console.error("Profile update error:", err);
-        throw err;
-      }
+      const response = await apiRequest("PUT", `/api/users/${userId}`, data);
+      return response.json();
     },
-    onSuccess: async (data) => {
-      console.log("Profile update success:", data);
-      
-      // Immediately fetch fresh user data after update
-      const freshUserData = await fetchUserProfile();
-      
-      if (freshUserData) {
-        // Update query cache
-        queryClient.setQueryData(["/api/user"], freshUserData);
-        queryClient.setQueryData([`/api/users/${userId}`], freshUserData);
-        
-        console.log("User cache updated with fresh profile data:", freshUserData);
-      }
-      
-      // Always invalidate queries to ensure consistency
-      queryClient.invalidateQueries({
-        queryKey: [`/api/users/${userId}`]
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["/api/user"]
-      });
-      
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+
       toast({
-        title: "Profile updated",
+        title: "Profile saved",
         description: "Your profile has been updated successfully.",
       });
       setIsEditing(false);

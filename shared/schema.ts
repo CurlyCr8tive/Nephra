@@ -143,7 +143,16 @@ export const users = pgTable("users", {
   
   // User preferences
   preferredUnitSystem: text("preferred_unit_system").default("metric"), // "metric" or "imperial"
-  
+  preferredHydrationUnit: text("preferred_hydration_unit").default("fl oz"), // "fl oz", "mL", "L"
+
+  // Health targets
+  recommendedDailyHydration: doublePrecision("recommended_daily_hydration"), // in user's preferred unit
+  targetBloodPressureSystolic: integer("target_blood_pressure_systolic"),
+  targetBloodPressureDiastolic: integer("target_blood_pressure_diastolic"),
+
+  // Medications list
+  medications: jsonb("medications"), // Array of medication objects
+
   createdAt: timestamp("created_at").defaultNow(),
 });
 

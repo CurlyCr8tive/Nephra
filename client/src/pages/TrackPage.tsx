@@ -57,6 +57,7 @@ export default function TrackPage() {
   const [painLevel, setPainLevel] = useState<number>(2);
   const [fatigueLevel, setFatigueLevel] = useState<number>(3);
   const [medicalNotes, setMedicalNotes] = useState<string>("");
+  const [timeOfDay, setTimeOfDay] = useState<"morning" | "afternoon" | "evening">("morning");
   const [estimatedGFR, setEstimatedGFR] = useState<number>(70);
   const [calculatedKSLS, setCalculatedKSLS] = useState<{ score: number; band: string } | null>(null);
   const [medications, setMedications] = useState<Medication[]>([
@@ -149,11 +150,16 @@ export default function TrackPage() {
     
     // Calculate estimated GFR
     const calculatedGFR = calculateEstimatedGFR();
-    
+
+    // Build timestamp from selected time-of-day
+    const logDate = new Date();
+    if (timeOfDay === "morning") logDate.setHours(8, 0, 0, 0);
+    else if (timeOfDay === "afternoon") logDate.setHours(13, 0, 0, 0);
+    else logDate.setHours(20, 0, 0, 0);
+
     const healthData = {
-      userId: user?.id, // Use directly from user object
-      // Use a Date object instead of ISO string
-      date: new Date(),
+      userId: user?.id,
+      date: logDate,
       hydration,
       systolicBP: systolicNum,
       diastolicBP: diastolicNum,
@@ -296,18 +302,19 @@ export default function TrackPage() {
     }
   };
   
-  // Format data based on date range for charts
+  // Format data based on date range for charts — aggregates multiple readings per day
   const getDateRangeData = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
       return {
-        labels: [],
-        data: []
+        labels: [] as string[],
+        data: [] as number[],
+        diastolicPoints: [] as number[],
+        readingCounts: [] as number[]
       };
     }
-    
+
     const today = new Date();
-    let startDate;
-    
+    let startDate: Date;
     if (dateRange === "7d") {
       startDate = subDays(today, 7);
     } else if (dateRange === "30d") {
@@ -315,63 +322,73 @@ export default function TrackPage() {
     } else {
       startDate = subDays(today, 90);
     }
-    
-    // Filter data within date range
-    const filteredData = weeklyMetrics.filter(
-      (metric: HealthMetrics) => {
-        if (!metric.date) return false;
-        const metricDate = new Date(metric.date);
-        return metricDate >= startDate && metricDate <= today;
-      }
+
+    // Filter by date range
+    const filtered = weeklyMetrics.filter((metric: HealthMetrics) => {
+      if (!metric.date) return false;
+      const d = new Date(metric.date);
+      return d >= startDate && d <= today;
+    });
+
+    // Group by calendar day (YYYY-MM-DD)
+    const dailyGroups = new Map<string, HealthMetrics[]>();
+    filtered.forEach((metric: HealthMetrics) => {
+      if (!metric.date) return;
+      const key = new Date(metric.date).toISOString().split("T")[0];
+      if (!dailyGroups.has(key)) dailyGroups.set(key, []);
+      dailyGroups.get(key)!.push(metric);
+    });
+
+    // Sort days oldest → newest
+    const sortedDays = Array.from(dailyGroups.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0])
     );
-    
-    // Sort by date
-    const sortedData = filteredData.sort(
-      (a: HealthMetrics, b: HealthMetrics) => {
-        if (!a.date || !b.date) return 0;
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      }
+
+    const labels = sortedDays.map(([key]) =>
+      format(new Date(key), dateRange === "7d" ? "EEE" : "MM/dd")
     );
-    
-    // Extract labels (dates) and data points
-    const labels = sortedData.map(
-      (metric: HealthMetrics) => {
-        if (!metric.date) return "";
-        return format(new Date(metric.date), dateRange === "7d" ? "EEE" : "MM/dd");
-      }
-    );
-    
+
+    const readingCounts = sortedDays.map(([, ms]) => ms.length);
+
+    const avg = (arr: (number | null | undefined)[]) => {
+      const valid = arr.filter((v): v is number => v != null && v !== 0);
+      return valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : 0;
+    };
+
     let dataPoints: number[];
+    let diastolicPoints: number[] = [];
+
     switch (activeDataTab) {
       case "hydration":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.hydration || 0);
+        // Sum all readings in the day (cumulative daily intake)
+        dataPoints = sortedDays.map(([, ms]) =>
+          parseFloat(ms.reduce((s, m) => s + (m.hydration || 0), 0).toFixed(2))
+        );
         break;
       case "bp":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.systolicBP || 0);
+        dataPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.systolicBP)));
+        diastolicPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.diastolicBP)));
         break;
       case "gfr":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.estimatedGFR || 0);
+        dataPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.estimatedGFR)));
         break;
       case "ksls":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.kslsScore || 0);
+        dataPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.kslsScore)));
         break;
       case "pain":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.painLevel || 0);
+        dataPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.painLevel)));
         break;
       case "stress":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.stressLevel || 0);
+        dataPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.stressLevel)));
         break;
       case "fatigue":
-        dataPoints = sortedData.map((metric: HealthMetrics) => metric.fatigueLevel || 0);
+        dataPoints = sortedDays.map(([, ms]) => avg(ms.map(m => m.fatigueLevel)));
         break;
       default:
         dataPoints = [];
     }
-    
-    return {
-      labels,
-      data: dataPoints
-    };
+
+    return { labels, data: dataPoints, diastolicPoints, readingCounts };
   };
   
   // Update chart when data changes
@@ -385,7 +402,7 @@ export default function TrackPage() {
       const ctx = chartRef.current.getContext("2d");
       if (!ctx) return;
 
-      const { labels, data } = getDateRangeData();
+      const { labels, data, diastolicPoints, readingCounts } = getDateRangeData();
 
       const colors = {
         hydration: {
@@ -418,30 +435,49 @@ export default function TrackPage() {
         },
       };
 
+      const isBP = activeDataTab === "bp";
+      const datasets: any[] = [{
+        label: isBP ? "Systolic BP (mmHg)" : getDatasetLabel(),
+        data,
+        backgroundColor: colors[activeDataTab].background,
+        borderColor: colors[activeDataTab].border,
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: "#ffffff",
+        pointBorderColor: colors[activeDataTab].border,
+        pointBorderWidth: 2,
+        pointRadius: 4
+      }];
+
+      if (isBP) {
+        datasets.push({
+          label: "Diastolic BP (mmHg)",
+          data: diastolicPoints,
+          backgroundColor: "rgba(156, 39, 176, 0.2)",
+          borderColor: "rgba(156, 39, 176, 1)",
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: "#ffffff",
+          pointBorderColor: "rgba(156, 39, 176, 1)",
+          pointBorderWidth: 2,
+          pointRadius: 4
+        });
+      }
+
       chartInstance.current = new Chart(ctx, {
         type: "line",
         data: {
           labels,
-          datasets: [{
-            label: getDatasetLabel(),
-            data,
-            backgroundColor: colors[activeDataTab].background,
-            borderColor: colors[activeDataTab].border,
-            borderWidth: 2,
-            tension: 0.4,
-            fill: true,
-            pointBackgroundColor: "#ffffff",
-            pointBorderColor: colors[activeDataTab].border,
-            pointBorderWidth: 2,
-            pointRadius: 4
-          }]
+          datasets
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              display: false
+              display: isBP
             },
             tooltip: {
               backgroundColor: "rgba(0, 0, 0, 0.7)",
@@ -452,7 +488,29 @@ export default function TrackPage() {
                 size: 14
               },
               padding: 10,
-              cornerRadius: 6
+              cornerRadius: 6,
+              callbacks: {
+                label: (context: any) => {
+                  if (isBP) {
+                    if (context.datasetIndex === 0) {
+                      const sysVal = data[context.dataIndex];
+                      const diaVal = diastolicPoints[context.dataIndex];
+                      return `BP: ${sysVal}/${diaVal} mmHg`;
+                    }
+                    return undefined;
+                  }
+                  return `${context.dataset.label}: ${context.formattedValue}`;
+                },
+                afterBody: (items: any[]) => {
+                  const idx = items[0]?.dataIndex;
+                  if (idx == null) return [];
+                  const count = readingCounts[idx] ?? 1;
+                  const label = activeDataTab === "hydration"
+                    ? `Total from ${count} reading${count > 1 ? "s" : ""}`
+                    : `Avg of ${count} reading${count > 1 ? "s" : ""}`;
+                  return count > 1 ? [label] : [];
+                }
+              }
             }
           },
           scales: {
@@ -1091,6 +1149,33 @@ export default function TrackPage() {
                 <h2 className="font-display font-bold text-lg mb-4">Log Health Data</h2>
                 
                 <div className="space-y-6">
+                  {/* Time of Day */}
+                  <div>
+                    <div className="flex items-center mb-2">
+                      <Clock className="w-5 h-5 text-primary mr-2" />
+                      <h3 className="font-medium">Time of Reading</h3>
+                    </div>
+                    <div className="flex gap-2">
+                      {(["morning", "afternoon", "evening"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTimeOfDay(t)}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                            timeOfDay === t
+                              ? "bg-primary text-white border-primary"
+                              : "bg-white text-neutral-600 border-neutral-200 hover:border-primary"
+                          }`}
+                        >
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                          <span className="block text-xs opacity-70">
+                            {t === "morning" ? "~8 AM" : t === "afternoon" ? "~1 PM" : "~8 PM"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Hydration */}
                   <div>
                     <div className="flex items-center mb-2">

@@ -57,7 +57,7 @@ const UserContext = createContext<UserContextType>({
   forceUpdateGender: () => {
     console.warn("forceUpdateGender called outside of UserProvider context. This operation won't have any effect.");
   },
-  unitSystem: "metric", // Default to metric units
+  unitSystem: "imperial", // Default to imperial units
   setUnitSystem: () => {
     console.warn("setUnitSystem called outside of UserProvider context. This operation won't have any effect.");
   }
@@ -84,8 +84,8 @@ export function UserProvider({ children, value }: UserProviderProps) {
       return savedUnitSystem as UnitSystem;
     }
     
-    // Default to metric if nothing found
-    return "metric";
+    // Default to imperial if nothing found
+    return "imperial";
   });
   
   // Function to update unit system preference
