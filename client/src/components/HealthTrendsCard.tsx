@@ -140,12 +140,18 @@ export function HealthTrendsCard() {
       return { labels: [], data: [] };
     }
 
+    // Limit to last 7 days for the dashboard view
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    const recentMetrics = weeklyMetrics.filter(m => m.date && new Date(m.date) >= sevenDaysAgo);
+
     // Group metrics by day
     const dailyGroups = new Map<string, typeof weeklyMetrics>();
-    
-    weeklyMetrics.forEach(metric => {
+
+    recentMetrics.forEach(metric => {
       if (!metric.date) return;
-      
+
       // Use date string (YYYY-MM-DD) as key to group by day
       const dateKey = new Date(metric.date).toISOString().split('T')[0];
       
@@ -162,8 +168,9 @@ export function HealthTrendsCard() {
 
     // Generate labels and aggregated data
     const labels = sortedDays.map(([dateKey]) => {
-      const date = new Date(dateKey);
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
+      const [y, m, d] = dateKey.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
     });
 
     const data = sortedDays.map(([, dayMetrics]) => {
@@ -353,30 +360,33 @@ export function HealthTrendsCard() {
       <h3 className="font-display font-semibold mb-4">Your Health Trends</h3>
       
       <div className="flex mb-4">
-        <button 
+        <button
+          type="button"
           className={`flex-1 text-sm py-2 border-b-2 ${
-            activeTab === "hydration" 
-              ? "border-primary text-primary font-medium" 
+            activeTab === "hydration"
+              ? "border-primary text-primary font-medium"
               : "border-neutral-200 text-neutral-500"
           }`}
           onClick={() => setActiveTab("hydration")}
         >
           Hydration
         </button>
-        <button 
+        <button
+          type="button"
           className={`flex-1 text-sm py-2 border-b-2 ${
-            activeTab === "bp" 
-              ? "border-primary text-primary font-medium" 
+            activeTab === "bp"
+              ? "border-primary text-primary font-medium"
               : "border-neutral-200 text-neutral-500"
           }`}
           onClick={() => setActiveTab("bp")}
         >
           Blood Pressure
         </button>
-        <button 
+        <button
+          type="button"
           className={`flex-1 text-sm py-2 border-b-2 ${
-            activeTab === "gfr" 
-              ? "border-primary text-primary font-medium" 
+            activeTab === "gfr"
+              ? "border-primary text-primary font-medium"
               : "border-neutral-200 text-neutral-500"
           }`}
           onClick={() => setActiveTab("gfr")}
@@ -386,10 +396,11 @@ export function HealthTrendsCard() {
             <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">eGFR</span>
           </span>
         </button>
-        <button 
+        <button
+          type="button"
           className={`flex-1 text-sm py-2 border-b-2 ${
-            activeTab === "ksls" 
-              ? "border-blue-500 text-blue-600 font-medium" 
+            activeTab === "ksls"
+              ? "border-blue-500 text-blue-600 font-medium"
               : "border-neutral-200 text-neutral-500"
           }`}
           onClick={() => setActiveTab("ksls")}
@@ -410,13 +421,7 @@ export function HealthTrendsCard() {
           <canvas ref={chartRef} id="healthChart"></canvas>
         )}
       </div>
-      
-      <div className="flex justify-between text-xs text-neutral-500 mt-2">
-        {getLabels().map((label, index) => (
-          <span key={index}>{label}</span>
-        ))}
-      </div>
-      
+
       <div className="mt-4 flex justify-between items-center">
         <div className="w-full">
           <p className="text-sm text-neutral-600">Weekly average</p>

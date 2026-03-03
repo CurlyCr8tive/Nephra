@@ -344,9 +344,13 @@ export default function TrackPage() {
       a[0].localeCompare(b[0])
     );
 
-    const labels = sortedDays.map(([key]) =>
-      format(new Date(key), dateRange === "7d" ? "EEE" : "MM/dd")
-    );
+    const labels = sortedDays.map(([key]) => {
+      const [y, m, d] = key.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      return dateRange === "7d"
+        ? format(date, "EEE M/d")
+        : format(date, "MM/dd");
+    });
 
     const readingCounts = sortedDays.map(([, ms]) => ms.length);
 

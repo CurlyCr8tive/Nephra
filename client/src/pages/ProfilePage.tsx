@@ -68,7 +68,7 @@ function kgToLbs(kg: number | null): number | null {
 
 function lbsToKg(lbs: number | null): number | null {
   if (lbs === null || lbs === undefined) return null;
-  return Math.round(lbs / 2.20462);
+  return lbs / 2.20462;
 }
 
 function cmToFeetInches(cm: number | null): { feet: number; inches: number } | null {
@@ -80,7 +80,7 @@ function cmToFeetInches(cm: number | null): { feet: number; inches: number } | n
 }
 
 function feetInchesToCm(feet: number, inches: number): number {
-  return Math.round((feet * 12 + inches) * 2.54);
+  return (feet * 12 + inches) * 2.54;
 }
 
 export default function ProfilePage() {
@@ -845,8 +845,8 @@ export default function ProfilePage() {
                             name="weight"
                             render={({ field }) => {
                               // Display value based on unit system
-                              const displayValue = unitSystem === 'imperial' && field.value 
-                                ? kgToLbs(field.value) 
+                              const displayValue = unitSystem === 'imperial' && field.value != null
+                                ? kgToLbs(field.value)
                                 : field.value;
                               
                               return (
@@ -859,12 +859,12 @@ export default function ProfilePage() {
                                       type="number" 
                                       placeholder={unitSystem === 'metric' ? 'Weight in kg' : 'Weight in lbs'} 
                                       disabled={!isEditing}
-                                      value={displayValue || ""}
+                                      value={displayValue ?? ""}
                                       onChange={(e) => {
-                                        const inputValue = e.target.value ? parseInt(e.target.value) : null;
+                                        const inputValue = e.target.value ? parseFloat(e.target.value) : null;
                                         // Convert back to kg for storage if in imperial
-                                        const kgValue = unitSystem === 'imperial' && inputValue 
-                                          ? lbsToKg(inputValue) 
+                                        const kgValue = unitSystem === 'imperial' && inputValue != null
+                                          ? lbsToKg(inputValue)
                                           : inputValue;
                                         field.onChange(kgValue);
                                       }} 
@@ -903,26 +903,26 @@ export default function ProfilePage() {
                                           type="number" 
                                           placeholder="Feet" 
                                           disabled={!isEditing}
-                                          value={field.value ? cmToFeetInches(field.value)?.feet || "" : ""}
+                                          value={field.value != null ? (cmToFeetInches(field.value)?.feet ?? "") : ""}
                                           onChange={(e) => {
                                             const feet = e.target.value ? parseInt(e.target.value) : 0;
-                                            const currentInches = field.value ? (cmToFeetInches(field.value)?.inches || 0) : 0;
+                                            const currentInches = field.value != null ? (cmToFeetInches(field.value)?.inches ?? 0) : 0;
                                             const cm = feetInchesToCm(feet, currentInches);
                                             field.onChange(cm || null);
                                           }}
                                           className="w-20"
                                         />
                                         <span className="self-center text-sm text-muted-foreground">ft</span>
-                                        <Input 
-                                          type="number" 
-                                          placeholder="Inches" 
+                                        <Input
+                                          type="number"
+                                          placeholder="Inches"
                                           disabled={!isEditing}
                                           min={0}
                                           max={11}
-                                          value={field.value ? cmToFeetInches(field.value)?.inches || "" : ""}
+                                          value={field.value != null ? (cmToFeetInches(field.value)?.inches ?? "") : ""}
                                           onChange={(e) => {
                                             const inches = e.target.value ? parseInt(e.target.value) : 0;
-                                            const currentFeet = field.value ? (cmToFeetInches(field.value)?.feet || 0) : 0;
+                                            const currentFeet = field.value != null ? (cmToFeetInches(field.value)?.feet ?? 0) : 0;
                                             const cm = feetInchesToCm(currentFeet, inches);
                                             field.onChange(cm || null);
                                           }}

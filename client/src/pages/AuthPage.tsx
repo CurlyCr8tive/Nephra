@@ -39,6 +39,33 @@ export default function AuthPage() {
   const { toast } = useToast();
   const { user, loginMutation, registerMutation, isLoading } = useAuth();
 
+  // Show toast on login error
+  useEffect(() => {
+    if (loginMutation.isError && loginMutation.error) {
+      const msg = loginMutation.error.message.replace(/^\d+:\s*/, '');
+      toast({ title: "Sign in failed", description: msg, variant: "destructive" });
+    }
+  }, [loginMutation.isError, loginMutation.error]);
+
+  // Show toast on registration error or success
+  useEffect(() => {
+    if (registerMutation.isError && registerMutation.error) {
+      const msg = registerMutation.error.message.replace(/^\d+:\s*/, '');
+      toast({ title: "Registration failed", description: msg, variant: "destructive" });
+    }
+  }, [registerMutation.isError, registerMutation.error]);
+
+  useEffect(() => {
+    if (registerMutation.isSuccess) {
+      toast({ title: "Account created!", description: "Welcome to Nephra." });
+    }
+  }, [registerMutation.isSuccess]);
+
+  // Redirect if already authenticated
+  if (user) {
+    return <Redirect to="/dashboard" />;
+  }
+
   // Handle form submissions
   const onLoginSubmit = (data: LoginFormValues) => {
     setHasAttemptedLogin(true);
