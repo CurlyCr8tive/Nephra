@@ -282,28 +282,21 @@ export default function JournalPage() {
       return { ...json, _submittedContent: data.content };
     },
     onSuccess: (data) => {
-      if (user && user.id) {
-        queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
 
       // API returns { journalEntry, metrics } from /api/ai/journal/process
       const entry = data.journalEntry || data.entry;
       const aiText = entry?.aiResponse || null;
-      const userText = data._submittedContent || journalContent;
+      const userText = data._submittedContent || "";
 
-      // Always switch to conversation view on success
-      setConversation([
-        { role: 'user', content: userText },
-        ...(aiText ? [{ role: 'ai' as const, content: aiText }] : [])
-      ]);
-      if (aiText) setAiResponse(aiText);
-      setConversationMode(true);
-      setJournalContent("");
-
-      toast({
-        title: "Journal entry saved",
-        description: aiText ? "Your thoughts have been analyzed." : "Saved — analysis arriving shortly.",
+      // Add (or replace) conversation with user + AI messages
+      setConversation(prev => {
+        const userMsg = prev[0] ?? { role: 'user' as const, content: userText };
+        return aiText
+          ? [userMsg, { role: 'ai' as const, content: aiText }]
+          : [userMsg];
       });
+      if (aiText) setAiResponse(aiText);
     },
     onError: (error) => {
       toast({
@@ -365,14 +358,15 @@ export default function JournalPage() {
       });
       return;
     }
-    
-    // Reset conversation if starting a new journal entry
-    setConversation([]);
+
+    // Immediately show the user's message — this switches the view right away
+    const submittedText = journalContent;
+    setConversation([{ role: 'user', content: submittedText }]);
     setAiResponse(null);
-    setConversationMode(false);
-    
+    setJournalContent("");
+
     submitJournal({
-      content: journalContent,
+      content: submittedText,
       aiProvider: selectedAIProvider
     });
   };
@@ -397,7 +391,7 @@ export default function JournalPage() {
           </TabsList>
           
           <TabsContent value="write" className="space-y-4">
-            {!conversationMode ? (
+            {conversation.length === 0 ? (
               // Journal Entry Form
               <Card>
                 <CardHeader>
@@ -458,7 +452,7 @@ export default function JournalPage() {
                       <Bot className="h-5 w-5 text-primary" />
                       <CardTitle className="text-base">Health Analysis</CardTitle>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => setConversationMode(false)} className="text-xs text-muted-foreground">
+                    <Button variant="ghost" size="sm" onClick={() => { setConversation([]); setAiResponse(null); }} className="text-xs text-muted-foreground">
                       <RefreshCw className="h-3 w-3 mr-1" /> New entry
                     </Button>
                   </CardHeader>
@@ -555,14 +549,7 @@ export default function JournalPage() {
                     </CardHeader>
                     <CardContent className="p-4">
                       <div className="text-sm mb-3 whitespace-pre-wrap">
-                        {/* Check for null or truncated content */}
-                        {entry.content ? 
-                          entry.content.length > 500 ? 
-                            `${entry.content.substring(0, 500)}...` : 
-                            entry.content
-                          : 
-                          "No content available"
-                        }
+                        {entry.content || "No content available"}
                       </div>
                       
                       {/* AI Insights for journal entries */}
@@ -586,14 +573,7 @@ export default function JournalPage() {
                               <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
                             </Avatar>
                             <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                              {/* Check for null or truncated AI response */}
-                              {entry.aiResponse ? 
-                                entry.aiResponse.length > 300 ? 
-                                  `${entry.aiResponse.substring(0, 300)}...` : 
-                                  entry.aiResponse
-                                : 
-                                "No AI response available"
-                              }
+                                {entry.aiResponse || "No AI response available"}
                             </div>
                           </div>
                         </div>
