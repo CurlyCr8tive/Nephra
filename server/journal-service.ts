@@ -68,11 +68,9 @@ SCORING RULES (1–10, never default to 5):
   mild/slight → 2–3 | moderate/some → 4–5 | significant/quite bad → 6–7 | severe/terrible → 8–10 | not mentioned → 1
 - Stress: worry, anxiety, overwhelm | Fatigue: tired, exhausted, drained | Pain: ache, hurt, discomfort
 
-RESPONSE (supportiveResponse): 3–4 paragraphs, ~200 words:
-1. Acknowledge what ${userName} specifically wrote (no generic openers)
-2. Provide kidney-health context for any symptoms or concerns they raised
-3. 2–3 concrete, actionable suggestions
-4. Note anything to raise with their care team (if applicable)
+RESPONSE (supportiveResponse): 1–3 paragraphs, ~100 words max:
+1. Acknowledge what ${userName} specifically wrote and provide kidney-health context (no generic openers)
+2. Optional: 1–2 actionable suggestions or anything to raise with their care team
 
 Return JSON: { "stressScore": number, "fatigueScore": number, "painScore": number, "sentiment": "positive|negative|neutral|mixed", "tags": ["string"], "supportiveResponse": "string" }`;
 
@@ -205,11 +203,9 @@ SCORING RULES (1–10, never default to 5):
   mild/slight → 2–3 | moderate/some → 4–5 | significant/quite bad → 6–7 | severe/terrible → 8–10 | not mentioned → 1
 - Stress: worry, anxiety, overwhelm | Fatigue: tired, exhausted, drained | Pain: ache, hurt, discomfort
 
-RESPONSE (supportiveResponse): 3–4 paragraphs, ~200 words total:
-1. Address what ${userName} specifically wrote (no generic openers)
-2. Compare to previous entries — note improvements, declines, or patterns
-3. 2–3 actionable kidney-health suggestions
-4. Flag anything to discuss with their nephrologist (if applicable)
+RESPONSE (supportiveResponse): 1–3 paragraphs, ~100 words max:
+1. Address what ${userName} specifically wrote — compare to previous entries if relevant (no generic openers)
+2. Optional: 1 actionable suggestion or anything to flag with their nephrologist
 
 HEALTH INSIGHTS (healthInsights): 1–2 sentences on clinical patterns across entries.
 

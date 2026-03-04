@@ -190,12 +190,11 @@ SCORING RULES (1–10, never default to 5):
 - Pain includes: ache, hurt, discomfort, soreness, cramping
 
 RESPONSE RULES:
-- Write supportiveResponse as 3–4 focused paragraphs (~200 words)
-- Paragraph 1: Acknowledge what they specifically shared (reference actual content, not generic phrases)
-- Paragraph 2: Provide relevant kidney-health context for any symptoms or concerns they raised
-- Paragraph 3: Offer 2–3 concrete, actionable suggestions (tracking, hydration, rest, contacting care team, etc.)
-- Paragraph 4 (if concerning): Note anything that warrants mentioning to their nephrologist
+- Write supportiveResponse as 1–3 focused paragraphs (~100 words max)
+- Paragraph 1: Acknowledge what they specifically shared and provide kidney-health context for any symptoms
+- Paragraph 2–3 (only if needed): 1–2 concrete suggestions or anything to flag with their care team
 - Do NOT use generic openers like "You're doing your best" or "Thank you for sharing"
+- Be warm, specific, and concise
 
 HEALTH INSIGHTS:
 - Write 1–2 sentences noting clinical patterns, any red flags, or trends worth monitoring
