@@ -1184,61 +1184,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI chat endpoints
+  // AI Companion health Q&A endpoint
+  // Uses Perplexity (web search + citations) with OpenAI fallback
   app.post("/api/ai-chat", async (req, res) => {
     try {
       const { userId, userMessage } = req.body;
-      
-      console.log(`Processing AI chat request for user ${userId} with message: "${userMessage.substring(0, 50)}${userMessage.length > 50 ? '...' : ''}"`);
-      
-      // Check if this is a request for relaxation techniques
-      const isRelaxationRequest = userMessage.toLowerCase().includes("relaxation") || 
-                                 userMessage.toLowerCase().includes("stress") ||
-                                 userMessage.toLowerCase().includes("yes, i would like some simple relaxation techniques");
-      
-      // Enhanced system prompt for relaxation techniques
-      const systemPrompt = isRelaxationRequest 
-        ? "You are a supportive AI health companion for people with kidney disease. The user is asking about relaxation techniques to manage stress. Provide 3-5 specific, practical relaxation techniques that are appropriate for kidney patients. Include deep breathing exercises, progressive muscle relaxation, guided imagery, and mindfulness practices. Be empathetic and encouraging, but clear that you are not a medical professional."
-        : "You are a supportive AI health companion for people with kidney disease. Provide empathetic, informative responses. Focus on emotional support and practical advice while being clear that you are not a medical professional and serious concerns should be discussed with healthcare providers.";
-      
-      try {
-        // Send message to OpenAI
-        // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        const response = await openai.chat.completions.create({
+      if (!userId || !userMessage) {
+        return res.status(400).json({ error: "Missing userId or userMessage" });
+      }
+
+      const CLINICAL_SYSTEM_PROMPT = `You are a clinical kidney health information assistant for Nephra, an app for people with chronic kidney disease (CKD), dialysis, and transplant.
+
+Your ONLY purpose is to answer clinical health questions — kidney disease, labs, medications, diet, symptoms, treatments, GFR, creatinine, dialysis, transplant, blood pressure, and related topics.
+
+RULES:
+- Provide evidence-based, accurate information with specific details
+- Always cite reputable sources (NKF, NIDDK, KDIGO guidelines, peer-reviewed journals, Mayo Clinic, etc.)
+- Structure longer answers with clear headings or numbered points
+- End every response with a "⚠️ Always discuss with your nephrologist or care team before making changes."
+- Do NOT provide emotional support, journaling guidance, or general life coaching — direct those users to the Journal feature instead
+- Do NOT make definitive diagnoses — provide information and context only`;
+
+      let aiResponse: string;
+      let citations: string[] = [];
+
+      // Try Perplexity first (has live web search and returns citations)
+      if (process.env.PERPLEXITY_API_KEY) {
+        try {
+          const perpResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'sonar',
+              messages: [
+                { role: 'system', content: CLINICAL_SYSTEM_PROMPT },
+                { role: 'user', content: userMessage }
+              ],
+              temperature: 0.2,
+              max_tokens: 1024,
+              return_citations: true,
+              search_recency_filter: 'year'
+            })
+          });
+
+          if (perpResponse.ok) {
+            const perpData = await perpResponse.json() as any;
+            aiResponse = perpData.choices[0].message.content || '';
+            citations = perpData.citations || [];
+          } else {
+            throw new Error(`Perplexity ${perpResponse.status}`);
+          }
+        } catch (perpError) {
+          console.warn("Perplexity unavailable, falling back to OpenAI:", perpError);
+          // Fall through to OpenAI
+          const oaiResp = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: CLINICAL_SYSTEM_PROMPT },
+              { role: "user", content: userMessage }
+            ],
+            max_tokens: 1024,
+          });
+          aiResponse = oaiResp.choices[0].message.content || '';
+        }
+      } else {
+        // No Perplexity key — use OpenAI
+        const oaiResp = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            },
-            {
-              role: "user",
-              content: userMessage
-            }
+            { role: "system", content: CLINICAL_SYSTEM_PROMPT },
+            { role: "user", content: userMessage }
           ],
-          max_tokens: 500,
+          max_tokens: 1024,
         });
-
-        const aiResponse = response.choices[0].message.content;
-        
-        // Save the conversation to storage
-        const chat = await storage.createAiChat({
-          userId,
-          userMessage,
-          aiResponse,
-          timestamp: new Date()
-        });
-        
-        res.json({ message: aiResponse, chat });
-      } catch (error) {
-        console.error("OpenAI API error:", error);
-        res.status(500).json({ 
-          error: "Could not process request with AI service", 
-          message: "I'm having trouble connecting right now. Please try again later."
-        });
+        aiResponse = oaiResp.choices[0].message.content || '';
       }
+
+      // Append citations to stored response so they appear in history too
+      let storedResponse = aiResponse;
+      if (citations.length > 0) {
+        storedResponse += '\n\n📚 Sources:\n' + citations.map((c, i) => `${i + 1}. ${c}`).join('\n');
+      }
+
+      const chat = await storage.createAiChat({
+        userId,
+        userMessage,
+        aiResponse: storedResponse,
+        timestamp: new Date()
+      });
+
+      res.json({ message: storedResponse, citations, chat });
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      console.error("AI chat error:", error);
+      res.status(500).json({
+        error: "Could not process request",
+        message: "I'm having trouble connecting right now. Please try again later."
+      });
     }
   });
 
