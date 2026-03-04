@@ -8,6 +8,11 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User } from "@shared/schema";
+import {
+  PORTFOLIO_DEMO_USERNAME,
+  portfolioDemoProfile,
+  seedPortfolioDemoData,
+} from "./utils/portfolioDemo";
 
 // SECURITY: Helper function to strip password from User objects before sending to client
 function toPublicUser(user: User): Omit<User, 'password'> {
@@ -274,106 +279,40 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Demo login function for development/testing ONLY
+  // Public portfolio demo login.
   app.post("/api/login-demo", async (req, res) => {
-    // SECURITY: Only allow demo login in development
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('🚨 SECURITY: Demo login attempted in production');
-      return res.status(403).json({ error: 'Demo login not available in production' });
-    }
     try {
-      // For demo purposes, we'll look up the demo user or create one if it doesn't exist
-      const demoUsername = "demouser";
-      const demoPassword = "demopassword";
-      
-      console.log(`Attempting demo login for: ${demoUsername}`);
-      
-      // First check if user is already logged in
-      if (req.isAuthenticated() && req.user && req.user.username === demoUsername) {
-        console.log(`Demo user already logged in as ${demoUsername}`);
-        return res.status(200).json(toPublicUser(req.user));
-      }
-      
-      // Get user directly from storage
-      let user = await storage.getUserByUsername(demoUsername);
-      
+      let user = await storage.getUserByUsername(PORTFOLIO_DEMO_USERNAME);
+
       if (!user) {
-        console.log(`Demo user not found, creating: ${demoUsername}`);
-        
-        // Create a demo user if needed for testing
-        try {
-          user = await storage.createUser({
-            username: demoUsername,
-            password: await hashPassword(demoPassword),
-            email: "demo@example.com",
-            firstName: "Demo",
-            lastName: "User",
-            age: 45,
-            gender: "Female",
-            race: "Caucasian",
-            weight: 65,
-            kidneyDiseaseStage: 3,
-            diagnosisDate: new Date(),
-            primaryNephrologistName: "Dr. Smith",
-            primaryNephrologistContact: "555-123-4567",
-            transplantCandidate: true,
-            transplantStatus: "Waiting",
-            dialysisType: "Hemodialysis",
-            dialysisSchedule: "MWF",
-            medications: ["Medication 1", "Medication 2"],
-            otherHealthConditions: ["Hypertension", "Diabetes"],
-            otherSpecialists: {
-              name: "Dr. Johnson",
-              specialty: "Cardiology",
-              contact: "555-987-6543"
-            }
-          });
-          
-          console.log(`Demo user created with ID: ${user.id}`);
-        } catch (createError) {
-          console.error("Failed to create demo user:", createError);
-          throw createError;
-        }
+        user = await storage.createUser({
+          ...portfolioDemoProfile,
+          password: await hashPassword(`demo-${randomBytes(12).toString("hex")}`),
+        });
       } else {
-        // Option: Update password to match our hashing algorithm if needed
-        const currentHashFormat = user.password.includes('.');
-        
-        if (!currentHashFormat) {
-          console.log(`Updating hash format for demo user: ${demoUsername}`);
-          try {
-            const newPassword = await hashPassword(demoPassword);
-            user = await storage.updateUser(user.id, { password: newPassword });
-          } catch (updateError) {
-            console.error("Failed to update demo user password:", updateError);
-          }
+        user = await storage.updateUser(user.id, portfolioDemoProfile) ?? user;
+
+        if (!user.password || !user.password.includes(".")) {
+          user = (await storage.updateUser(user.id, {
+            password: await hashPassword(`demo-${randomBytes(12).toString("hex")}`),
+          })) ?? user;
         }
       }
-      
+
       if (!user) {
-        throw new Error("Failed to get or create demo user");
+        throw new Error("Failed to provision the portfolio demo account");
       }
-      
-      // Log user details (excluding password)
-      const userDetails = { ...user, password: "[REDACTED]" };
-      console.log("Demo user found:", JSON.stringify(userDetails, null, 2));
-      
-      // Actually log in the user with a proper session
-      console.log("Creating proper session for demo user");
-      
-      // Use the passport login method to create a session
+
+      await seedPortfolioDemoData(user.id);
+
       req.login(user, (loginErr) => {
         if (loginErr) {
-          console.error("Demo login session error:", loginErr);
           return res.status(500).json({ error: "Session creation failed", details: loginErr.message });
         }
-        
-        console.log(`Demo login successful for: ${demoUsername} with session ID: ${req.sessionID}`);
-        
-        // Return success response with user data (except password)
-        const { password, ...userWithoutPassword } = user;
+
         return res.status(200).json({
-          ...userWithoutPassword,
-          demoLogin: true
+          ...toPublicUser(user),
+          demoLogin: true,
         });
       });
     } catch (error) {

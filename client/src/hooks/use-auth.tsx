@@ -19,6 +19,7 @@ type AuthContextType = {
   isLoading: boolean;
   error: Error | null;
   loginMutation: ReturnType<typeof useMutation<User, Error, LoginData>>;
+  demoLoginMutation: ReturnType<typeof useMutation<User, Error, void>>;
   logoutMutation: ReturnType<typeof useMutation<void, Error, void>>;
   registerMutation: ReturnType<typeof useMutation<User, Error, RegisterData>>;
 };
@@ -86,6 +87,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const demoLoginMutation = useMutation({
+    mutationFn: async (): Promise<User> => {
+      const response = await apiRequest("POST", "/api/login-demo", {});
+      return await response.json();
+    },
+    onSuccess: (userData: User) => {
+      queryClient.clear();
+      setUser(userData);
+      queryClient.setQueryData(["/api/user"], userData);
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    },
+    onError: (error: any) => {
+      console.error("Demo login failed:", error);
+    },
+  });
+
   // Register mutation - SECURITY FIX: Use correct apiRequest signature
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterData): Promise<User> => {
@@ -126,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     error: error as Error | null,
     loginMutation,
+    demoLoginMutation,
     logoutMutation,
     registerMutation,
   };

@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Mail, User, Lock, EyeIcon, EyeOffIcon, Activity } from "lucide-react";
+import { AlertCircle, Mail, User, Lock, EyeIcon, EyeOffIcon, Activity, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
@@ -37,7 +37,7 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const { toast } = useToast();
-  const { user, loginMutation, registerMutation, isLoading } = useAuth();
+  const { user, loginMutation, demoLoginMutation, registerMutation, isLoading } = useAuth();
 
   // Show toast on login error
   useEffect(() => {
@@ -46,6 +46,13 @@ export default function AuthPage() {
       toast({ title: "Sign in failed", description: msg, variant: "destructive" });
     }
   }, [loginMutation.isError, loginMutation.error]);
+
+  useEffect(() => {
+    if (demoLoginMutation.isError && demoLoginMutation.error) {
+      const msg = demoLoginMutation.error.message.replace(/^\d+:\s*/, "");
+      toast({ title: "Demo unavailable", description: msg, variant: "destructive" });
+    }
+  }, [demoLoginMutation.isError, demoLoginMutation.error, toast]);
 
   // Show toast on registration error or success
   useEffect(() => {
@@ -193,7 +200,7 @@ export default function AuthPage() {
                           <Button
                             type="submit"
                             className="w-full"
-                            disabled={loginMutation.isPending}
+                            disabled={loginMutation.isPending || demoLoginMutation.isPending}
                           >
                             {loginMutation.isPending ? (
                               <>
@@ -204,6 +211,31 @@ export default function AuthPage() {
                               "Sign In"
                             )}
                           </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            disabled={loginMutation.isPending || demoLoginMutation.isPending}
+                            onClick={() => demoLoginMutation.mutate()}
+                          >
+                            {demoLoginMutation.isPending ? (
+                              <>
+                                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                Loading Demo...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                View Demo
+                              </>
+                            )}
+                          </Button>
+
+                          <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                            Explore a seeded portfolio account with realistic kidney-health trends, medications,
+                            appointments, transplant roadmap progress, and journal history.
+                          </div>
                         </form>
                       </Form>
                     </CardContent>
