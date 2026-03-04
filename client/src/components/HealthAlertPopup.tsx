@@ -69,7 +69,7 @@ export function HealthAlertPopup({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-xl w-[calc(100vw-2rem)]">
+      <AlertDialogContent style={{ maxWidth: '600px', width: 'calc(100vw - 2rem)' }}>
         <AlertDialogHeader>
           <AlertDialogTitle className={`${alertType === 'critical' ? 'text-red-600' : alertType === 'warning' ? 'text-amber-600' : 'text-blue-600'} flex items-center gap-2`}>
             {alertType === 'critical' && <AlertTriangle className="h-5 w-5" />}
