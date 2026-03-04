@@ -54,6 +54,62 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
+function normalizeOrigin(value?: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const candidates = trimmed.match(/^https?:\/\//i)
+    ? [trimmed]
+    : [`https://${trimmed}`, `http://${trimmed}`];
+
+  for (const candidate of candidates) {
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+}
+
+function getConfiguredAllowedOrigins() {
+  const configuredValues = [
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : []),
+    process.env.APP_URL,
+    process.env.PUBLIC_URL,
+    process.env.CLIENT_URL,
+    process.env.RAILWAY_PUBLIC_DOMAIN,
+    process.env.RAILWAY_STATIC_URL,
+  ];
+
+  const allowedOrigins = new Set<string>();
+
+  for (const value of configuredValues) {
+    const normalizedOrigin = normalizeOrigin(value);
+    if (normalizedOrigin) {
+      allowedOrigins.add(normalizedOrigin);
+    }
+  }
+
+  return allowedOrigins;
+}
+
+function getRequestOrigin(req: any): string | null {
+  const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = req.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || req.get("host")?.trim();
+  const protocol = forwardedProto || req.protocol;
+
+  if (!host || !protocol) {
+    return null;
+  }
+
+  return normalizeOrigin(`${protocol}://${host}`);
+}
+
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -120,17 +176,36 @@ export function setupAuth(app: Express) {
     // Apply CSRF protection to state-changing methods
     if (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
       // Base allowed origins
-      const allowedOrigins = [
+      const allowedOrigins = new Set([
         'http://localhost:5000',
         'https://localhost:5000',
         'http://127.0.0.1:5000',
         'https://127.0.0.1:5000',
-        // Add production domain when deployed
-        ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
-      ];
-      
+      ]);
+
+      for (const configuredOrigin of getConfiguredAllowedOrigins()) {
+        allowedOrigins.add(configuredOrigin);
+      }
+
+      const requestOrigin = getRequestOrigin(req);
+      if (requestOrigin) {
+        allowedOrigins.add(requestOrigin);
+      }
+
       // Get the current origin to check
-      const origin = req.get('Origin');
+      const origin = normalizeOrigin(req.get('Origin'));
+
+      // Fallback: allow by hostname match to handle reverse-proxy protocol differences
+      // (e.g. Railway terminates TLS so internal protocol is http, but Origin is https)
+      if (origin) {
+        const serverHostname = (req.get("x-forwarded-host") || req.get("host") || "")
+          .replace(/:\d+$/, '').trim();
+        try {
+          if (serverHostname && new URL(origin).hostname === serverHostname) {
+            allowedOrigins.add(origin);
+          }
+        } catch {}
+      }
       const referer = req.get('Referer');
       
       console.log(`🔍 CSRF Check: Method ${method}, Origin: ${origin}, Referer: ${referer}`);
@@ -145,7 +220,7 @@ export function setupAuth(app: Express) {
               origin.includes('janeway.replit.dev') ||
               origin.includes('repl.it') ||
               origin.match(/https?:\/\/[a-f0-9-]+-[a-f0-9-]+\.[\w-]+\.replit(\.dev|\.co)/)) {
-            allowedOrigins.push(origin);
+            allowedOrigins.add(origin);
             console.log(`✅ Added Replit origin: ${origin}`);
           }
         }
@@ -160,7 +235,7 @@ export function setupAuth(app: Express) {
             try {
               const refererUrl = new URL(referer);
               const refererOrigin = refererUrl.origin;
-              allowedOrigins.push(refererOrigin);
+              allowedOrigins.add(refererOrigin);
               console.log(`✅ Added Replit origin from referer: ${refererOrigin}`);
             } catch (e) {
               console.warn(`Could not parse referer as URL: ${referer}`);
@@ -169,11 +244,12 @@ export function setupAuth(app: Express) {
         }
       }
       
-      console.log(`🔍 Final allowed origins: ${allowedOrigins.join(', ')}`);
+      const allowedOriginsList = Array.from(allowedOrigins);
+      console.log(`🔍 Final allowed origins: ${allowedOriginsList.join(', ')}`);
       
       // Check Origin header first (preferred)
       if (origin) {
-        if (!allowedOrigins.includes(origin)) {
+        if (!allowedOrigins.has(origin)) {
           console.warn(`🚨 CSRF BLOCKED: Origin ${origin} not in allowed list`);
           return res.status(403).json({ error: 'CSRF: Invalid origin' });
         } else {
@@ -181,7 +257,7 @@ export function setupAuth(app: Express) {
         }
       } else if (referer) {
         // Fallback to Referer check if Origin not present
-        const refererIsAllowed = allowedOrigins.some(allowedOrigin => referer.startsWith(allowedOrigin));
+        const refererIsAllowed = allowedOriginsList.some(allowedOrigin => referer.startsWith(allowedOrigin));
         if (!refererIsAllowed) {
           console.warn(`🚨 CSRF BLOCKED: Invalid referer ${referer}`);
           return res.status(403).json({ error: 'CSRF: Invalid referer' });
