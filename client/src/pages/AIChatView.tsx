@@ -114,11 +114,20 @@ export default function AIChatView() {
     );
   }
 
+  function cleanMarkdown(text: string): string {
+    return text
+      .replace(/^#{1,6}\s+/gm, "")       // Remove ## headers
+      .replace(/\*\*(.+?)\*\*/g, "$1")   // Remove **bold**
+      .replace(/\*(.+?)\*/g, "$1")       // Remove *italic*
+      .replace(/`(.+?)`/g, "$1")         // Remove `code`
+      .trim();
+  }
+
   function AIBubble({ raw }: { raw: string }) {
     const { body, citations } = parseResponse(raw);
     return (
       <div className="bg-neutral-100 rounded-lg p-3 max-w-[92%] sm:max-w-[80%]">
-        <p className="text-sm whitespace-pre-wrap break-words">{body}</p>
+        <p className="text-sm whitespace-pre-wrap break-words">{cleanMarkdown(body)}</p>
         <CitationList citations={citations} />
       </div>
     );
@@ -144,7 +153,7 @@ export default function AIChatView() {
                 {date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               </p>
               <p className="text-sm font-medium text-primary mb-2">Q: {c.userMessage}</p>
-              <p className="text-sm text-neutral-700 whitespace-pre-wrap">{body}</p>
+              <p className="text-sm text-neutral-700 whitespace-pre-wrap">{cleanMarkdown(body)}</p>
               <CitationList citations={citations} />
             </div>
           );
