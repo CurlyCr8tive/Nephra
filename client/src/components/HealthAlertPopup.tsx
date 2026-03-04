@@ -95,10 +95,10 @@ export function HealthAlertPopup({
             </div>
           )}
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+        <AlertDialogFooter className="flex-col gap-2">
           {alertType === 'critical' && (
-            <Button 
-              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 flex items-center gap-2"
+            <Button
+              className="w-full bg-red-600 hover:bg-red-700 flex items-center gap-2"
               onClick={() => {
                 // Here you would implement actual calling functionality
                 // For now we just close the dialog
@@ -110,9 +110,9 @@ export function HealthAlertPopup({
               Call Emergency
             </Button>
           )}
-          <Button 
-            variant="outline" 
-            className="w-full sm:w-auto flex items-center gap-2"
+          <Button
+            variant="outline"
+            className="w-full flex items-center gap-2"
             onClick={() => {
               // Here you would implement scheduling functionality
               onOpenChange(false);
@@ -121,9 +121,9 @@ export function HealthAlertPopup({
             <Calendar className="h-4 w-4" />
             Schedule Appointment
           </Button>
-          <Button 
+          <Button
             variant="outline"
-            className="w-full sm:w-auto flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+            className="w-full flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
             onClick={() => {
               if (onAcknowledge) {
                 onAcknowledge();
@@ -136,7 +136,7 @@ export function HealthAlertPopup({
             <Check className="h-4 w-4" />
             Acknowledge
           </Button>
-          <AlertDialogCancel className="mt-0">Dismiss</AlertDialogCancel>
+          <AlertDialogCancel className="mt-0 w-full">Dismiss</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
