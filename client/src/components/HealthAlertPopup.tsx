@@ -69,7 +69,7 @@ export function HealthAlertPopup({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-xl w-[calc(100vw-2rem)]">
         <AlertDialogHeader>
           <AlertDialogTitle className={`${alertType === 'critical' ? 'text-red-600' : alertType === 'warning' ? 'text-amber-600' : 'text-blue-600'} flex items-center gap-2`}>
             {alertType === 'critical' && <AlertTriangle className="h-5 w-5" />}
@@ -95,13 +95,11 @@ export function HealthAlertPopup({
             </div>
           )}
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col gap-2">
+        <div className="flex flex-wrap gap-2 pt-2 justify-end">
           {alertType === 'critical' && (
             <Button
-              className="w-full bg-red-600 hover:bg-red-700 flex items-center gap-2"
+              className="flex-1 min-w-[140px] bg-red-600 hover:bg-red-700 flex items-center gap-2"
               onClick={() => {
-                // Here you would implement actual calling functionality
-                // For now we just close the dialog
                 window.open('tel:911');
                 onOpenChange(false);
               }}
@@ -112,18 +110,15 @@ export function HealthAlertPopup({
           )}
           <Button
             variant="outline"
-            className="w-full flex items-center gap-2"
-            onClick={() => {
-              // Here you would implement scheduling functionality
-              onOpenChange(false);
-            }}
+            className="flex-1 min-w-[160px] flex items-center gap-2"
+            onClick={() => onOpenChange(false)}
           >
             <Calendar className="h-4 w-4" />
             Schedule Appointment
           </Button>
           <Button
             variant="outline"
-            className="w-full flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+            className="flex-1 min-w-[120px] flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
             onClick={() => {
               if (onAcknowledge) {
                 onAcknowledge();
@@ -136,8 +131,8 @@ export function HealthAlertPopup({
             <Check className="h-4 w-4" />
             Acknowledge
           </Button>
-          <AlertDialogCancel className="mt-0 w-full">Dismiss</AlertDialogCancel>
-        </AlertDialogFooter>
+          <AlertDialogCancel className="mt-0 flex-1 min-w-[100px]">Dismiss</AlertDialogCancel>
+        </div>
       </AlertDialogContent>
     </AlertDialog>
   );
