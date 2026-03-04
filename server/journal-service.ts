@@ -1,10 +1,11 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { InsertJournalEntry } from "@shared/schema";
 import { storage } from "./storage";
 import { analyzeJournalEntryWithNLP, NamedEntity } from "./nlp-service";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 /**
  * Interface for journal analysis result
@@ -190,8 +191,9 @@ ${sentiment ? `Sentiment: ${sentiment}` : ''}
 ${scores.length > 0 ? `Scores: ${scores.join(', ')}` : ''}`;
     }).join("\n\n");
     
-    // Use OpenAI with context for enhanced analysis
-    const prompt = `You are a compassionate kidney health companion AI analyzing a journal entry from ${userName}, who has kidney disease.
+    const systemPrompt = `You are an empathetic health assistant specializing in kidney disease. Analyze journal entries with context awareness to identify health trends and provide personalized supportive feedback. Respond with valid JSON only, no other text.`;
+
+    const userPrompt = `You are a compassionate kidney health companion AI analyzing a journal entry from ${userName}, who has kidney disease.
 
 PREVIOUS ENTRIES FOR CONTEXT:
 ${pastEntriesContext}
@@ -213,23 +215,41 @@ HEALTH INSIGHTS (healthInsights): 1–2 sentences on clinical patterns across en
 
 Return JSON: { "stressScore": number, "fatigueScore": number, "painScore": number, "sentiment": "positive|negative|neutral|mixed", "tags": ["string"], "supportiveResponse": "string", "healthInsights": "string" }`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an empathetic health assistant specializing in kidney disease. Your purpose is to analyze journal entries with context awareness to identify health trends and provide personalized supportive feedback."
-        },
-        {
-          role: "user",
-          content: prompt
+    // Try Claude first, fall back to GPT-4o
+    let messageContent = '{}';
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        const claudeMsg = await anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }]
+        });
+        const block = claudeMsg.content[0];
+        if (block.type === "text") {
+          const t = block.text.trim();
+          const s = t.indexOf('{'), e = t.lastIndexOf('}');
+          messageContent = s >= 0 ? t.slice(s, e + 1) : t;
         }
-      ],
-      response_format: { type: "json_object" }
-    });
+        console.log("✅ Context-aware journal analysis by Claude");
+      } catch (claudeErr) {
+        console.warn("Claude context analysis failed, falling back to GPT-4o:", claudeErr);
+      }
+    }
 
-    // Parse the JSON response
-    const messageContent = response.choices[0].message.content || '{}';
+    if (messageContent === '{}') {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" }
+      });
+      messageContent = response.choices[0].message.content || '{}';
+      console.log("✅ Context-aware journal analysis by GPT-4o");
+    }
+
     const result = JSON.parse(messageContent) as JournalAnalysisResult;
     
     // Ensure scores are within bounds

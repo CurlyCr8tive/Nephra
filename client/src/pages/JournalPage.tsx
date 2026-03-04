@@ -268,40 +268,41 @@ export default function JournalPage() {
   const { mutate: submitJournal, isPending: isSubmitting } = useMutation({
     mutationFn: async (data: { content: string, aiProvider: string }) => {
       if (!user || !user.id) throw new Error("No user found");
-      
+
       // Choose endpoint based on selected AI provider
       const endpoint = aiProviders.find(p => p.id === data.aiProvider)?.apiEndpoint || "/api/ai/journal/process";
-      
+
       const response = await apiRequest("POST", endpoint, {
         userId: user.id,
         content: data.content
       });
-      
-      return response.json();
+
+      const json = await response.json();
+      // Attach the submitted content so onSuccess can read it reliably
+      return { ...json, _submittedContent: data.content };
     },
     onSuccess: (data) => {
       if (user && user.id) {
-        // Invalidate using the same query key format as our useQuery
         queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
-        console.log('✅ Successfully saved journal entry, refreshing entries');
       }
-      
-      // Save AI response for conversation
+
       // API returns { journalEntry, metrics } from /api/ai/journal/process
       const entry = data.journalEntry || data.entry;
-      if (entry && entry.aiResponse) {
-        setAiResponse(entry.aiResponse);
-        setConversation([
-          { role: 'user', content: journalContent },
-          { role: 'ai', content: entry.aiResponse }
-        ]);
-        setConversationMode(true);
-      }
-      
+      const aiText = entry?.aiResponse || null;
+      const userText = data._submittedContent || journalContent;
+
+      // Always switch to conversation view on success
+      setConversation([
+        { role: 'user', content: userText },
+        ...(aiText ? [{ role: 'ai' as const, content: aiText }] : [])
+      ]);
+      if (aiText) setAiResponse(aiText);
+      setConversationMode(true);
       setJournalContent("");
+
       toast({
         title: "Journal entry saved",
-        description: "Your thoughts have been saved and analyzed.",
+        description: aiText ? "Your thoughts have been analyzed." : "Saved — analysis arriving shortly.",
       });
     },
     onError: (error) => {
