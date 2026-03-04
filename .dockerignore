@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+dist
+.DS_Store
+.env
+.env.local
+.env.*.local
+attached_assets
+server.log
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.tar.gz
