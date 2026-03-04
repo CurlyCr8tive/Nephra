@@ -49,8 +49,8 @@ export function Header({ title }: HeaderProps) {
             disabled={logoutMutation.isPending}
             className="text-neutral-600 hover:text-primary"
           >
-            <span className="material-icons text-sm mr-1">logout</span>
-            Logout
+            <span className="material-icons text-sm">logout</span>
+            <span className="hidden sm:inline ml-1">Logout</span>
           </Button>
 
           <Link href="/profile">

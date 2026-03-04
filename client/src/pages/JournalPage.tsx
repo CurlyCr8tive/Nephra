@@ -460,7 +460,7 @@ export default function JournalPage() {
                     <div className="space-y-4 mb-4">
                       {conversation.map((message, index) => (
                         <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-2 max-w-[80%]`}>
+                          <div className={`flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-2 max-w-[92%] sm:max-w-[80%]`}>
                             <Avatar className={`h-8 w-8 ${message.role === 'ai' ? 'bg-primary' : 'bg-muted'}`}>
                               <AvatarFallback>
                                 {message.role === 'ai' ? 

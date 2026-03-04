@@ -54,6 +54,15 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Prevent horizontal overflow on mobile */
+    overflow-x: hidden;
+  }
+}
+
+/* iOS safe area support for bottom navigation */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 

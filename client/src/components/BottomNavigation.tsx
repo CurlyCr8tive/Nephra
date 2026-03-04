@@ -10,7 +10,7 @@ export function BottomNavigation() {
   };
   
   return (
-    <nav className="bg-white shadow-lg fixed bottom-0 left-0 right-0 z-10 border-t border-neutral-200">
+    <nav className="bg-white shadow-lg fixed bottom-0 left-0 right-0 z-10 border-t border-neutral-200 safe-area-inset-bottom">
       <div className="flex justify-around">
         {/* Home */}
         <Link
@@ -20,7 +20,7 @@ export function BottomNavigation() {
           }`}
         >
           <span className="material-icons text-2xl leading-none block" aria-hidden>home</span>
-          <span className="text-[11px] leading-none text-center">Home</span>
+          <span className="text-xs leading-none text-center">Home</span>
         </Link>
         
         {/* Track */}
@@ -32,7 +32,7 @@ export function BottomNavigation() {
           data-testid="nav-track"
         >
           <span className="material-icons text-2xl leading-none block" aria-hidden>show_chart</span>
-          <span className="text-[11px] leading-none text-center">Track</span>
+          <span className="text-xs leading-none text-center">Track</span>
         </Link>
         
         {/* Journal (Chat is now part of Journal) */}
@@ -43,7 +43,7 @@ export function BottomNavigation() {
           }`}
         >
           <span className="material-icons text-2xl leading-none block" aria-hidden>edit_note</span>
-          <span className="text-[11px] leading-none text-center">Journal</span>
+          <span className="text-xs leading-none text-center">Journal</span>
         </Link>
         
         {/* Education Hub */}
@@ -54,7 +54,7 @@ export function BottomNavigation() {
           }`}
         >
           <span className="material-icons text-2xl leading-none block" aria-hidden>school</span>
-          <span className="text-[11px] leading-none text-center">Education</span>
+          <span className="text-xs leading-none text-center">Education</span>
         </Link>
         
         {/* Roadmap */}
@@ -65,7 +65,7 @@ export function BottomNavigation() {
           }`}
         >
           <span className="material-icons text-2xl leading-none block" aria-hidden>map</span>
-          <span className="text-[11px] leading-none text-center">Roadmap</span>
+          <span className="text-xs leading-none text-center">Roadmap</span>
         </Link>
       </div>
     </nav>

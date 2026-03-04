@@ -200,7 +200,7 @@ const EducationHub = () => {
       <h1 className="text-2xl font-bold text-primary mb-4">Education & Advocacy Hub</h1>
       
       <Tabs defaultValue="questions" value={activeCategory} onValueChange={setActiveCategory}>
-        <TabsList className="grid grid-cols-4 mb-4">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-4">
           <TabsTrigger value="questions">Questions</TabsTrigger>
           <TabsTrigger value="treatments">Treatments</TabsTrigger>
           <TabsTrigger value="news">News</TabsTrigger>

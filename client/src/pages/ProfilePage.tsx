@@ -689,11 +689,11 @@ export default function ProfilePage() {
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <Tabs defaultValue="personal" className="w-full" onValueChange={setActiveTab}>
-                      <TabsList className="grid w-full grid-cols-4 mb-4">
+                      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
                         <TabsTrigger value="personal">Personal</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="care">Care Team</TabsTrigger>
-                        <TabsTrigger value="preferences">Health Preferences</TabsTrigger>
+                        <TabsTrigger value="preferences"><span className="hidden sm:inline">Health </span>Preferences</TabsTrigger>
                       </TabsList>
                       
                       {/* Personal Information Tab */}

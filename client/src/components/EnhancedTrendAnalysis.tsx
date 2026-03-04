@@ -14,20 +14,20 @@ export function EnhancedTrendAnalysis() {
         <TabsList className="w-full mb-4 grid grid-cols-3">
           <TabsTrigger value="gfr" className="flex-1">
             <span className="flex items-center gap-1">
-              <TrendingUp className="h-4 w-4" />
-              <span>GFR Trends</span>
+              <TrendingUp className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">GFR </span><span>Trends</span>
             </span>
           </TabsTrigger>
           <TabsTrigger value="ksls" className="flex-1">
             <span className="flex items-center gap-1">
-              <Zap className="h-4 w-4" />
-              <span>KSLS Trends</span>
+              <Zap className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">KSLS </span><span>Trends</span>
             </span>
           </TabsTrigger>
           <TabsTrigger value="symptoms" className="flex-1">
             <span className="flex items-center gap-1">
-              <Activity className="h-4 w-4" />
-              <span>Symptom Patterns</span>
+              <Activity className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Symptom </span><span>Patterns</span>
             </span>
           </TabsTrigger>
         </TabsList>

@@ -95,7 +95,7 @@ export default function AIChatView() {
         // First add the user message
         formattedHistory.push(
           <div key={`user-${index}`} className="flex justify-end mb-4">
-            <div className="bg-primary text-white rounded-lg p-3 max-w-[80%]">
+            <div className="bg-primary text-white rounded-lg p-3 max-w-[92%] sm:max-w-[80%]">
               <p className="text-sm">{chat.userMessage}</p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function AIChatView() {
             <div className="bg-primary bg-opacity-10 rounded-full p-2 self-start mr-2">
               <span className="material-icons text-primary text-sm">smart_toy</span>
             </div>
-            <div className="bg-neutral-100 rounded-lg p-3 max-w-[80%]">
+            <div className="bg-neutral-100 rounded-lg p-3 max-w-[92%] sm:max-w-[80%]">
               <p className="text-sm whitespace-pre-line">{chat.aiResponse}</p>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function AIChatView() {
       else if (chat.userMessage && !chat.aiResponse) {
         formattedHistory.push(
           <div key={`user-${index}`} className="flex justify-end mb-4">
-            <div className="bg-primary text-white rounded-lg p-3 max-w-[80%]">
+            <div className="bg-primary text-white rounded-lg p-3 max-w-[92%] sm:max-w-[80%]">
               <p className="text-sm">{chat.userMessage}</p>
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function AIChatView() {
             <div className="bg-primary bg-opacity-10 rounded-full p-2 self-start mr-2">
               <span className="material-icons text-primary text-sm">smart_toy</span>
             </div>
-            <div className="bg-neutral-100 rounded-lg p-3 max-w-[80%]">
+            <div className="bg-neutral-100 rounded-lg p-3 max-w-[92%] sm:max-w-[80%]">
               <p className="text-sm whitespace-pre-line">{chat.aiResponse}</p>
             </div>
           </div>
@@ -174,7 +174,7 @@ export default function AIChatView() {
             <div className="bg-primary bg-opacity-10 rounded-full p-2 self-start mr-2">
               <span className="material-icons text-primary text-sm">smart_toy</span>
             </div>
-            <div className="bg-neutral-100 rounded-lg p-3 max-w-[80%]">
+            <div className="bg-neutral-100 rounded-lg p-3 max-w-[92%] sm:max-w-[80%]">
               <p className="text-sm">
                 Hi {user?.firstName || "there"}! I'm your AI health companion. I'm here to help you manage your kidney health and answer any questions you might have. How can I assist you today?
               </p>
