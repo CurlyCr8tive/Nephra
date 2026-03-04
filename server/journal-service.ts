@@ -58,28 +58,22 @@ export async function analyzeJournalEntry(
     
     // Fallback to simple OpenAI analysis if comprehensive analysis fails
     try {
-      const prompt = `
-      You're analyzing a journal entry from a person with kidney disease. 
-      
-      Journal entry: "${journalEntry}"
-      
-      Based on this entry, please provide:
-      1. A stress score from 1-10 (with 10 being most stressed)
-      2. A fatigue score from 1-10 (with 10 being most fatigued) 
-      3. A pain score from 1-10 (with 10 being most pain)
-      4. The overall sentiment (positive, negative, neutral, mixed)
-      5. 1-5 relevant tags that represent themes or emotions in the entry
-      6. A supportive, empathetic response that includes the phrase "${userName}, you're doing your best" and offers relevant encouragement
-      
-      Respond with JSON in this exact format:
-      {
-        "stressScore": number,
-        "fatigueScore": number,
-        "painScore": number,
-        "sentiment": "string",
-        "tags": ["string", "string"],
-        "supportiveResponse": "string"
-      }`;
+      const prompt = `You are a compassionate kidney health companion AI. Analyze this journal entry from ${userName}, who has kidney disease.
+
+Journal entry: "${journalEntry}"
+
+SCORING RULES (1–10, never default to 5):
+- Use explicit numbers if stated (e.g. "pain 7/10"). Otherwise infer:
+  mild/slight → 2–3 | moderate/some → 4–5 | significant/quite bad → 6–7 | severe/terrible → 8–10 | not mentioned → 1
+- Stress: worry, anxiety, overwhelm | Fatigue: tired, exhausted, drained | Pain: ache, hurt, discomfort
+
+RESPONSE (supportiveResponse): 3–4 paragraphs, ~200 words:
+1. Acknowledge what ${userName} specifically wrote (no generic openers)
+2. Provide kidney-health context for any symptoms or concerns they raised
+3. 2–3 concrete, actionable suggestions
+4. Note anything to raise with their care team (if applicable)
+
+Return JSON: { "stressScore": number, "fatigueScore": number, "painScore": number, "sentiment": "positive|negative|neutral|mixed", "tags": ["string"], "supportiveResponse": "string" }`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -197,33 +191,27 @@ ${scores.length > 0 ? `Scores: ${scores.join(', ')}` : ''}`;
     }).join("\n\n");
     
     // Use OpenAI with context for enhanced analysis
-    const prompt = `
-    You're analyzing a journal entry from ${userName}, who has kidney disease. 
-    
-    Here's some context from previous journal entries:
-    
-    ${pastEntriesContext}
-    
-    Current journal entry: "${journalEntry}"
-    
-    Based on this entry AND the context from previous entries, please provide:
-    1. A stress score from 1-10 (with 10 being most stressed)
-    2. A fatigue score from 1-10 (with 10 being most fatigued) 
-    3. A pain score from 1-10 (with 10 being most pain)
-    4. The overall sentiment (positive, negative, neutral, mixed)
-    5. 1-5 relevant tags that represent themes or emotions in the entry
-    6. A supportive, empathetic response that references trends or changes compared to previous entries
-    
-    Respond with JSON in this exact format:
-    {
-      "stressScore": number,
-      "fatigueScore": number,
-      "painScore": number,
-      "sentiment": "string",
-      "tags": ["string", "string"],
-      "supportiveResponse": "string",
-      "healthInsights": "string with observations about trends"
-    }`;
+    const prompt = `You are a compassionate kidney health companion AI analyzing a journal entry from ${userName}, who has kidney disease.
+
+PREVIOUS ENTRIES FOR CONTEXT:
+${pastEntriesContext}
+
+CURRENT ENTRY: "${journalEntry}"
+
+SCORING RULES (1–10, never default to 5):
+- Use explicit numbers if stated (e.g. "pain 7/10"). Otherwise infer:
+  mild/slight → 2–3 | moderate/some → 4–5 | significant/quite bad → 6–7 | severe/terrible → 8–10 | not mentioned → 1
+- Stress: worry, anxiety, overwhelm | Fatigue: tired, exhausted, drained | Pain: ache, hurt, discomfort
+
+RESPONSE (supportiveResponse): 3–4 paragraphs, ~200 words total:
+1. Address what ${userName} specifically wrote (no generic openers)
+2. Compare to previous entries — note improvements, declines, or patterns
+3. 2–3 actionable kidney-health suggestions
+4. Flag anything to discuss with their nephrologist (if applicable)
+
+HEALTH INSIGHTS (healthInsights): 1–2 sentences on clinical patterns across entries.
+
+Return JSON: { "stressScore": number, "fatigueScore": number, "painScore": number, "sentiment": "positive|negative|neutral|mixed", "tags": ["string"], "supportiveResponse": "string", "healthInsights": "string" }`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",

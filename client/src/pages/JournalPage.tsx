@@ -399,37 +399,16 @@ export default function JournalPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">How are you feeling today?</CardTitle>
+                  <p className="text-sm text-muted-foreground">Describe your symptoms, emotions, or anything on your mind. Mention specific scores if you like (e.g. "pain about 6/10").</p>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4">
-                    <Textarea
-                      placeholder="Write about your physical symptoms, emotions, or any experiences today..."
-                      className="min-h-[200px] mb-4"
-                      value={journalContent}
-                      onChange={(e) => setJournalContent(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium mb-2">AI Analysis Provider</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {aiProviders.map((provider) => (
-                        <Button
-                          key={provider.id}
-                          variant={selectedAIProvider === provider.id ? "default" : "outline"}
-                          className="justify-start h-auto py-2 px-3"
-                          onClick={() => setSelectedAIProvider(provider.id)}
-                        >
-                          <div className="text-left">
-                            <div className="font-medium">{provider.name}</div>
-                            <div className="text-xs text-muted-foreground">{provider.description}</div>
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <Button 
+                  <Textarea
+                    placeholder="e.g. I've been feeling pretty fatigued today — maybe a 7 out of 10. My blood pressure reading was a bit high this morning and I'm worried about my appointment next week..."
+                    className="min-h-[200px] mb-4"
+                    value={journalContent}
+                    onChange={(e) => setJournalContent(e.target.value)}
+                  />
+                  <Button
                     className="w-full"
                     onClick={handleSubmit}
                     disabled={isSubmitting || !journalContent.trim()}
@@ -437,56 +416,81 @@ export default function JournalPage() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
+                        Analyzing your entry...
                       </>
-                    ) : "Save & Analyze"}
+                    ) : "Save & Get Analysis"}
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              // Conversation Interface
+              // Analysis + follow-up chat
               <div className="space-y-4">
+                {/* Scores from the latest entry */}
+                {journalEntries[0] && (
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        {[
+                          { label: "Pain", value: journalEntries[0].painScore, color: "text-red-500" },
+                          { label: "Stress", value: journalEntries[0].stressScore, color: "text-amber-500" },
+                          { label: "Fatigue", value: journalEntries[0].fatigueScore, color: "text-blue-500" },
+                        ].map(({ label, value, color }) => (
+                          <div key={label} className="flex flex-col items-center p-3 bg-muted rounded-lg">
+                            <span className="text-xs text-muted-foreground mb-1">{label}</span>
+                            <span className={`text-xl font-bold ${color}`}>{value ?? "—"}<span className="text-sm font-normal text-muted-foreground">/10</span></span>
+                          </div>
+                        ))}
+                      </div>
+                      {journalEntries[0].sentiment && (
+                        <p className="text-xs text-muted-foreground text-center capitalize">Overall mood: <span className="font-medium text-foreground">{journalEntries[0].sentiment}</span></p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Conversation */}
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">Your Health Assistant</CardTitle>
-                      <p className="text-sm text-muted-foreground">Chat about your journal entry</p>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-base">Health Analysis</CardTitle>
                     </div>
-                    <Button variant="outline" size="icon" onClick={() => setConversationMode(false)}>
-                      <RefreshCw className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={() => setConversationMode(false)} className="text-xs text-muted-foreground">
+                      <RefreshCw className="h-3 w-3 mr-1" /> New entry
                     </Button>
                   </CardHeader>
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 pt-2">
                     <div className="space-y-4 mb-4">
                       {conversation.map((message, index) => (
                         <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                           <div className={`flex ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-2 max-w-[92%] sm:max-w-[80%]`}>
-                            <Avatar className={`h-8 w-8 ${message.role === 'ai' ? 'bg-primary' : 'bg-muted'}`}>
+                            <Avatar className={`h-8 w-8 shrink-0 ${message.role === 'ai' ? 'bg-primary' : 'bg-muted'}`}>
                               <AvatarFallback>
-                                {message.role === 'ai' ? 
-                                  <Bot className="h-4 w-4" /> : 
-                                  (user && user.firstName ? user.firstName.charAt(0) : 'U')
+                                {message.role === 'ai' ?
+                                  <Bot className="h-4 w-4" /> :
+                                  (user?.firstName ? user.firstName.charAt(0) : 'U')
                                 }
                               </AvatarFallback>
                             </Avatar>
-                            <div className={`rounded-lg p-3 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'} max-w-full overflow-x-hidden`}>
-                              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                            <div className={`rounded-lg p-3 text-sm whitespace-pre-wrap break-words ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                              {message.content}
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                    
-                    <div className="flex items-end gap-2">
+
+                    <div className="flex items-end gap-2 pt-2 border-t">
                       <Textarea
                         placeholder="Ask a follow-up question..."
-                        className="min-h-[60px] flex-1"
+                        className="min-h-[60px] flex-1 text-sm"
                         value={followUpPrompt}
                         onChange={(e) => setFollowUpPrompt(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFollowUpSubmit(); }}}
                       />
-                      <Button 
-                        size="icon" 
-                        className="h-10 w-10" 
+                      <Button
+                        size="icon"
+                        className="h-10 w-10 shrink-0"
                         onClick={handleFollowUpSubmit}
                         disabled={isSubmittingFollowUp || !followUpPrompt.trim()}
                       >
@@ -496,33 +500,6 @@ export default function JournalPage() {
                           <Send className="h-4 w-4" />
                         )}
                       </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Health Metrics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                        <span className="text-xs mb-1">Pain</span>
-                        <span className="text-xl font-bold">{journalEntries[0]?.painScore || "-"}/10</span>
-                      </div>
-                      <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                        <span className="text-xs mb-1">Stress</span>
-                        <span className="text-xl font-bold">{journalEntries[0]?.stressScore || "-"}/10</span>
-                      </div>
-                      <div className="flex flex-col items-center p-3 bg-muted rounded-lg">
-                        <span className="text-xs mb-1">Fatigue</span>
-                        <span className="text-xl font-bold">{journalEntries[0]?.fatigueScore || "-"}/10</span>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t">
-                      <h4 className="text-sm font-medium mb-2">Mood Assessment</h4>
-                      <p className="text-sm">{journalEntries[0]?.sentiment || "No mood assessment available"}</p>
                     </div>
                   </CardContent>
                 </Card>

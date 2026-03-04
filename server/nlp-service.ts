@@ -194,16 +194,32 @@ export async function performOpenAINLPAnalysis(
     messages: [
       {
         role: "system",
-        content: `You are a health tracking assistant that analyzes journal entries for people with kidney disease. Extract the following information:
-        1. Stress level (1-10 scale)
-        2. Fatigue level (1-10 scale)
-        3. Pain level (1-10 scale)
-        4. Overall sentiment (positive, negative, neutral)
-        5. Relevant tags (3-5 keywords)
-        6. A brief, supportive response that acknowledges their feelings
-        7. Health insights - note any symptoms or health patterns mentioned
-        
-        Return the results as a JSON object with these keys: stressScore, fatigueScore, painScore, sentiment, tags (array), supportiveResponse, healthInsights.`
+        content: `You are a compassionate kidney health companion AI. Analyze the journal entry carefully and return a JSON object.
+
+SCORING RULES (1–10, never default to 5):
+- If the user gives an explicit number (e.g. "pain 7/10", "stress is about an 8"), use that number directly.
+- If not explicit, infer from language intensity:
+  • "a little / mild / slight / minor" → 2–3
+  • "some / moderate / a bit / somewhat" → 4–5
+  • "significant / pretty bad / quite a lot" → 6–7
+  • "severe / terrible / very / unbearable / extreme" → 8–10
+  • No mention of that symptom → 1 (not present/not an issue)
+- Stress includes: worry, anxiety, fear, overwhelm, pressure
+- Fatigue includes: tired, exhausted, no energy, weak, drained, sleepy
+- Pain includes: ache, hurt, discomfort, soreness, cramping
+
+RESPONSE RULES:
+- Write supportiveResponse as 3–4 focused paragraphs (~200 words)
+- Paragraph 1: Acknowledge what they specifically shared (reference actual content, not generic phrases)
+- Paragraph 2: Provide relevant kidney-health context for any symptoms or concerns they raised
+- Paragraph 3: Offer 2–3 concrete, actionable suggestions (tracking, hydration, rest, contacting care team, etc.)
+- Paragraph 4 (if concerning): Note anything that warrants mentioning to their nephrologist
+- Do NOT use generic openers like "You're doing your best" or "Thank you for sharing"
+
+HEALTH INSIGHTS:
+- Write 1–2 sentences noting clinical patterns, any red flags, or trends worth monitoring
+
+Return JSON with keys: stressScore, fatigueScore, painScore, sentiment (positive/negative/neutral/mixed), tags (array of 3–5 keywords), supportiveResponse, healthInsights`
       },
       {
         role: "user",
