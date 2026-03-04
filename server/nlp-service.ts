@@ -7,10 +7,14 @@
  */
 
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import fetch from "node-fetch";
 
 // Initialize OpenAI with API key from environment
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Initialize Anthropic Claude client
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Interfaces for NLP analysis results
 export interface NLPAnalysisResult {
@@ -171,30 +175,7 @@ export async function performBasicNLPAnalysis(text: string): Promise<NLPAnalysis
   };
 }
 
-/**
- * Use OpenAI to perform deep NLP analysis
- * 
- * @param text The text to analyze
- * @returns Detailed NLP analysis from GPT-4
- */
-export async function performOpenAINLPAnalysis(
-  text: string
-): Promise<{
-  stressScore: number;
-  fatigueScore: number;
-  painScore: number;
-  sentiment: string;
-  tags: string[];
-  supportiveResponse: string;
-  healthInsights: string;
-}> {
-  // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: `You are a compassionate kidney health companion AI. Analyze the journal entry carefully and return a JSON object.
+const JOURNAL_ANALYSIS_SYSTEM_PROMPT = `You are a compassionate kidney health companion AI. Analyze the journal entry carefully and return a JSON object.
 
 SCORING RULES (1–10, never default to 5):
 - If the user gives an explicit number (e.g. "pain 7/10", "stress is about an 8"), use that number directly.
@@ -219,26 +200,61 @@ RESPONSE RULES:
 HEALTH INSIGHTS:
 - Write 1–2 sentences noting clinical patterns, any red flags, or trends worth monitoring
 
-Return JSON with keys: stressScore, fatigueScore, painScore, sentiment (positive/negative/neutral/mixed), tags (array of 3–5 keywords), supportiveResponse, healthInsights`
-      },
-      {
-        role: "user",
-        content: text
-      }
+Return JSON with keys: stressScore, fatigueScore, painScore, sentiment (positive/negative/neutral/mixed), tags (array of 3–5 keywords), supportiveResponse, healthInsights`;
+
+type DeepAnalysisResult = {
+  stressScore: number;
+  fatigueScore: number;
+  painScore: number;
+  sentiment: string;
+  tags: string[];
+  supportiveResponse: string;
+  healthInsights: string;
+};
+
+function clampScores(result: DeepAnalysisResult): DeepAnalysisResult {
+  result.stressScore = Math.min(10, Math.max(1, result.stressScore || 5));
+  result.fatigueScore = Math.min(10, Math.max(1, result.fatigueScore || 5));
+  result.painScore = Math.min(10, Math.max(1, result.painScore || 5));
+  return result;
+}
+
+/**
+ * Use Anthropic Claude to perform deep journal analysis (primary LLM)
+ */
+export async function performClaudeNLPAnalysis(text: string): Promise<DeepAnalysisResult> {
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    system: JOURNAL_ANALYSIS_SYSTEM_PROMPT + "\n\nIMPORTANT: Respond with valid JSON only, no other text.",
+    messages: [{ role: "user", content: text }]
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") throw new Error("Unexpected Claude response type");
+
+  const jsonText = content.text.trim();
+  const jsonStart = jsonText.indexOf('{');
+  const jsonEnd = jsonText.lastIndexOf('}');
+  const parsed = JSON.parse(jsonStart >= 0 ? jsonText.slice(jsonStart, jsonEnd + 1) : jsonText);
+  return clampScores(parsed);
+}
+
+/**
+ * Use OpenAI GPT-4o to perform deep NLP analysis (fallback LLM)
+ */
+export async function performOpenAINLPAnalysis(text: string): Promise<DeepAnalysisResult> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: JOURNAL_ANALYSIS_SYSTEM_PROMPT },
+      { role: "user", content: text }
     ],
     response_format: { type: "json_object" }
   });
 
-  // Parse the JSON response
   const messageContent = response.choices[0].message.content || '{}';
-  const result = JSON.parse(messageContent);
-  
-  // Ensure scores are within bounds
-  result.stressScore = Math.min(10, Math.max(1, result.stressScore || 5));
-  result.fatigueScore = Math.min(10, Math.max(1, result.fatigueScore || 5));
-  result.painScore = Math.min(10, Math.max(1, result.painScore || 5));
-  
-  return result;
+  return clampScores(JSON.parse(messageContent));
 }
 
 /**
@@ -300,25 +316,44 @@ export async function analyzeJournalEntryWithNLP(
     // First, run the basic NLP analysis (spaCy-like functionality)
     const basicAnalysis = await performBasicNLPAnalysis(text);
     
-    // Then, try to get OpenAI's analysis
-    try {
-      const openaiAnalysis = await performOpenAINLPAnalysis(text);
-      
-      // Combine the results from both analyses
+    // Try Claude first (best at nuanced health text synthesis), then GPT-4o
+    let deepAnalysis: DeepAnalysisResult | null = null;
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        deepAnalysis = await performClaudeNLPAnalysis(text);
+        console.log("✅ Journal analysis completed by Claude");
+      } catch (claudeError) {
+        console.warn("Claude analysis failed, falling back to GPT-4o:", claudeError);
+      }
+    }
+
+    if (!deepAnalysis) {
+      try {
+        deepAnalysis = await performOpenAINLPAnalysis(text);
+        console.log("✅ Journal analysis completed by GPT-4o");
+      } catch (openaiError) {
+        console.error("GPT-4o analysis also failed:", openaiError);
+      }
+    }
+
+    if (deepAnalysis) {
       return {
         keywords: basicAnalysis.keywords,
         entities: basicAnalysis.entities,
-        stressScore: openaiAnalysis.stressScore,
-        fatigueScore: openaiAnalysis.fatigueScore, 
-        painScore: openaiAnalysis.painScore,
-        sentiment: openaiAnalysis.sentiment,
-        tags: openaiAnalysis.tags,
+        stressScore: deepAnalysis.stressScore,
+        fatigueScore: deepAnalysis.fatigueScore,
+        painScore: deepAnalysis.painScore,
+        sentiment: deepAnalysis.sentiment,
+        tags: deepAnalysis.tags,
         keyPhrases: basicAnalysis.keyPhrases,
-        supportiveResponse: openaiAnalysis.supportiveResponse,
-        healthInsights: openaiAnalysis.healthInsights
+        supportiveResponse: deepAnalysis.supportiveResponse,
+        healthInsights: deepAnalysis.healthInsights
       };
-    } catch (openaiError) {
-      console.error("OpenAI analysis failed, using basic NLP only:", openaiError);
+    }
+
+    // All deep analysis providers failed — fall back to basic NLP
+    {
+      console.error("All deep analysis providers failed, using basic NLP only");
       
       // Try to get Hugging Face sentiment as a fallback
       let sentiment = basicAnalysis.sentimentLabel;

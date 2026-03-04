@@ -287,11 +287,13 @@ export default function JournalPage() {
       }
       
       // Save AI response for conversation
-      if (data.entry && data.entry.aiResponse) {
-        setAiResponse(data.entry.aiResponse);
+      // API returns { journalEntry, metrics } from /api/ai/journal/process
+      const entry = data.journalEntry || data.entry;
+      if (entry && entry.aiResponse) {
+        setAiResponse(entry.aiResponse);
         setConversation([
           { role: 'user', content: journalContent },
-          { role: 'ai', content: data.entry.aiResponse }
+          { role: 'ai', content: entry.aiResponse }
         ]);
         setConversationMode(true);
       }
