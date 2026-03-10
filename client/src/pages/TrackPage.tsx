@@ -66,6 +66,12 @@ export default function TrackPage() {
   const [medicalNotes, setMedicalNotes] = useState<string>("");
   const [timeOfDay, setTimeOfDay] = useState<"morning" | "afternoon" | "evening">("morning");
   const [logSelectedDate, setLogSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [logTime, setLogTime] = useState("08:00"); // for new entry
+  const [editLogTime, setEditLogTime] = useState("08:00"); // for edit mode
+  // Edit mode state
+  const [editLogId, setEditLogId] = useState(null);
+  const [editTimeOfDay, setEditTimeOfDay] = useState("morning");
+
   const [estimatedGFR, setEstimatedGFR] = useState<number>(70);
   const [calculatedKSLS, setCalculatedKSLS] = useState<{ score: number; band: string } | null>(null);
   const [medications, setMedications] = useState<Medication[]>([
@@ -141,11 +147,9 @@ export default function TrackPage() {
       });
       return;
     }
-    
     // Convert to numbers
     const systolicNum = parseInt(systolicBP, 10);
     const diastolicNum = parseInt(diastolicBP, 10);
-    
     // Validate BP ranges
     if (systolicNum < 70 || systolicNum > 220 || diastolicNum < 40 || diastolicNum > 120) {
       toast({
@@ -155,19 +159,19 @@ export default function TrackPage() {
       });
       return;
     }
-    
     // Calculate estimated GFR
     const calculatedGFR = calculateEstimatedGFR();
-
-    // Build timestamp from selected date + time-of-day
-    const logDate = new Date(logSelectedDate + "T12:00:00"); // parse in local time
-    if (timeOfDay === "morning") logDate.setHours(8, 0, 0, 0);
-    else if (timeOfDay === "afternoon") logDate.setHours(13, 0, 0, 0);
-    else logDate.setHours(20, 0, 0, 0);
-
+    // Build timestamp from selected date + time input
+    const logDate = new Date(logSelectedDate + "T" + logTime);
+    if (logDate > new Date()) {
+      toast({ title: "Invalid Time", description: "Cannot log a future time.", variant: "destructive" });
+      return;
+    }
     const healthData = {
       userId: user?.id,
       date: logDate,
+      timeOfDay,
+      logTime,
       hydration,
       systolicBP: systolicNum,
       diastolicBP: diastolicNum,
@@ -178,13 +182,10 @@ export default function TrackPage() {
       estimatedGFR: calculatedGFR,
       notes: medicalNotes
     };
-    
-    // Use the logHealthMetrics function from the useHealthData hook
     logHealthMetrics(healthData);
-
-    // Reset form
     setMedicalNotes("");
     setLogSelectedDate(format(new Date(), "yyyy-MM-dd"));
+    setLogTime("08:00");
   };
   
   // Calculate estimated GFR using a simplified approach that accounts for health metrics
@@ -1550,8 +1551,56 @@ export default function TrackPage() {
 
                 </div>
               </div>
+
+              {/* Past entries history */}
+              <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+                <h2 className="font-display font-bold text-lg mb-4">Entry History</h2>
+                {isLoadingWeekly ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
+                  </div>
+                ) : !weeklyMetrics || weeklyMetrics.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No entries yet. Log your first reading above.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {[...weeklyMetrics]
+                      .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+                      .map((m) => (
+                        <div key={m.id} className="border rounded-lg p-3 text-sm">
+                          <p className="font-medium text-xs text-muted-foreground mb-2">
+                            {m.date ? format(new Date(m.date), "EEE, MMM d yyyy · h:mm a") : "Unknown date"}
+                          </p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            {m.systolicBP != null && m.diastolicBP != null && (
+                              <span><span className="text-muted-foreground">BP:</span> {m.systolicBP}/{m.diastolicBP} mmHg</span>
+                            )}
+                            {m.pulse != null && (
+                              <span><span className="text-muted-foreground">Pulse:</span> {m.pulse} bpm</span>
+                            )}
+                            {m.hydration != null && (
+                              <span><span className="text-muted-foreground">Hydration:</span> {Number(m.hydration).toFixed(1)} L</span>
+                            )}
+                            {m.estimatedGFR != null && (
+                              <span><span className="text-muted-foreground">eGFR:</span> {Math.round(Number(m.estimatedGFR))}</span>
+                            )}
+                            {m.painLevel != null && (
+                              <span><span className="text-muted-foreground">Pain:</span> {m.painLevel}/10</span>
+                            )}
+                            {m.stressLevel != null && (
+                              <span><span className="text-muted-foreground">Stress:</span> {m.stressLevel}/10</span>
+                            )}
+                            {m.fatigueLevel != null && (
+                              <span><span className="text-muted-foreground">Fatigue:</span> {m.fatigueLevel}/10</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
             </TabsContent>
-            
+
             {/* Medications Tab */}
             <TabsContent value="medications">
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
