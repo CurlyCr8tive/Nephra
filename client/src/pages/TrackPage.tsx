@@ -154,6 +154,14 @@ export default function TrackPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrationUnit]);
 
+  // Initialise GFR display from stage-based estimate once user profile loads
+  useEffect(() => {
+    if (user && estimatedGFR === 70) {
+      setEstimatedGFR(calculateEstimatedGFR());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Log the number of metrics for debugging
   useEffect(() => {
     console.log("TrackPage received health metrics:", {
@@ -188,7 +196,9 @@ export default function TrackPage() {
       return;
     }
     // Calculate estimated GFR
-    const calculatedGFR = calculateEstimatedGFR();
+    // Use the value already displayed to the user (set when "Calculate GFR" was clicked).
+    // Fall back to a fresh calculation only if the user never clicked that button.
+    const calculatedGFR = estimatedGFR !== 70 ? estimatedGFR : calculateEstimatedGFR();
     // Build timestamp from selected date + time input
     const logDate = new Date(logSelectedDate + "T" + logTime);
     if (logDate > new Date()) {
