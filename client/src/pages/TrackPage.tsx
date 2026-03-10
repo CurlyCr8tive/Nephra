@@ -227,7 +227,25 @@ export default function TrackPage() {
     setMedicalNotes("");
   };
   
-  // Calculate estimated GFR using a simplified approach that accounts for health metrics
+  // CKD-EPI 2021 (race-free) core formula — shared by both the current-entry and last-known-creatinine paths
+  const ckdEpi2021 = (scr: number, age: number, isFemale: boolean): number => {
+    const kappa = isFemale ? 0.7 : 0.9;
+    const alpha = isFemale ? -0.241 : -0.302;
+    const ratio = scr / kappa;
+    const eGFR = 142
+      * Math.pow(Math.min(ratio, 1), alpha)
+      * Math.pow(Math.max(ratio, 1), -1.2)
+      * Math.pow(0.9938, age)
+      * (isFemale ? 1.012 : 1.0);
+    return Math.round(Math.min(Math.max(eGFR, 1), 200) * 10) / 10;
+  };
+
+  // Calculate estimated GFR using CKD-EPI 2021.
+  // Priority order for creatinine:
+  //   1. Value entered in this form (most accurate)
+  //   2. Most recent value found in logged history, adjusted for current BP
+  //      (higher BP → kidneys under more stress → slightly elevated effective creatinine)
+  //   3. Stage-based creatinine estimate as a last resort
   const calculateEstimatedGFR = () => {
     if (!user) return 70;
 
@@ -235,42 +253,35 @@ export default function TrackPage() {
     const genderStr = user.gender ? String(user.gender).toLowerCase() : 'female';
     const isFemale = genderStr === 'female';
 
-    // --- CKD-EPI 2021 (race-free) when serum creatinine is provided ---
+    // 1. Creatinine entered today
     if (serumCreatinine !== "" && Number(serumCreatinine) > 0) {
-      const scr = Number(serumCreatinine);
-      // κ and α differ by sex
-      const kappa = isFemale ? 0.7 : 0.9;
-      const alpha = isFemale ? -0.241 : -0.302;
-      const femaleFactor = isFemale ? 1.012 : 1.0;
-
-      const ratio = scr / kappa;
-      const minTerm = Math.pow(Math.min(ratio, 1), alpha);
-      const maxTerm = Math.pow(Math.max(ratio, 1), -1.200);
-      const ageTerm = Math.pow(0.9938, age);
-
-      const eGFR = 142 * minTerm * maxTerm * ageTerm * femaleFactor;
-      return Math.round(Math.min(Math.max(eGFR, 1), 200) * 10) / 10;
+      return ckdEpi2021(Number(serumCreatinine), age, isFemale);
     }
 
-    // --- Simplified stage-based estimate when no creatinine entered ---
-    const diseaseStage = user.kidneyDiseaseStage || 1;
-    let baseGFR = 90;
-    if (diseaseStage === 2) baseGFR = 75;
-    else if (diseaseStage === 3) baseGFR = 45;
-    else if (diseaseStage === 4) baseGFR = 25;
-    else if (diseaseStage === 5) baseGFR = 15;
+    // 2. Last known creatinine from history, with BP / hydration adjustment
+    const lastEntry = weeklyMetrics
+      .filter((m: any) => m.creatinineLevel != null && Number(m.creatinineLevel) > 0)
+      .sort((a: any, b: any) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())[0];
 
-    const ageAdjustment = Math.max(0, (40 - age) / 100);
-    const genderFactor = isFemale ? 0.85 : 1.0;
-    const bpFactor = 1 - Math.max(0, (Number(systolicBP) - 120) / 400);
-    const stressFactor = 1 - (stressLevel / 20);
-    const painFactor = 1 - (painLevel / 20);
-    const fatigueFactor = 1 - (fatigueLevel / 20);
+    if (lastEntry?.creatinineLevel) {
+      const baseSCr = Number(lastEntry.creatinineLevel);
+      const bp = Number(systolicBP) || 120;
+      // Each 10 mmHg above 130 systolic adds ~0.02 to effective creatinine
+      const bpDelta = Math.max(0, (bp - 130) / 10) * 0.02;
+      // Low hydration (<2 L) adds up to 0.05 (dehydration concentrates creatinine)
+      const currentHydrationL = hydration / (hydrationUnit === "fl_oz" ? 33.814 : hydrationUnit === "cups" ? 4.22675 : 1);
+      const hydrationDelta = Math.max(0, (2.0 - currentHydrationL) / 2.0) * 0.05;
+      const adjustedSCr = Math.min(baseSCr + bpDelta + hydrationDelta, 8.0);
+      return ckdEpi2021(adjustedSCr, age, isFemale);
+    }
 
-    let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor *
-                      bpFactor * stressFactor * painFactor * fatigueFactor;
-    adjustedGFR = Math.min(Math.max(adjustedGFR, 5), 120);
-    return Math.round(adjustedGFR);
+    // 3. Stage-based creatinine fallback (last resort — no history available)
+    const creatByStage: Record<number, number> = { 1: 1.1, 2: 1.5, 3: 2.2, 4: 3.2, 5: 5.0 };
+    const stage = user.kidneyDiseaseStage || 1;
+    const fallbackSCr = creatByStage[stage] ?? 1.5;
+    const bp = Number(systolicBP) || 120;
+    const bpDelta = Math.max(0, (bp - 130) / 10) * 0.02;
+    return ckdEpi2021(Math.min(fallbackSCr + bpDelta, 8.0), age, isFemale);
   };
   
   // Toggle medication taken status
@@ -1409,7 +1420,12 @@ export default function TrackPage() {
                         const gfr = calculateEstimatedGFR();
                         setEstimatedGFR(gfr);
                         setGfrCalculatedByUser(true);
-                        const method = serumCreatinine !== "" ? "CKD-EPI 2021 equation" : "simplified estimation";
+                        const hasHistory = weeklyMetrics.some((m: any) => m.creatinineLevel != null && Number(m.creatinineLevel) > 0);
+                        const method = serumCreatinine !== ""
+                          ? "CKD-EPI 2021 (today's creatinine)"
+                          : hasHistory
+                            ? "CKD-EPI 2021 (last known creatinine + BP/hydration)"
+                            : "CKD-EPI 2021 (stage-based creatinine estimate)";
                         toast({
                           title: "GFR Calculated",
                           description: `Your estimated GFR is ${gfr} mL/min/1.73m² using ${method}.`,
