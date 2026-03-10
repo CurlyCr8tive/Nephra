@@ -374,9 +374,9 @@ export default function TrackPage() {
 
     switch (activeDataTab) {
       case "hydration":
-        // Sum all readings in the day (cumulative daily intake)
+        // Sum all readings in the day, then convert to display unit
         dataPoints = sortedDays.map(([, ms]) =>
-          parseFloat(ms.reduce((s, m) => s + (m.hydration || 0), 0).toFixed(2))
+          parseFloat(toDisplayHydration(ms.reduce((s, m) => s + (m.hydration || 0), 0)).toFixed(1))
         );
         break;
       case "bp":
@@ -556,8 +556,10 @@ export default function TrackPage() {
 
   const getDatasetLabel = () => {
     switch (activeDataTab) {
-      case "hydration":
-        return "Water Intake (L)";
+      case "hydration": {
+        const ul = hydrationUnit === "fl_oz" ? "fl oz" : hydrationUnit === "cups" ? "cups" : "L";
+        return `Water Intake (${ul})`;
+      }
       case "bp":
         return "Systolic BP (mmHg)";
       case "gfr":
@@ -578,7 +580,7 @@ export default function TrackPage() {
   const getMaxYValue = () => {
     switch (activeDataTab) {
       case "hydration":
-        return 3;
+        return hydrationUnit === "fl_oz" ? 140 : hydrationUnit === "cups" ? 16 : 4;
       case "bp":
         return 200;
       case "gfr":
@@ -597,7 +599,7 @@ export default function TrackPage() {
   const getStepSize = () => {
     switch (activeDataTab) {
       case "hydration":
-        return 0.5;
+        return hydrationUnit === "fl_oz" ? 20 : hydrationUnit === "cups" ? 2 : 0.5;
       case "bp":
         return 20;
       case "gfr":
@@ -624,8 +626,10 @@ export default function TrackPage() {
     const avg = sum / data.length;
     
     switch (activeDataTab) {
-      case "hydration":
-        return `${avg.toFixed(1)}L / day`;
+      case "hydration": {
+        const ul = hydrationUnit === "fl_oz" ? "fl oz" : hydrationUnit === "cups" ? "cups" : "L";
+        return `${avg.toFixed(1)} ${ul} / day`;
+      }
       case "bp":
         return `${Math.round(avg)}`;
       case "gfr":
