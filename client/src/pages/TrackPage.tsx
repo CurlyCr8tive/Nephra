@@ -58,6 +58,7 @@ export default function TrackPage() {
   const [fatigueLevel, setFatigueLevel] = useState<number>(3);
   const [medicalNotes, setMedicalNotes] = useState<string>("");
   const [timeOfDay, setTimeOfDay] = useState<"morning" | "afternoon" | "evening">("morning");
+  const [logSelectedDate, setLogSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [estimatedGFR, setEstimatedGFR] = useState<number>(70);
   const [calculatedKSLS, setCalculatedKSLS] = useState<{ score: number; band: string } | null>(null);
   const [medications, setMedications] = useState<Medication[]>([
@@ -151,8 +152,8 @@ export default function TrackPage() {
     // Calculate estimated GFR
     const calculatedGFR = calculateEstimatedGFR();
 
-    // Build timestamp from selected time-of-day
-    const logDate = new Date();
+    // Build timestamp from selected date + time-of-day
+    const logDate = new Date(logSelectedDate + "T12:00:00"); // parse in local time
     if (timeOfDay === "morning") logDate.setHours(8, 0, 0, 0);
     else if (timeOfDay === "afternoon") logDate.setHours(13, 0, 0, 0);
     else logDate.setHours(20, 0, 0, 0);
@@ -173,9 +174,10 @@ export default function TrackPage() {
     
     // Use the logHealthMetrics function from the useHealthData hook
     logHealthMetrics(healthData);
-    
+
     // Reset form
     setMedicalNotes("");
+    setLogSelectedDate(format(new Date(), "yyyy-MM-dd"));
   };
   
   // Calculate estimated GFR using a simplified approach that accounts for health metrics
@@ -1153,6 +1155,27 @@ export default function TrackPage() {
                 <h2 className="font-display font-bold text-lg mb-4">Log Health Data</h2>
                 
                 <div className="space-y-6">
+                  {/* Date selector (supports retroactive logging) */}
+                  <div>
+                    <div className="flex items-center mb-2">
+                      <CalendarDays className="w-5 h-5 text-primary mr-2" />
+                      <h3 className="font-medium">Date of Reading</h3>
+                    </div>
+                    <Input
+                      type="date"
+                      value={logSelectedDate}
+                      max={format(new Date(), "yyyy-MM-dd")}
+                      onChange={(e) => setLogSelectedDate(e.target.value)}
+                      className="w-full"
+                      aria-label="Date of reading"
+                    />
+                    {logSelectedDate !== format(new Date(), "yyyy-MM-dd") && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Logging for a past date: {format(new Date(logSelectedDate + "T12:00:00"), "MMMM d, yyyy")}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Time of Day */}
                   <div>
                     <div className="flex items-center mb-2">

@@ -79,7 +79,7 @@ export function useHealthData() {
   const fetchWeeklyMetricsForUser = async (id: number): Promise<HealthMetrics[]> => {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30); // 30 days of historical data
+    startDate.setDate(startDate.getDate() - 90); // 90 days to support all chart ranges
     
     const response = await fetch(
       `/api/health-metrics/${id}/range?start=${startDate.toISOString()}&end=${endDate.toISOString()}`,
