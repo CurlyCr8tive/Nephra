@@ -1,3 +1,9 @@
+// Update health log by ID
+export async function updateHealthMetrics(logId, data) {
+  return db.update(healthMetrics)
+    .set(data)
+    .where(eq(healthMetrics.id, logId));
+}
 import {
   users, type User, type InsertUser,
   healthMetrics, type HealthMetrics, type InsertHealthMetrics,

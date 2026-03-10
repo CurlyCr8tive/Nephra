@@ -150,7 +150,8 @@ export const users = pgTable("users", {
   targetBloodPressureSystolic: integer("target_blood_pressure_systolic"),
   targetBloodPressureDiastolic: integer("target_blood_pressure_diastolic"),
 
-  // Medications list
+    hydration: doublePrecision("hydration"), // in liters
+    timeOfDay: varchar("timeOfDay", { length: 16 }), // morning, afternoon, evening
   medications: jsonb("medications"), // Array of medication objects
 
   createdAt: timestamp("created_at").defaultNow(),

@@ -1,3 +1,22 @@
+// PATCH endpoint to update health log time-of-day and timestamp
+app.put("/api/health-metrics/:logId", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Authentication required" });
+  const { logId } = req.params;
+  const { date, timeOfDay, ...otherFields } = req.body;
+  // Validate date/time
+  const logDate = new Date(date);
+  if (logDate > new Date()) return res.status(400).json({ error: "Cannot log a future time." });
+  if (!["morning", "afternoon", "evening"].includes(timeOfDay)) {
+    return res.status(400).json({ error: "Invalid timeOfDay value." });
+  }
+  // Update record
+  const updated = await storage.updateHealthMetrics(logId, {
+    date: logDate,
+    timeOfDay,
+    ...otherFields
+  });
+  res.json({ result: updated });
+});
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
