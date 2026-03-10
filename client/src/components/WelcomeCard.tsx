@@ -58,15 +58,14 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
     hydrationUnit === "fl_oz" ? 85 : hydrationUnit === "cups" ? 10 : 2.5
   );
 
-  // Function to determine GFR classification
+  // CKD staging by GFR (KDIGO guidelines)
   const getGFRClass = (gfr: number | null | undefined) => {
-    if (!gfr) return { text: "Unknown", color: "text-neutral-500" };
-    if (gfr >= 90) return { text: "Normal", color: "text-success" };
+    if (gfr == null || gfr === 0) return { text: "Unknown", color: "text-neutral-500" };
+    if (gfr >= 90) return { text: "Stage 1", color: "text-success" };
     if (gfr >= 60) return { text: "Stage 2", color: "text-success" };
-    
-    // Updated thresholds to match your clinical stage
-    if (gfr >= 29) return { text: "Stage 3", color: "text-warning" };
-    if (gfr >= 14) return { text: "Stage 4", color: "text-error" };
+    if (gfr >= 45) return { text: "Stage 3a", color: "text-warning" };
+    if (gfr >= 30) return { text: "Stage 3b", color: "text-warning" };
+    if (gfr >= 15) return { text: "Stage 4", color: "text-error" };
     return { text: "Stage 5", color: "text-error" };
   };
 
