@@ -127,24 +127,24 @@ export default function TrackPage() {
     }
   }, [weeklyMetrics, latestMetrics, user?.id, isLoadingWeekly]);
   
-  // Hydration unit helpers derived from user profile preference
-  const hydrationUnit: string = (user as any)?.preferredHydrationUnit ?? "L";
+  // Hydration unit helpers — profile saves "liters", "cups", or "fl_oz"
+  const hydrationUnit: string = (user as any)?.preferredHydrationUnit ?? "liters";
   const toDisplayHydration = (liters: number): number => {
-    if (hydrationUnit === "fl oz") return parseFloat((liters * 33.814).toFixed(1));
-    if (hydrationUnit === "mL") return Math.round(liters * 1000);
-    return liters;
+    if (hydrationUnit === "fl_oz") return parseFloat((liters * 33.814).toFixed(1));
+    if (hydrationUnit === "cups") return parseFloat((liters * 4.22675).toFixed(1));
+    return liters; // "liters" or unknown
   };
   const toLiters = (display: number): number => {
-    if (hydrationUnit === "fl oz") return parseFloat((display / 33.814).toFixed(3));
-    if (hydrationUnit === "mL") return parseFloat((display / 1000).toFixed(3));
+    if (hydrationUnit === "fl_oz") return parseFloat((display / 33.814).toFixed(3));
+    if (hydrationUnit === "cups") return parseFloat((display / 4.22675).toFixed(3));
     return display;
   };
   const hydrationSlider = {
-    min: hydrationUnit === "fl oz" ? 0 : hydrationUnit === "mL" ? 0 : 0,
-    max: hydrationUnit === "fl oz" ? 135 : hydrationUnit === "mL" ? 4000 : 4,
-    step: hydrationUnit === "fl oz" ? 1 : hydrationUnit === "mL" ? 50 : 0.1,
-    label: hydrationUnit === "fl oz" ? `${hydration.toFixed(0)} fl oz`
-         : hydrationUnit === "mL" ? `${hydration.toFixed(0)} mL`
+    min: 0,
+    max: hydrationUnit === "fl_oz" ? 135 : hydrationUnit === "cups" ? 16 : 4,
+    step: hydrationUnit === "fl_oz" ? 1 : hydrationUnit === "cups" ? 0.5 : 0.1,
+    label: hydrationUnit === "fl_oz" ? `${hydration.toFixed(0)} fl oz`
+         : hydrationUnit === "cups" ? `${hydration.toFixed(1)} cups`
          : `${hydration.toFixed(1)} L`,
   };
 
