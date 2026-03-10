@@ -1377,10 +1377,10 @@ export default function TrackPage() {
                     <p className="text-xs text-muted-foreground mt-1">Optional: Enter your latest serum creatinine value for more accurate GFR calculation.</p>
                   </div>
                   
-                  {/* Calculate GFR Button */}
+                  {/* Calculate GFR Button + inline result */}
                   <div>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
                       onClick={() => {
                         const gfr = calculateEstimatedGFR();
@@ -1399,36 +1399,125 @@ export default function TrackPage() {
                     <p className="mt-2 text-xs text-gray-500 px-1">
                       Using CKD-EPI 2021 equation: eGFR = 142 × min(SCr/K, 1)^α × max(SCr/K, 1)^–1.200 × 0.9938^Age × 1.012 [if female]
                     </p>
+                    {/* GFR result shown immediately below its button */}
+                    <div className="flex items-center mt-3">
+                      <div className="bg-neutral-100 px-3 py-2 rounded-lg text-lg font-bold">
+                        {estimatedGFR}
+                      </div>
+                      <span className="ml-2 text-neutral-500 text-sm">mL/min/1.73m²</span>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Simplified estimate based on your profile and current health metrics.
+                    </p>
                   </div>
 
-                  {/* Calculate KSLS Button */}
+                  {/* Stress Level */}
                   <div>
-                    <Button 
-                      variant="outline" 
+                    <div className="flex items-center mb-2">
+                      <Activity className="w-5 h-5 text-primary mr-2" />
+                      <h3 className="font-medium">Stress Level</h3>
+                    </div>
+                    <SliderWithLabel
+                      value={stressLevel}
+                      onChange={setStressLevel}
+                      min={1}
+                      max={10}
+                      step={1}
+                      label={`${stressLevel}/10`}
+                    />
+                  </div>
+
+                  {/* Pain Level */}
+                  <div>
+                    <div className="flex items-center mb-2">
+                      <Wind className="w-5 h-5 text-primary mr-2" />
+                      <h3 className="font-medium">Pain Level</h3>
+                    </div>
+                    <SliderWithLabel
+                      value={painLevel}
+                      onChange={setPainLevel}
+                      min={1}
+                      max={10}
+                      step={1}
+                      label={`${painLevel}/10`}
+                    />
+                  </div>
+
+                  {/* Fatigue Level */}
+                  <div>
+                    <div className="flex items-center mb-2">
+                      <Battery className="w-5 h-5 text-primary mr-2" />
+                      <h3 className="font-medium">Fatigue Level</h3>
+                    </div>
+                    <SliderWithLabel
+                      value={fatigueLevel}
+                      onChange={setFatigueLevel}
+                      min={1}
+                      max={10}
+                      step={1}
+                      label={`${fatigueLevel}/10`}
+                    />
+                  </div>
+
+                  {/* Calculate KSLS Button — placed after symptom sliders so all inputs are ready */}
+                  <div>
+                    <Button
+                      variant="outline"
                       className="w-full border-green-300 text-green-600 hover:bg-green-50"
                       onClick={async () => {
-                        try {
-                          const response = await fetch(`/api/ksls/calculate-from-metrics/${user?.id}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' }
+                        const sysNum = parseInt(systolicBP, 10);
+                        const diaNum = parseInt(diastolicBP, 10);
+                        if (!sysNum || !diaNum) {
+                          toast({
+                            title: "Missing Blood Pressure",
+                            description: "Please enter blood pressure values before calculating KSLS.",
+                            variant: "destructive",
+                            duration: 4000
                           });
-                          
+                          return;
+                        }
+                        try {
+                          const response = await fetch("/api/ksls/calculate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                              input: {
+                                systolic_bp: sysNum,
+                                diastolic_bp: diaNum,
+                                fluid_intake_liters: toLiters(hydration),
+                                fluid_target_liters: (user as any)?.recommendedDailyHydration ?? 2.0,
+                                fatigue_score: fatigueLevel,
+                                pain_score: painLevel,
+                                stress_score: stressLevel,
+                                height_cm: (user as any)?.height ?? 170,
+                                weight_kg: (user as any)?.weight ?? 70,
+                              },
+                              demographics: {
+                                age: (user as any)?.age ?? undefined,
+                                sex_assigned_at_birth: (user as any)?.gender ?? undefined,
+                                race_ethnicity: (user as any)?.race ?? undefined,
+                                ckd_stage: (user as any)?.kidneyDiseaseStage ?? undefined,
+                              }
+                            })
+                          });
+
                           if (response.ok) {
                             const data = await response.json();
-                            setCalculatedKSLS({ 
-                              score: data.result.ksls, 
-                              band: data.result.band 
+                            setCalculatedKSLS({
+                              score: Math.round(data.result.ksls),
+                              band: data.result.band
                             });
                             toast({
                               title: "KSLS Calculated",
-                              description: `Your KSLS score is ${data.result.ksls} (${data.result.band})`,
+                              description: `Your KSLS score is ${Math.round(data.result.ksls)} (${data.result.band})`,
                               duration: 4000
                             });
                           } else {
-                            const error = await response.json();
+                            const err = await response.json();
                             toast({
                               title: "KSLS Calculation Failed",
-                              description: error.error || "Please log your health data first",
+                              description: err.error || "Please check all inputs and try again.",
                               variant: "destructive",
                               duration: 4000
                             });
@@ -1454,11 +1543,11 @@ export default function TrackPage() {
                         'bg-red-50 border-red-200'
                       }`}>
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-lg font-bold ${
+                          <p className={`text-lg font-bold ${
                             calculatedKSLS.band === 'stable' ? 'text-green-900' :
                             calculatedKSLS.band === 'elevated' ? 'text-yellow-900' :
                             'text-red-900'
-                          }">
+                          }`}>
                             KSLS: {calculatedKSLS.score}/100
                           </p>
                           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -1475,87 +1564,26 @@ export default function TrackPage() {
                           calculatedKSLS.band === 'elevated' ? 'text-yellow-800' :
                           'text-red-800'
                         }`}>
-                          {calculatedKSLS.band === 'stable' 
+                          {calculatedKSLS.band === 'stable'
                             ? 'Your kidney stress indicators are within healthy ranges. Continue maintaining good hydration and managing blood pressure.'
                             : calculatedKSLS.band === 'elevated'
                             ? 'Some kidney stress indicators are elevated. Focus on hydration, blood pressure control, and reducing physical stress.'
                             : 'Multiple kidney stress indicators are high. Consult your healthcare provider and prioritize hydration and rest.'}
                         </p>
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t ${
-                          calculatedKSLS.band === 'stable' ? 'border-green-200' :
-                          calculatedKSLS.band === 'elevated' ? 'border-yellow-200' :
-                          'border-red-200'
-                        }">
-                          <p className={`text-xs ${
-                            calculatedKSLS.band === 'stable' ? 'text-green-700' :
-                            calculatedKSLS.band === 'elevated' ? 'text-yellow-700' :
-                            'text-red-700'
-                          }`}>
-                            Based on BP, hydration, fatigue, pain, stress & BMI
-                          </p>
-                          <p className={`text-xs font-medium ${
-                            calculatedKSLS.band === 'stable' ? 'text-green-700' :
-                            calculatedKSLS.band === 'elevated' ? 'text-yellow-700' :
-                            'text-red-700'
-                          }`}>
-                            View trends above →
-                          </p>
-                        </div>
+                        <p className={`text-xs ${
+                          calculatedKSLS.band === 'stable' ? 'text-green-700' :
+                          calculatedKSLS.band === 'elevated' ? 'text-yellow-700' :
+                          'text-red-700'
+                        }`}>
+                          Based on BP, hydration, fatigue, pain, stress & BMI
+                        </p>
                       </div>
                     )}
                     <p className="mt-2 text-xs text-gray-500 px-1">
                       KSLS is a daily wellness index combining 6 health factors. Not a medical diagnosis or GFR measurement.
                     </p>
                   </div>
-                  
-                  {/* Stress Level */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <Activity className="w-5 h-5 text-primary mr-2" />
-                      <h3 className="font-medium">Stress Level</h3>
-                    </div>
-                    <SliderWithLabel
-                      value={stressLevel}
-                      onChange={setStressLevel}
-                      min={1}
-                      max={10}
-                      step={1}
-                      label={`${stressLevel}/10`}
-                    />
-                  </div>
-                  
-                  {/* Pain Level */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <Wind className="w-5 h-5 text-primary mr-2" />
-                      <h3 className="font-medium">Pain Level</h3>
-                    </div>
-                    <SliderWithLabel
-                      value={painLevel}
-                      onChange={setPainLevel}
-                      min={1}
-                      max={10}
-                      step={1}
-                      label={`${painLevel}/10`}
-                    />
-                  </div>
-                  
-                  {/* Fatigue Level */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <Battery className="w-5 h-5 text-primary mr-2" />
-                      <h3 className="font-medium">Fatigue Level</h3>
-                    </div>
-                    <SliderWithLabel
-                      value={fatigueLevel}
-                      onChange={setFatigueLevel}
-                      min={1}
-                      max={10}
-                      step={1}
-                      label={`${fatigueLevel}/10`}
-                    />
-                  </div>
-                  
+
                   {/* Medications */}
                   <div>
                     <div className="flex items-center mb-2">
@@ -1592,23 +1620,6 @@ export default function TrackPage() {
                       value={medicalNotes}
                       onChange={(e) => setMedicalNotes(e.target.value)}
                     ></textarea>
-                  </div>
-                  
-                  {/* GFR Estimate */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <CalculatorIcon className="w-5 h-5 text-primary mr-2" />
-                      <h3 className="font-medium">Estimated GFR</h3>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="bg-neutral-100 px-3 py-2 rounded-lg text-lg font-bold">
-                        {calculateEstimatedGFR()}
-                      </div>
-                      <span className="ml-2 text-neutral-500">mL/min/1.73m²</span>
-                    </div>
-                    <p className="text-xs text-neutral-500 mt-1">
-                      This is a simplified estimate based on your profile and current health metrics.
-                    </p>
                   </div>
                   
                   {/* Save Button */}
