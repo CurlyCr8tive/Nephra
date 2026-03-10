@@ -41,7 +41,11 @@ app.use((req, res, next) => {
 
 (async () => {
   // Apply any missing columns to the production database
-  await runMigrations();
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error("⚠️  Migration error (server will still start):", err);
+  }
 
   // Initialize database with transplant steps
   try {

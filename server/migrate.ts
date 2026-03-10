@@ -2,86 +2,73 @@
  * Startup migration — runs ALTER TABLE ... ADD COLUMN IF NOT EXISTS
  * for every column defined in the schema that may not exist in the
  * production database yet.  Safe to run on every boot (idempotent).
+ *
+ * Each statement is executed independently so a single failure never
+ * blocks the rest, and the server never crashes due to a migration error.
  */
 import { pool } from "./db";
 
-export async function runMigrations() {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+const MIGRATIONS: string[] = [
+  // ── health_metrics ──────────────────────────────────────────────────────────
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS hydration DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS systolic_bp INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS diastolic_bp INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS pulse INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS pain_level INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS stress_level INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS fatigue_level INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS estimated_gfr DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_calculation_method TEXT",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS creatinine_level DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS hydration_level INTEGER",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_trend TEXT",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_trend_description TEXT",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_change_percent DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_absolute_change DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_long_term_trend TEXT",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS gfr_stability TEXT",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS ksls_score DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS ksls_band TEXT",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS ksls_factors JSONB",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS ksls_bmi DOUBLE PRECISION",
+  "ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS ksls_confidence TEXT",
 
-    // ── health_metrics ────────────────────────────────────────────────────────
-    const healthMetricsCols: [string, string][] = [
-      ["hydration",              "DOUBLE PRECISION"],
-      ["systolic_bp",            "INTEGER"],
-      ["diastolic_bp",           "INTEGER"],
-      ["pulse",                  "INTEGER"],
-      ["pain_level",             "INTEGER"],
-      ["stress_level",           "INTEGER"],
-      ["fatigue_level",          "INTEGER"],
-      ["estimated_gfr",          "DOUBLE PRECISION"],
-      ["gfr_calculation_method", "TEXT"],
-      ["creatinine_level",       "DOUBLE PRECISION"],
-      ["hydration_level",        "INTEGER"],
-      ["gfr_trend",              "TEXT"],
-      ["gfr_trend_description",  "TEXT"],
-      ["gfr_change_percent",     "DOUBLE PRECISION"],
-      ["gfr_absolute_change",    "DOUBLE PRECISION"],
-      ["gfr_long_term_trend",    "TEXT"],
-      ["gfr_stability",          "TEXT"],
-      ["ksls_score",             "DOUBLE PRECISION"],
-      ["ksls_band",              "TEXT"],
-      ["ksls_factors",           "JSONB"],
-      ["ksls_bmi",               "DOUBLE PRECISION"],
-      ["ksls_confidence",        "TEXT"],
-    ];
+  // ── users ────────────────────────────────────────────────────────────────────
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS kidney_disease_stage INTEGER",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_hydration_unit TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS recommended_daily_hydration DOUBLE PRECISION",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS height DOUBLE PRECISION",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS weight DOUBLE PRECISION",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS age INTEGER",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT",
 
-    for (const [col, type] of healthMetricsCols) {
-      await client.query(
-        `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS ${col} ${type}`
-      );
+  // ── journal_entries ──────────────────────────────────────────────────────────
+  "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS ai_response TEXT",
+  "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS sentiment TEXT",
+  "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS tags TEXT[]",
+  "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS stress_score INTEGER",
+  "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS fatigue_score INTEGER",
+  "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS pain_score INTEGER",
+];
+
+export async function runMigrations(): Promise<void> {
+  let ok = 0;
+  let skipped = 0;
+
+  for (const sql of MIGRATIONS) {
+    try {
+      await pool.query(sql);
+      ok++;
+    } catch (err: any) {
+      // "already exists" errors are expected on repeat boots — ignore them
+      if (err?.code === "42701") {
+        skipped++;
+      } else {
+        console.warn(`⚠️  Migration skipped (${err?.code}): ${sql}\n   ${err?.message}`);
+        skipped++;
+      }
     }
-
-    // ── users ─────────────────────────────────────────────────────────────────
-    const userCols: [string, string][] = [
-      ["kidney_disease_stage",        "INTEGER"],
-      ["preferred_hydration_unit",    "TEXT DEFAULT 'fl oz'"],
-      ["recommended_daily_hydration", "DOUBLE PRECISION"],
-      ["height",                      "DOUBLE PRECISION"],
-      ["weight",                      "DOUBLE PRECISION"],
-      ["age",                         "INTEGER"],
-      ["gender",                      "TEXT"],
-    ];
-
-    for (const [col, type] of userCols) {
-      await client.query(
-        `ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col} ${type}`
-      );
-    }
-
-    // ── journal_entries ───────────────────────────────────────────────────────
-    const journalCols: [string, string][] = [
-      ["ai_response",  "TEXT"],
-      ["sentiment",    "TEXT"],
-      ["tags",         "TEXT[]"],
-      ["stress_score", "INTEGER"],
-      ["fatigue_score","INTEGER"],
-      ["pain_score",   "INTEGER"],
-    ];
-
-    for (const [col, type] of journalCols) {
-      await client.query(
-        `ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS ${col} ${type}`
-      );
-    }
-
-    await client.query("COMMIT");
-    console.log("✅ Database migrations applied successfully");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("❌ Migration failed:", err);
-    throw err;
-  } finally {
-    client.release();
   }
+
+  console.log(`✅ Migrations complete: ${ok} applied, ${skipped} skipped`);
 }
