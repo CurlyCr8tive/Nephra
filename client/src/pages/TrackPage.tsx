@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "wouter";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1160,7 +1161,14 @@ export default function TrackPage() {
             {/* Log Health tab content */}
             <TabsContent value="log">
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-display font-bold text-lg mb-4">Log Health Data</h2>
+                <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display font-bold text-lg">Log Health Data</h2>
+                <Link href="/log-history">
+                  <button type="button" className="text-sm font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors">
+                    Log History
+                  </button>
+                </Link>
+              </div>
                 
                 <div className="space-y-6">
                   {/* Date selector (supports retroactive logging) */}
@@ -1184,31 +1192,24 @@ export default function TrackPage() {
                     )}
                   </div>
 
-                  {/* Time of Day */}
+                  {/* Time of Reading */}
                   <div>
                     <div className="flex items-center mb-2">
                       <Clock className="w-5 h-5 text-primary mr-2" />
                       <h3 className="font-medium">Time of Reading</h3>
                     </div>
-                    <div className="flex gap-2">
-                      {(["morning", "afternoon", "evening"] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setTimeOfDay(t)}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                            timeOfDay === t
-                              ? "bg-primary text-white border-primary"
-                              : "bg-white text-neutral-600 border-neutral-200 hover:border-primary"
-                          }`}
-                        >
-                          {t.charAt(0).toUpperCase() + t.slice(1)}
-                          <span className="block text-xs opacity-70">
-                            {t === "morning" ? "~8 AM" : t === "afternoon" ? "~1 PM" : "~8 PM"}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    <Input
+                      type="time"
+                      value={logTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLogTime(val);
+                        const hour = parseInt(val.split(":")[0] ?? "8", 10);
+                        setTimeOfDay(hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening");
+                      }}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1 capitalize">{timeOfDay} reading</p>
                   </div>
 
                   {/* Hydration */}
@@ -1552,53 +1553,6 @@ export default function TrackPage() {
                 </div>
               </div>
 
-              {/* Past entries history */}
-              <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-display font-bold text-lg mb-4">Entry History</h2>
-                {isLoadingWeekly ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
-                  </div>
-                ) : !weeklyMetrics || weeklyMetrics.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">No entries yet. Log your first reading above.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {[...weeklyMetrics]
-                      .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
-                      .map((m) => (
-                        <div key={m.id} className="border rounded-lg p-3 text-sm">
-                          <p className="font-medium text-xs text-muted-foreground mb-2">
-                            {m.date ? format(new Date(m.date), "EEE, MMM d yyyy · h:mm a") : "Unknown date"}
-                          </p>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                            {m.systolicBP != null && m.diastolicBP != null && (
-                              <span><span className="text-muted-foreground">BP:</span> {m.systolicBP}/{m.diastolicBP} mmHg</span>
-                            )}
-                            {m.pulse != null && (
-                              <span><span className="text-muted-foreground">Pulse:</span> {m.pulse} bpm</span>
-                            )}
-                            {m.hydration != null && (
-                              <span><span className="text-muted-foreground">Hydration:</span> {Number(m.hydration).toFixed(1)} L</span>
-                            )}
-                            {m.estimatedGFR != null && (
-                              <span><span className="text-muted-foreground">eGFR:</span> {Math.round(Number(m.estimatedGFR))}</span>
-                            )}
-                            {m.painLevel != null && (
-                              <span><span className="text-muted-foreground">Pain:</span> {m.painLevel}/10</span>
-                            )}
-                            {m.stressLevel != null && (
-                              <span><span className="text-muted-foreground">Stress:</span> {m.stressLevel}/10</span>
-                            )}
-                            {m.fatigueLevel != null && (
-                              <span><span className="text-muted-foreground">Fatigue:</span> {m.fatigueLevel}/10</span>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    }
-                  </div>
-                )}
-              </div>
             </TabsContent>
 
             {/* Medications Tab */}

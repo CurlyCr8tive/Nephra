@@ -11,6 +11,7 @@ import JournalPage from "@/pages/JournalPage";
 import EducationHub from "@/pages/EducationHub";
 import ProfilePage from "@/pages/ProfilePage";
 import AdminPage from "@/pages/AdminPage";
+import LogHistoryPage from "@/pages/LogHistoryPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
@@ -78,6 +79,7 @@ function App() {
           <Route path="/education" component={EducationHub} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/chat" component={AIChatView} />
+          <Route path="/log-history" component={LogHistoryPage} />
           <Route path="/admin" component={AdminPage} />
           <Route path="/">
             {user ? <Redirect to="/dashboard" /> : <Redirect to="/auth" />}
