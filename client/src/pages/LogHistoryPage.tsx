@@ -36,6 +36,14 @@ export default function LogHistoryPage() {
   const { user } = useUser();
   const [filter, setFilter] = useState<Filter>("1M");
 
+  // Hydration unit conversion
+  const hydrationUnit: string = (user as any)?.preferredHydrationUnit ?? "liters";
+  const toDisplayHydration = (liters: number): string => {
+    if (hydrationUnit === "fl_oz") return `${(liters * 33.814).toFixed(0)} fl oz`;
+    if (hydrationUnit === "cups") return `${(liters * 4.22675).toFixed(1)} cups`;
+    return `${liters.toFixed(1)} L`;
+  };
+
   const { data: metrics = [], isLoading } = useQuery<HealthMetrics[]>({
     queryKey: ["health-metrics", user?.id, "log-history", filter],
     queryFn: async () => {
@@ -148,7 +156,7 @@ export default function LogHistoryPage() {
                             {m.hydration != null && (
                               <span>
                                 <span className="text-muted-foreground">Hydration: </span>
-                                {Number(m.hydration).toFixed(1)} L
+                                {toDisplayHydration(Number(m.hydration))}
                               </span>
                             )}
                             {m.estimatedGFR != null && (
@@ -179,6 +187,7 @@ export default function LogHistoryPage() {
                               <span>
                                 <span className="text-muted-foreground">KSLS: </span>
                                 {Math.round(Number(m.kslsScore))}/100
+                                {(m as any).kslsBand && ` (${(m as any).kslsBand})`}
                               </span>
                             )}
                           </div>

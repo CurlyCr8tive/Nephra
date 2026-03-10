@@ -208,6 +208,8 @@ export default function TrackPage() {
       stressLevel,
       fatigueLevel,
       estimatedGFR: calculatedGFR,
+      kslsScore: calculatedKSLS?.score ?? undefined,
+      kslsBand: calculatedKSLS?.band ?? undefined,
       notes: medicalNotes
     };
     logHealthMetrics(healthData);
