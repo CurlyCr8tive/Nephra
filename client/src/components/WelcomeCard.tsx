@@ -45,6 +45,17 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
   
   // No need for fallback or conversion since useHealthData now returns a single item
 
+  // Hydration unit conversion (mirrors TrackPage logic)
+  const hydrationUnit: string = (user as any)?.preferredHydrationUnit ?? "liters";
+  const toDisplayHydration = (liters: number): number => {
+    if (hydrationUnit === "fl_oz") return parseFloat((liters * 33.814).toFixed(1));
+    if (hydrationUnit === "cups") return parseFloat((liters * 4.22675).toFixed(1));
+    return parseFloat(liters.toFixed(1));
+  };
+  const hydrationUnitLabel = hydrationUnit === "fl_oz" ? "fl oz" : hydrationUnit === "cups" ? "cups" : "L";
+  const hydrationGoalLiters = (user as any)?.recommendedDailyHydration ?? 2.5;
+  const hydrationGoalDisplay = toDisplayHydration(hydrationGoalLiters);
+
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
     if (!gfr) return { text: "Unknown", color: "text-neutral-500" };
@@ -95,10 +106,12 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
             {isLoadingLatest ? (
               <span className="animate-pulse">...</span>
             ) : (
-              `${latestMetrics?.hydration?.toFixed(1) || 0}L`
+              latestMetrics?.hydration != null
+                ? `${toDisplayHydration(latestMetrics.hydration)} ${hydrationUnitLabel}`
+                : `0 ${hydrationUnitLabel}`
             )}
           </p>
-          <p className="text-xs text-neutral-500">of 2.5L</p>
+          <p className="text-xs text-neutral-500">of {hydrationGoalDisplay} {hydrationUnitLabel}</p>
         </div>
         <div className="bg-neutral-100 rounded-lg p-3 text-center">
           <p className="text-neutral-600 text-xs">Blood Pressure</p>

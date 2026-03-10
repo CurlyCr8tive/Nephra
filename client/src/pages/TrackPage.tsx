@@ -212,82 +212,52 @@ export default function TrackPage() {
     };
     logHealthMetrics(healthData);
     setMedicalNotes("");
-    setLogSelectedDate(format(new Date(), "yyyy-MM-dd"));
-    setLogTime("08:00");
   };
   
   // Calculate estimated GFR using a simplified approach that accounts for health metrics
   const calculateEstimatedGFR = () => {
-    if (!user) return 70; // Default if no user data
-    
-    // Log all user data for diagnosis
-    console.log("User data for GFR calculation:", {
-      id: user.id,
-      age: user.age,
-      gender: user.gender,
-      diseaseStage: user.kidneyDiseaseStage,
-      height: user.height,
-      weight: user.weight,
-    });
-    
-    const age = user.age || 40; // Default to 40 if not provided
-    // Get CKD stage from user profile data
-    const diseaseStage = user.kidneyDiseaseStage || 1; // Default to stage 1
-    
-    // Base GFR based on CKD stage (simplified for demo)
+    if (!user) return 70;
+
+    const age = user.age || 40;
+    const genderStr = user.gender ? String(user.gender).toLowerCase() : 'female';
+    const isFemale = genderStr === 'female';
+
+    // --- CKD-EPI 2021 (race-free) when serum creatinine is provided ---
+    if (serumCreatinine !== "" && Number(serumCreatinine) > 0) {
+      const scr = Number(serumCreatinine);
+      // κ and α differ by sex
+      const kappa = isFemale ? 0.7 : 0.9;
+      const alpha = isFemale ? -0.241 : -0.302;
+      const femaleFactor = isFemale ? 1.012 : 1.0;
+
+      const ratio = scr / kappa;
+      const minTerm = Math.pow(Math.min(ratio, 1), alpha);
+      const maxTerm = Math.pow(Math.max(ratio, 1), -1.200);
+      const ageTerm = Math.pow(0.9938, age);
+
+      const eGFR = 142 * minTerm * maxTerm * ageTerm * femaleFactor;
+      return Math.round(Math.min(Math.max(eGFR, 1), 200) * 10) / 10;
+    }
+
+    // --- Simplified stage-based estimate when no creatinine entered ---
+    const diseaseStage = user.kidneyDiseaseStage || 1;
     let baseGFR = 90;
     if (diseaseStage === 2) baseGFR = 75;
     else if (diseaseStage === 3) baseGFR = 45;
     else if (diseaseStage === 4) baseGFR = 25;
     else if (diseaseStage === 5) baseGFR = 15;
-    
-    // Adjustment factors (simplified for demo)
+
     const ageAdjustment = Math.max(0, (40 - age) / 100);
-    
-    // Try to get gender from session storage as backup
-    let genderStr = '';
-    
-    // First try from user object
-    if (user.gender) {
-      genderStr = String(user.gender).toLowerCase();
-      console.log("Using gender from user object:", genderStr);
-    } 
-    // SECURITY FIX: No localStorage fallbacks for user data
-    else {
-      // Use safe default when user data is incomplete
-      genderStr = 'female'; // Safe default for GFR calculation
-      console.log("Using safe default gender for calculation");
-    }
-    
-    const genderFactor = genderStr === 'female' ? 0.85 : 1.0;
-    
-    // Health metric adjustments (simplified for demo)
+    const genderFactor = isFemale ? 0.85 : 1.0;
     const bpFactor = 1 - Math.max(0, (Number(systolicBP) - 120) / 400);
-    const hydrationFactor = 1 + (hydration / 10);
     const stressFactor = 1 - (stressLevel / 20);
     const painFactor = 1 - (painLevel / 20);
     const fatigueFactor = 1 - (fatigueLevel / 20);
-    
-    // Calculate adjusted GFR (without race factor - aligned with CKD-EPI 2021)
-    let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor * 
-                      bpFactor * hydrationFactor * stressFactor * painFactor * fatigueFactor;
-    
-    // Ensure GFR stays within reasonable bounds
+
+    let adjustedGFR = baseGFR * (1 + ageAdjustment) * genderFactor *
+                      bpFactor * stressFactor * painFactor * fatigueFactor;
     adjustedGFR = Math.min(Math.max(adjustedGFR, 5), 120);
-    
-    const finalGFR = Math.round(adjustedGFR);
-    console.log("Calculated GFR:", finalGFR, "with factors:", {
-      baseGFR,
-      ageAdjustment,
-      genderFactor,
-      bpFactor,
-      hydrationFactor,
-      stressFactor,
-      painFactor,
-      fatigueFactor
-    });
-    
-    return finalGFR;
+    return Math.round(adjustedGFR);
   };
   
   // Toggle medication taken status
@@ -1495,7 +1465,10 @@ export default function TrackPage() {
                               },
                               demographics: {
                                 age: (user as any)?.age ?? undefined,
-                                sex_assigned_at_birth: (user as any)?.gender ?? undefined,
+                                sex_assigned_at_birth: (() => {
+                                  const g = (user as any)?.gender?.toLowerCase();
+                                  return ["male", "female", "intersex"].includes(g) ? g : undefined;
+                                })(),
                                 race_ethnicity: (user as any)?.race ?? undefined,
                                 ckd_stage: (user as any)?.kidneyDiseaseStage ?? undefined,
                               }

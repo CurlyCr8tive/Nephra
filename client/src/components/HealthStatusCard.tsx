@@ -41,10 +41,19 @@ export function HealthStatusCard() {
     return `${systolic}/${diastolic} mmHg`;
   };
   
+  // Hydration unit conversion
+  const hydrationUnit: string = (user as any)?.preferredHydrationUnit ?? "liters";
+  const toDisplayHydration = (liters: number): number => {
+    if (hydrationUnit === "fl_oz") return parseFloat((liters * 33.814).toFixed(1));
+    if (hydrationUnit === "cups") return parseFloat((liters * 4.22675).toFixed(1));
+    return parseFloat(liters.toFixed(1));
+  };
+  const hydrationUnitLabel = hydrationUnit === "fl_oz" ? "fl oz" : hydrationUnit === "cups" ? "cups" : "L";
+
   // Function to format hydration text
   const formatHydration = (hydration: number | null | undefined) => {
     if (hydration === null || hydration === undefined) return "Not recorded";
-    return `${hydration.toFixed(1)}L`;
+    return `${toDisplayHydration(hydration)} ${hydrationUnitLabel}`;
   };
   
   // Function to format GFR text
