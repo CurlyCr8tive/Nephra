@@ -18,6 +18,7 @@ import {
   insertMedicalAppointmentSchema
 } from "@shared/schema";
 import { estimateGfrScore, interpretGfr, getGfrRecommendation } from "./utils/gfr-calculator";
+import { updateHealthMetrics as updateHealthMetricsRecord } from "./storage";
 
 // API routers
 import aiRouter from "./ai-router";
@@ -320,8 +321,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("No user data available for GFR calculation - proceeding with minimal data");
       }
       
-      // Calculate GFR if we have enough data and user profile exists
-      if (data.systolicBP && data.painLevel !== undefined && data.stressLevel !== undefined && data.hydration !== undefined && user) {
+      // Calculate GFR only if client did NOT send a value (client-calculated CKD-EPI takes priority)
+      if ((data.estimatedGFR == null) && data.systolicBP && data.painLevel !== undefined && data.stressLevel !== undefined && data.hydration !== undefined && user) {
         // More forgiving GFR estimation with proper null/undefined handling
         // Still require the minimum needed data, but with better validation
         if (user.age && user.gender && user.race && user.weight) {
@@ -450,8 +451,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Missing health metrics for GFR estimation");
       }
       
-      // Calculate KSLS if we have the required data
-      if (user && data.systolicBP && data.diastolicBP && data.hydration && 
+      // Calculate KSLS only if client did NOT send a pre-calculated value
+      if ((data.kslsScore == null) && user && data.systolicBP && data.diastolicBP && data.hydration &&
           data.painLevel !== undefined && data.stressLevel !== undefined && data.fatigueLevel !== undefined) {
         try {
           const kslsInput = {
@@ -650,6 +651,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Recalculate GFR for all existing entries using CKD-EPI 2021 with best available creatinine,
+  // cross-referenced with each entry's BP and hydration values (per user request)
+  app.post("/api/health-metrics/:userId/recalculate-gfr", async (req, res) => {
+    try {
+      if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const authenticatedUserId = req.user?.id;
+      const requestedUserId = parseInt(req.params.userId);
+      if (authenticatedUserId !== requestedUserId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const user = await storage.getUser(requestedUserId);
+      if (!user?.age || !user?.gender) {
+        return res.status(400).json({ error: "User profile must have age and gender set" });
+      }
+
+      const allMetrics = await storage.getHealthMetrics(requestedUserId);
+      if (!allMetrics.length) {
+        return res.json({ success: true, updated: 0, message: "No entries to update" });
+      }
+
+      const age = user.age;
+      const isFemale = user.gender.toLowerCase() === "female";
+
+      // Find the best (most recent) creatinine value from logged entries
+      const withCreatinine = allMetrics
+        .filter(m => m.creatinineLevel != null && Number(m.creatinineLevel) > 0)
+        .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+      let baseCreatinine: number;
+      if (withCreatinine.length > 0) {
+        baseCreatinine = Number(withCreatinine[0].creatinineLevel);
+      } else {
+        // Stage-based fallback creatinine estimate
+        const creatByStage: Record<number, number> = { 1: 1.1, 2: 1.5, 3: 2.2, 4: 3.2, 5: 5.0 };
+        baseCreatinine = creatByStage[user.kidneyDiseaseStage || 1] ?? 1.5;
+      }
+
+      // CKD-EPI 2021 inline (no extra required params)
+      const ckdEpi = (scr: number): number => {
+        const kappa = isFemale ? 0.7 : 0.9;
+        const alpha = isFemale ? -0.241 : -0.302;
+        const ratio = scr / kappa;
+        const eGFR = 142
+          * Math.pow(Math.min(ratio, 1), alpha)
+          * Math.pow(Math.max(ratio, 1), -1.2)
+          * Math.pow(0.9938, age)
+          * (isFemale ? 1.012 : 1.0);
+        return Math.round(Math.min(Math.max(eGFR, 1), 200) * 10) / 10;
+      };
+
+      let updatedCount = 0;
+      for (const metric of allMetrics) {
+        let scr: number;
+        if (metric.creatinineLevel != null && Number(metric.creatinineLevel) > 0) {
+          scr = Number(metric.creatinineLevel);
+        } else {
+          // Adjust base creatinine using this entry's BP and hydration (higher BP / lower hydration → worse GFR)
+          const bp = metric.systolicBP || 130;
+          const hydration = Number(metric.hydration) || 2.0;
+          const bpDelta = Math.max(0, (bp - 130) / 100) * 0.2;
+          const hydrationDelta = Math.max(0, (2.0 - hydration) / 2.0) * 0.1;
+          scr = Math.min(Math.max(baseCreatinine + bpDelta + hydrationDelta, 0.5), 8.0);
+        }
+
+        const newGFR = ckdEpi(scr);
+        await updateHealthMetricsRecord(metric.id, {
+          estimatedGFR: newGFR,
+          gfrCalculationMethod: metric.creatinineLevel ? "creatinine-based" : "creatinine-based-estimated",
+        });
+        updatedCount++;
+      }
+
+      res.json({
+        success: true,
+        updated: updatedCount,
+        baseCreatinine,
+        message: `Updated ${updatedCount} entries using CKD-EPI 2021 (base creatinine: ${baseCreatinine} mg/dL)`,
+      });
+    } catch (error) {
+      console.error("Error recalculating GFR:", error);
+      res.status(500).json({ error: "Failed to recalculate GFR" });
+    }
+  });
+
   // GFR estimation endpoint with trend analysis - calculate without saving
   app.post("/api/estimate-gfr", async (req, res) => {
     try {

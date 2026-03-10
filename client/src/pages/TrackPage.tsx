@@ -74,6 +74,7 @@ export default function TrackPage() {
   const [editTimeOfDay, setEditTimeOfDay] = useState("morning");
 
   const [estimatedGFR, setEstimatedGFR] = useState<number>(70);
+  const [gfrCalculatedByUser, setGfrCalculatedByUser] = useState<boolean>(false);
   const [calculatedKSLS, setCalculatedKSLS] = useState<{ score: number; band: string } | null>(null);
   const [medications, setMedications] = useState<Medication[]>([
     { name: "Lisinopril", dosage: "10mg", frequency: "Once daily", taken: false },
@@ -196,9 +197,9 @@ export default function TrackPage() {
       return;
     }
     // Calculate estimated GFR
-    // Use the value already displayed to the user (set when "Calculate GFR" was clicked).
-    // Fall back to a fresh calculation only if the user never clicked that button.
-    const calculatedGFR = estimatedGFR !== 70 ? estimatedGFR : calculateEstimatedGFR();
+    // Only use the estimatedGFR state if the user explicitly clicked "Calculate GFR".
+    // Otherwise, run a fresh calculation now (avoids saving stale stage-based init value).
+    const calculatedGFR = gfrCalculatedByUser ? estimatedGFR : calculateEstimatedGFR();
     // Build timestamp from selected date + time input
     const logDate = new Date(logSelectedDate + "T" + logTime);
     if (logDate > new Date()) {
@@ -540,7 +541,15 @@ export default function TrackPage() {
           scales: {
             y: {
               beginAtZero: true,
-              max: getMaxYValue(),
+              max: (() => {
+                // For hydration, scale dynamically from actual data + 20% headroom
+                if (activeDataTab === "hydration" && data.length > 0) {
+                  const dataMax = Math.max(...data);
+                  const step = getStepSize();
+                  return Math.ceil((dataMax * 1.2) / step) * step;
+                }
+                return getMaxYValue();
+              })(),
               ticks: {
                 stepSize: getStepSize(),
                 font: {
@@ -814,13 +823,41 @@ export default function TrackPage() {
                         
                         <div className="mt-3 bg-white p-3 rounded border border-blue-200">
                           <p className="text-xs text-neutral-700">
-                            <strong>Recommendation:</strong> {weeklyMetrics[0].gfrTrend === 'significant_decline' || weeklyMetrics[0].gfrTrend === 'moderate_decline' ? 
+                            <strong>Recommendation:</strong> {weeklyMetrics[0].gfrTrend === 'significant_decline' || weeklyMetrics[0].gfrTrend === 'moderate_decline' ?
                               "Speak with your doctor about this change in kidney function." :
                               weeklyMetrics[0].gfrTrend === 'possible_decline' ?
                               "Consider discussing these recent changes with your healthcare provider at your next appointment." :
                               "Continue monitoring and maintaining your current health regimen."}
                           </p>
                         </div>
+
+                        {/* Recalculate historical GFR using CKD-EPI + BP/hydration correlation */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 w-full border-orange-300 text-orange-600 hover:bg-orange-50 text-xs"
+                          onClick={async () => {
+                            if (!user?.id) return;
+                            try {
+                              const res = await fetch(`/api/health-metrics/${user.id}/recalculate-gfr`, {
+                                method: "POST",
+                                credentials: "include",
+                              });
+                              const json = await res.json();
+                              if (res.ok) {
+                                toast({ title: "GFR Recalculated", description: json.message, duration: 5000 });
+                                // Invalidate queries so chart refreshes
+                                window.location.reload();
+                              } else {
+                                toast({ title: "Error", description: json.error, variant: "destructive" });
+                              }
+                            } catch {
+                              toast({ title: "Error", description: "Failed to recalculate GFR", variant: "destructive" });
+                            }
+                          }}
+                        >
+                          Recalculate All Historical GFR (CKD-EPI 2021)
+                        </Button>
                       </div>
                     )}
                     
@@ -1371,6 +1408,7 @@ export default function TrackPage() {
                       onClick={() => {
                         const gfr = calculateEstimatedGFR();
                         setEstimatedGFR(gfr);
+                        setGfrCalculatedByUser(true);
                         const method = serumCreatinine !== "" ? "CKD-EPI 2021 equation" : "simplified estimation";
                         toast({
                           title: "GFR Calculated",
@@ -1472,7 +1510,7 @@ export default function TrackPage() {
                                 systolic_bp: sysNum,
                                 diastolic_bp: diaNum,
                                 fluid_intake_liters: toLiters(hydration),
-                                fluid_target_liters: (user as any)?.recommendedDailyHydration ?? 2.0,
+                                fluid_target_liters: toLiters((user as any)?.recommendedDailyHydration ?? (hydrationUnit === "fl_oz" ? 85 : hydrationUnit === "cups" ? 10 : 2.5)),
                                 fatigue_score: fatigueLevel,
                                 pain_score: painLevel,
                                 stress_score: stressLevel,
