@@ -44,7 +44,14 @@ interface Medication {
 export default function TrackPage() {
   const { toast } = useToast();
   // Use state to explicitly control active tab to prevent reset issues
-  const [activeSection, setActiveSection] = useState("analytics");
+  // Initialise from ?tab= URL param if present (e.g. /track?tab=log)
+  const [activeSection, setActiveSection] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    return (tab && ["analytics", "calendar", "log", "medications", "documents"].includes(tab))
+      ? tab
+      : "analytics";
+  });
   const [activeDataTab, setActiveDataTab] = useState<"hydration" | "bp" | "gfr" | "ksls" | "pain" | "stress" | "fatigue">("hydration");
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("7d");
   

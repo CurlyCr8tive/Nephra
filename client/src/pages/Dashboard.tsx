@@ -49,7 +49,7 @@ export default function Dashboard() {
   }, [user, weeklyMetrics, latestMetrics, isLoadingWeekly]);
 
   const handleLogClick = () => {
-    navigate("/track");
+    navigate("/track?tab=log");
   };
 
   return (
