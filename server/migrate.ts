@@ -62,6 +62,7 @@ const MIGRATIONS: string[] = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS replit_user_id VARCHAR",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT 'local'",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS time_format TEXT DEFAULT '12h'",
 
   // ── journal_entries ──────────────────────────────────────────────────────────
   "ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS ai_response TEXT",

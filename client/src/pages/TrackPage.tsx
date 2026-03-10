@@ -1198,17 +1198,67 @@ export default function TrackPage() {
                       <Clock className="w-5 h-5 text-primary mr-2" />
                       <h3 className="font-medium">Time of Reading</h3>
                     </div>
-                    <Input
-                      type="time"
-                      value={logTime}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                    {/* Custom time picker — respects user's 12h/24h preference */}
+                    {(() => {
+                      const is24h = (user as any)?.timeFormat === "24h";
+                      const [hStr, mStr] = logTime.split(":");
+                      const hour24 = parseInt(hStr ?? "8", 10);
+                      const minute = parseInt(mStr ?? "0", 10);
+                      const period: "AM" | "PM" = hour24 < 12 ? "AM" : "PM";
+                      const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+
+                      const applyTime = (h: number, m: number, p: "AM" | "PM") => {
+                        let h24 = h;
+                        if (!is24h) {
+                          if (p === "AM" && h === 12) h24 = 0;
+                          else if (p === "PM" && h !== 12) h24 = h + 12;
+                        }
+                        const val = `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
                         setLogTime(val);
-                        const hour = parseInt(val.split(":")[0] ?? "8", 10);
-                        setTimeOfDay(hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening");
-                      }}
-                      className="w-full"
-                    />
+                        setTimeOfDay(h24 < 12 ? "morning" : h24 < 17 ? "afternoon" : "evening");
+                      };
+
+                      return (
+                        <div className="flex gap-2 items-center">
+                          <select
+                            title="Hour"
+                            className="flex-1 border rounded-md px-3 py-2 text-sm bg-background"
+                            value={is24h ? hour24 : hour12}
+                            onChange={(e) => applyTime(parseInt(e.target.value), minute, period)}
+                          >
+                            {is24h
+                              ? Array.from({ length: 24 }, (_, i) => (
+                                  <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+                                ))
+                              : Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                          </select>
+                          <span className="text-muted-foreground font-bold">:</span>
+                          <select
+                            title="Minute"
+                            className="flex-1 border rounded-md px-3 py-2 text-sm bg-background"
+                            value={minute}
+                            onChange={(e) => applyTime(is24h ? hour24 : hour12, parseInt(e.target.value), period)}
+                          >
+                            {Array.from({ length: 60 }, (_, i) => (
+                              <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+                            ))}
+                          </select>
+                          {!is24h && (
+                            <select
+                              title="AM/PM"
+                              className="border rounded-md px-3 py-2 text-sm bg-background"
+                              value={period}
+                              onChange={(e) => applyTime(hour12, minute, e.target.value as "AM" | "PM")}
+                            >
+                              <option value="AM">AM</option>
+                              <option value="PM">PM</option>
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <p className="text-xs text-muted-foreground mt-1 capitalize">{timeOfDay} reading</p>
                   </div>
 

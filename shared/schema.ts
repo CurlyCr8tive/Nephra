@@ -152,6 +152,7 @@ export const users = pgTable("users", {
 
     hydration: doublePrecision("hydration"), // in liters
     timeOfDay: varchar("timeOfDay", { length: 16 }), // morning, afternoon, evening
+  timeFormat: text("time_format").default("12h"), // "12h" or "24h"
   medications: jsonb("medications"), // Array of medication objects
 
   createdAt: timestamp("created_at").defaultNow(),

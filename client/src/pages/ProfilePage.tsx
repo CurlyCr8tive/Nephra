@@ -219,6 +219,7 @@ export default function ProfilePage() {
     targetBloodPressureSystolic: number | null;
     targetBloodPressureDiastolic: number | null;
     preferredHydrationUnit: string | null; // 'liters' or 'cups'
+    timeFormat: string | null; // '12h' or '24h'
     createdAt: string | null;
   }
 
@@ -266,6 +267,7 @@ export default function ProfilePage() {
     targetBloodPressureSystolic: z.number().min(90).max(200).optional().nullable(),
     targetBloodPressureDiastolic: z.number().min(60).max(120).optional().nullable(),
     preferredHydrationUnit: z.string().optional().nullable(),
+    timeFormat: z.string().optional().nullable(),
   });
 
   // Form setup
@@ -298,6 +300,7 @@ export default function ProfilePage() {
       targetBloodPressureSystolic: 120, // Default healthy systolic
       targetBloodPressureDiastolic: 80, // Default healthy diastolic
       preferredHydrationUnit: "liters", // Default unit
+      timeFormat: "12h",
     }
   });
 
@@ -331,6 +334,7 @@ export default function ProfilePage() {
         targetBloodPressureSystolic: profileData.targetBloodPressureSystolic || 120,
         targetBloodPressureDiastolic: profileData.targetBloodPressureDiastolic || 80,
         preferredHydrationUnit: profileData.preferredHydrationUnit || "liters",
+        timeFormat: profileData.timeFormat || "12h",
       });
     }
   }, [profileData]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1440,6 +1444,42 @@ export default function ProfilePage() {
                       {/* Health Preferences Tab */}
                       <TabsContent value="preferences" className="space-y-4">
                         <div className="space-y-6">
+                          {/* Time Format Preference */}
+                          <div>
+                            <h3 className="text-lg font-semibold mb-2">Time Format</h3>
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Choose how time is displayed throughout the app.
+                            </p>
+                            <FormField
+                              control={form.control}
+                              name="timeFormat"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex gap-2">
+                                    {[
+                                      { value: "12h", label: "12-Hour (AM/PM)" },
+                                      { value: "24h", label: "24-Hour (Military)" },
+                                    ].map((opt) => (
+                                      <button
+                                        key={opt.value}
+                                        type="button"
+                                        disabled={!isEditing}
+                                        onClick={() => field.onChange(opt.value)}
+                                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium border transition-colors ${
+                                          field.value === opt.value
+                                            ? "bg-primary text-white border-primary"
+                                            : "bg-white text-neutral-600 border-neutral-200 hover:border-primary"
+                                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
                           {/* Unit System Preference */}
                           <div>
                             <h3 className="text-lg font-semibold mb-4">Measurement System</h3>
