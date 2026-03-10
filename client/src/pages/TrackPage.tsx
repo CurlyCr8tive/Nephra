@@ -56,7 +56,7 @@ export default function TrackPage() {
   const [activeDataTab, setActiveDataTab] = useState<"hydration" | "bp" | "gfr" | "ksls" | "pain" | "stress" | "fatigue">("hydration");
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("7d");
   
-  // State for health data entry
+  // State for health data entry — stored in user's preferred display unit (converted to L on save)
   const [hydration, setHydration] = useState<number>(1.5);
   const [systolicBP, setSystolicBP] = useState<string>("120");
   const [diastolicBP, setDiastolicBP] = useState<string>("80");
@@ -127,6 +127,33 @@ export default function TrackPage() {
     }
   }, [weeklyMetrics, latestMetrics, user?.id, isLoadingWeekly]);
   
+  // Hydration unit helpers derived from user profile preference
+  const hydrationUnit: string = (user as any)?.preferredHydrationUnit ?? "L";
+  const toDisplayHydration = (liters: number): number => {
+    if (hydrationUnit === "fl oz") return parseFloat((liters * 33.814).toFixed(1));
+    if (hydrationUnit === "mL") return Math.round(liters * 1000);
+    return liters;
+  };
+  const toLiters = (display: number): number => {
+    if (hydrationUnit === "fl oz") return parseFloat((display / 33.814).toFixed(3));
+    if (hydrationUnit === "mL") return parseFloat((display / 1000).toFixed(3));
+    return display;
+  };
+  const hydrationSlider = {
+    min: hydrationUnit === "fl oz" ? 0 : hydrationUnit === "mL" ? 0 : 0,
+    max: hydrationUnit === "fl oz" ? 135 : hydrationUnit === "mL" ? 4000 : 4,
+    step: hydrationUnit === "fl oz" ? 1 : hydrationUnit === "mL" ? 50 : 0.1,
+    label: hydrationUnit === "fl oz" ? `${hydration.toFixed(0)} fl oz`
+         : hydrationUnit === "mL" ? `${hydration.toFixed(0)} mL`
+         : `${hydration.toFixed(1)} L`,
+  };
+
+  // Re-initialize slider default when user's preferred unit loads
+  useEffect(() => {
+    setHydration(toDisplayHydration(1.5));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrationUnit]);
+
   // Log the number of metrics for debugging
   useEffect(() => {
     console.log("TrackPage received health metrics:", {
@@ -173,7 +200,7 @@ export default function TrackPage() {
       date: logDate,
       timeOfDay,
       logTime,
-      hydration,
+      hydration: toLiters(hydration),
       systolicBP: systolicNum,
       diastolicBP: diastolicNum,
       pulse: parseInt(pulse, 10) || undefined,
@@ -1271,10 +1298,10 @@ export default function TrackPage() {
                     <SliderWithLabel
                       value={hydration}
                       onChange={setHydration}
-                      min={0}
-                      max={3}
-                      step={0.1}
-                      label={`${hydration.toFixed(1)} L`}
+                      min={hydrationSlider.min}
+                      max={hydrationSlider.max}
+                      step={hydrationSlider.step}
+                      label={hydrationSlider.label}
                     />
                   </div>
                   
