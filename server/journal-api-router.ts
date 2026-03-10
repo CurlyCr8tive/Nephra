@@ -423,21 +423,12 @@ router.post("/save", async (req: Request, res: Response) => {
     // Save to database
     const savedEntry = await storage.createJournalEntry(journalData);
     
-    // Optionally create a health metrics entry using the same scores
-    let metrics = null;
-    if (journalData.stressScore !== undefined && journalData.painScore !== undefined) {
-      metrics = await storage.createHealthMetrics({
-        userId,
-        date: new Date(),
-        stressLevel: journalData.stressScore,
-        painLevel: journalData.painScore,
-        fatigueLevel: journalData.fatigueScore
-      });
-    }
-    
+    // Journal saves do NOT create health metrics records — incomplete entries
+    // (missing BP, hydration, GFR) pollute the latest-metrics dashboard view.
+
     res.status(201).json({
       entry: savedEntry,
-      metrics
+      metrics: null
     });
   } catch (error) {
     console.error("Error saving journal entry:", error);

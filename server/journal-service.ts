@@ -295,22 +295,12 @@ export async function processAndSaveJournalEntry(
   // Save to database
   const savedEntry = await storage.createJournalEntry(journalData);
   
-  // Optionally create a health metrics entry using the same scores
-  let metrics = null;
-  
-  if (journalData.stressScore !== undefined && journalData.painScore !== undefined) {
-    metrics = await storage.createHealthMetrics({
-      userId,
-      date: new Date(),
-      stressLevel: journalData.stressScore,
-      painLevel: journalData.painScore,
-      fatigueLevel: journalData.fatigueScore || null
-      // Other fields would be null/undefined
-    });
-  }
-  
-  return { 
+  // Journal saves do NOT create health metrics records — incomplete entries
+  // (missing BP, hydration, GFR) pollute the latest-metrics dashboard view.
+  // Users log health metrics explicitly via the Track page.
+
+  return {
     entry: savedEntry,
-    metrics
+    metrics: null
   };
 }

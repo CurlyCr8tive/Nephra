@@ -53,8 +53,10 @@ export function WelcomeCard({ onLogClick }: WelcomeCardProps) {
     return parseFloat(liters.toFixed(1));
   };
   const hydrationUnitLabel = hydrationUnit === "fl_oz" ? "fl oz" : hydrationUnit === "cups" ? "cups" : "L";
-  const hydrationGoalLiters = (user as any)?.recommendedDailyHydration ?? 2.5;
-  const hydrationGoalDisplay = toDisplayHydration(hydrationGoalLiters);
+  // recommendedDailyHydration is stored in the user's preferred unit (as typed), not always liters
+  const hydrationGoalDisplay = (user as any)?.recommendedDailyHydration ?? (
+    hydrationUnit === "fl_oz" ? 85 : hydrationUnit === "cups" ? 10 : 2.5
+  );
 
   // Function to determine GFR classification
   const getGFRClass = (gfr: number | null | undefined) => {
