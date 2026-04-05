@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,12 +17,23 @@ import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
+import OnboardingModal from "@/components/OnboardingModal";
 
 // Main App component with consolidated routing logic (AuthProvider is in main.tsx)
 function App() {
   // Get auth state from the hook - should work since AuthProvider is in main.tsx
   const { user, isLoading } = useAuth();
-  
+
+  // Show onboarding modal for new users who haven't completed it yet
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    // Once user loads and onboarding hasn't been completed, show the modal
+    if (user && !(user as any).onboardingCompleted) {
+      setShowOnboarding(true);
+    }
+  }, [user?.id, (user as any)?.onboardingCompleted]);
+
   // Get current URL path
   const [pathname] = useLocation();
   const isAuthPage = pathname === '/auth';
@@ -67,6 +78,10 @@ function App() {
   // All other routes are wrapped in the AppLayout with health alerts
   return (
     <TooltipProvider>
+      <OnboardingModal
+        open={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
       <AppLayout>
         <Switch>
           <Route path="/dashboard" component={Dashboard} />

@@ -156,6 +156,7 @@ export const users = pgTable("users", {
   medications: jsonb("medications"), // Array of medication objects
 
   createdAt: timestamp("created_at").defaultNow(),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
 });
 
 // Health metrics table
