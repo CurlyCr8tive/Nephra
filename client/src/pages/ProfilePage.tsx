@@ -42,17 +42,19 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  CalendarIcon, 
-  PlusCircle, 
-  X, 
-  FileText, 
-  Upload, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  CalendarIcon,
+  PlusCircle,
+  X,
+  FileText,
+  Upload,
+  CheckCircle,
+  AlertCircle,
   FileCheck,
-  Info 
+  Info,
+  PlayCircle
 } from "lucide-react";
+import OnboardingModal from "@/components/OnboardingModal";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -135,6 +137,7 @@ export default function ProfilePage() {
 
   const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState(false);
+  const [showOnboardingReplay, setShowOnboardingReplay] = useState(false);
   const [otherCondition, setOtherCondition] = useState("");
   const [otherSpecialist, setOtherSpecialist] = useState({
     name: "",
@@ -1783,6 +1786,43 @@ export default function ProfilePage() {
                   </form>
                 </Form>
               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Replay App Tour */}
+        <div className="mb-4 px-4">
+          <OnboardingModal
+            open={showOnboardingReplay}
+            onClose={() => setShowOnboardingReplay(false)}
+          />
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold text-primary">App Tour</h3>
+                  <p className="text-sm text-gray-500">Replay the feature walkthrough anytime</p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={async () => {
+                    // Reset onboarding flag so the tour re-opens cleanly
+                    if (userId) {
+                      await fetch(`/api/users/${userId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ onboardingCompleted: false }),
+                      });
+                    }
+                    setShowOnboardingReplay(true);
+                  }}
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Replay Tour
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
