@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import Chart from "chart.js/auto";
@@ -153,7 +154,9 @@ export function HealthTrendsCard() {
       if (!metric.date) return;
 
       // Use date string (YYYY-MM-DD) as key to group by day
-      const dateKey = new Date(metric.date).toISOString().split('T')[0];
+      const _d = new Date(metric.date);
+      if (!isValid(_d)) return;
+      const dateKey = _d.toISOString().split('T')[0];
       
       if (!dailyGroups.has(dateKey)) {
         dailyGroups.set(dateKey, []);
@@ -327,7 +330,9 @@ export function HealthTrendsCard() {
         const dailyGroups = new Map<string, typeof weeklyMetrics>();
         weeklyMetrics.forEach(metric => {
           if (!metric.date) return;
-          const dateKey = new Date(metric.date).toISOString().split('T')[0];
+          const _d2 = new Date(metric.date);
+          if (!isValid(_d2)) return;
+          const dateKey = _d2.toISOString().split('T')[0];
           if (!dailyGroups.has(dateKey)) {
             dailyGroups.set(dateKey, []);
           }

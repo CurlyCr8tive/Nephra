@@ -15,7 +15,7 @@ import { AppointmentScheduler } from "@/components/AppointmentScheduler";
 import { MedicationReminder } from "@/components/MedicationReminder";
 import { useToast } from "@/hooks/use-toast";
 import Chart from "chart.js/auto";
-import { format, subDays, startOfDay, endOfDay, isSameDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, isSameDay, isValid } from "date-fns";
 import { HealthMetrics } from "@shared/schema";
 import { 
   ChevronLeft, 
@@ -201,7 +201,15 @@ export default function TrackPage() {
     // Otherwise, run a fresh calculation now (avoids saving stale stage-based init value).
     const calculatedGFR = gfrCalculatedByUser ? estimatedGFR : calculateEstimatedGFR();
     // Build timestamp from selected date + time input
+    if (!logSelectedDate) {
+      toast({ title: "Invalid Date", description: "Please select a date for this reading.", variant: "destructive" });
+      return;
+    }
     const logDate = new Date(logSelectedDate + "T" + logTime);
+    if (!isValid(logDate)) {
+      toast({ title: "Invalid Date", description: "Please select a valid date for this reading.", variant: "destructive" });
+      return;
+    }
     if (logDate > new Date()) {
       toast({ title: "Invalid Time", description: "Cannot log a future time.", variant: "destructive" });
       return;
@@ -366,7 +374,9 @@ export default function TrackPage() {
     const dailyGroups = new Map<string, HealthMetrics[]>();
     filtered.forEach((metric: HealthMetrics) => {
       if (!metric.date) return;
-      const key = new Date(metric.date).toISOString().split("T")[0];
+      const d = new Date(metric.date);
+      if (!isValid(d)) return;
+      const key = d.toISOString().split("T")[0];
       if (!dailyGroups.has(key)) dailyGroups.set(key, []);
       dailyGroups.get(key)!.push(metric);
     });
@@ -379,6 +389,7 @@ export default function TrackPage() {
     const labels = sortedDays.map(([key]) => {
       const [y, m, d] = key.split("-").map(Number);
       const date = new Date(y, m - 1, d);
+      if (!isValid(date)) return key;
       return dateRange === "7d"
         ? format(date, "EEE M/d")
         : format(date, "MM/dd");
@@ -1246,7 +1257,7 @@ export default function TrackPage() {
                       className="w-full"
                       aria-label="Date of reading"
                     />
-                    {logSelectedDate !== format(new Date(), "yyyy-MM-dd") && (
+                    {logSelectedDate && logSelectedDate !== format(new Date(), "yyyy-MM-dd") && isValid(new Date(logSelectedDate + "T12:00:00")) && (
                       <p className="text-xs text-amber-600 mt-1">
                         Logging for a past date: {format(new Date(logSelectedDate + "T12:00:00"), "MMMM d, yyyy")}
                       </p>
