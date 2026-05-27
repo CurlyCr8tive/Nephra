@@ -16,13 +16,6 @@ export function HealthTrendsCard() {
   const { user } = useUser();
   const userId = user?.id; // Get authenticated user ID, with no fallback
   
-  // Log user info for debugging
-  console.log("HealthTrendsCard authenticated user:", {
-    id: userId,
-    username: user?.username,
-    firstName: user?.firstName
-  });
-  
   // Fetch real health data from the API - useHealthData internally uses the authenticated user ID
   const { 
     weeklyMetrics, 
@@ -228,21 +221,15 @@ export function HealthTrendsCard() {
 
   const getChartData = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
-      console.log("No weekly metrics data available for chart");
       return [];
     }
-
-    console.log("Weekly metrics data for charts:", weeklyMetrics);
     return aggregateByDay().data;
   };
 
   const getChartDataWithDiastolic = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
-      console.log("No weekly metrics data available for chart");
       return { data: [], diastolicData: [] };
     }
-
-    console.log("Weekly metrics data for charts:", weeklyMetrics);
     const aggregated = aggregateByDay();
     return { data: aggregated.data, diastolicData: aggregated.diastolicData || [] };
   };
@@ -272,7 +259,6 @@ export function HealthTrendsCard() {
         // For GFR, dynamically calculate max based on actual data
         if (weeklyMetrics && weeklyMetrics.length > 0) {
           const maxGfr = Math.max(...weeklyMetrics.map(metric => metric.estimatedGFR || 0));
-          console.log("Max GFR value:", maxGfr);
           
           // Add 10% padding above the max value for better visualization
           // For very low GFR values, ensure a minimum range
@@ -308,11 +294,8 @@ export function HealthTrendsCard() {
 
   const calculateAverage = () => {
     if (!weeklyMetrics || weeklyMetrics.length === 0) {
-      console.log("No metrics for average calculation");
       return "--";
     }
-
-    console.log("Calculating average for", activeTab, "with", weeklyMetrics.length, "entries");
 
     const { data: dailyData } = aggregateByDay();
     
@@ -352,7 +335,6 @@ export function HealthTrendsCard() {
       }
       case "gfr": {
         const average = Math.round(dailyData.reduce((sum, value) => sum + value, 0) / dailyData.length);
-        console.log("GFR average calculation:", average);
         return `${average}`;
       }
       default:

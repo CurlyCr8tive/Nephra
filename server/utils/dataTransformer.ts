@@ -17,9 +17,6 @@ export function transformHealthMetrics(metrics: any[]): HealthMetrics[] {
   }
   
   return metrics.map(metric => {
-    // Log the incoming metric object to diagnose issues
-    console.log("Transforming metric object:", metric);
-    
     // Create a fresh transformed object with all available fields
     const transformed = {
       id: metric.id,
@@ -49,19 +46,6 @@ export function transformHealthMetrics(metrics: any[]): HealthMetrics[] {
       kslsFactors: metric.kslsFactors ?? metric.ksls_factors,
     };
     
-    // Verify that critical fields are present, log errors if not
-    const criticalFields = ['hydration', 'systolicBP', 'diastolicBP', 'estimatedGFR'];
-    criticalFields.forEach(field => {
-      if (transformed[field] === undefined) {
-        console.error(`Critical field ${field} is missing from health metrics:`, 
-          { original: field === 'hydration' ? metric.hydration : (field === 'systolicBP' ? metric.systolic_bp : (field === 'diastolicBP' ? metric.diastolic_bp : metric.estimated_gfr)) }
-        );
-      }
-    });
-    
-    // Log the complete transformed object for verification
-    console.log("Transformed health metric:", transformed);
-    
     return transformed;
   });
 }
@@ -69,17 +53,6 @@ export function transformHealthMetrics(metrics: any[]): HealthMetrics[] {
 /**
  * Adds explicit logging to database query results for diagnosis
  */
-export function logDataResults(name: string, data: any): any {
-  console.log(`📊 ${name} data retrieved:`, {
-    count: Array.isArray(data) ? data.length : 'not an array',
-    firstItem: Array.isArray(data) && data.length > 0 ? 
-      Object.keys(data[0]).reduce((obj: Record<string, any>, key: string) => {
-        // Truncate large values for cleaner logs
-        const value = data[0][key];
-        obj[key] = typeof value === 'string' && value.length > 50 ? 
-          value.substring(0, 50) + '...' : value;
-        return obj;
-      }, {}) : 'no items'
-  });
+export function logDataResults(_name: string, data: any): any {
   return data;
 }
