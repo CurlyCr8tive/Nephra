@@ -7,7 +7,7 @@
 
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { ilike, or, eq } from "drizzle-orm";
+import { ilike, or, eq, and, gte, lte } from "drizzle-orm";
 import ws from "ws";
 import * as schema from "../shared/schema";
 import dotenv from "dotenv";
@@ -89,15 +89,7 @@ async function main() {
   const matches = await db
     .select()
     .from(schema.users)
-    .where(
-      or(
-        ilike(schema.users.username, "ceheRiceheron"),
-        ilike(schema.users.username, "ChericeHeron"),
-        ilike(schema.users.username, "cherice"),
-        ilike(schema.users.email, "chericeheron%"),
-        ilike(schema.users.firstName, "Cherice")
-      )
-    );
+    .where(eq(schema.users.email, "cherice.heron@pursuit.org"));
 
   if (matches.length === 0) {
     // Broader fallback: list all users so we can pick the right one
@@ -110,28 +102,16 @@ async function main() {
   const user = matches[0];
   console.log(`✅ Found user: id=${user.id} username=${user.username} email=${user.email}`);
 
-  // ── Check existing data ──────────────────────────────────────────────────────
-  const existing = await db
-    .select({ id: schema.healthMetrics.id })
-    .from(schema.healthMetrics)
+  // ── Wipe existing health metrics + emotional check-ins for clean re-seed ────
+  const deleted = await db
+    .delete(schema.healthMetrics)
     .where(eq(schema.healthMetrics.userId, user.id));
+  console.log(`🗑️  Cleared existing health metrics for user ${user.id}`);
 
-  // Build a set of existing dates (YYYY-MM-DD) so we skip them
-  const existingFull = await db
-    .select({ date: schema.healthMetrics.date })
-    .from(schema.healthMetrics)
-    .where(eq(schema.healthMetrics.userId, user.id));
-
-  const existingDateStrings = new Set(
-    existingFull.map((r) => {
-      const d = r.date instanceof Date ? r.date : new Date(String(r.date));
-      return d.toISOString().slice(0, 10);
-    })
-  );
-
-  if (existingDateStrings.size > 0) {
-    console.log(`ℹ️  User has ${existingDateStrings.size} existing dated records — those dates will be skipped.`);
-  }
+  await db
+    .delete(schema.emotionalCheckIns)
+    .where(eq(schema.emotionalCheckIns.userId, user.id));
+  console.log(`🗑️  Cleared existing emotional check-ins for user ${user.id}`);
 
   // ── Generate 90 days of data ─────────────────────────────────────────────────
   const now = new Date();
@@ -175,9 +155,6 @@ async function main() {
 
     // GFR trend (compare to 7-day-ago entry — simplified)
     const gfrTrend = gfr < gfrBase - 1 ? "possible_decline" : gfr > gfrBase + 1 ? "possible_improvement" : "stable";
-
-    const dateKey = date.toISOString().slice(0, 10);
-    if (existingDateStrings.has(dateKey)) continue;
 
     entries.push({
       userId: user.id,
